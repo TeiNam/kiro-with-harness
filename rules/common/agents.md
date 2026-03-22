@@ -40,6 +40,13 @@ Launch 3 agents in parallel:
 First agent 1, then agent 2, then agent 3
 ```
 
+## Agent File Writing Rules
+
+Agents MUST NOT use terminal commands to create or write files:
+- **Never use `cat <<EOF`** to create files — use fsWrite or fsAppend tools instead
+- **Never pipe long text through terminal commands** (e.g., `echo "..." >> file`) — use fsWrite or fsAppend tools instead
+- Always use the appropriate file writing tools provided by the IDE
+
 ## Multi-Perspective Analysis
 
 For complex problems, use split role sub-agents:
