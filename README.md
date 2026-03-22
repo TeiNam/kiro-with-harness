@@ -106,3 +106,7 @@ Pre-configured MCP server catalog.
 ├── scripts/                    # Hook scripts and installer libraries
 └── .kiro/                      # This project's own Kiro config
 ```
+
+## Acknowledgments
+
+This project was heavily inspired by [Everything Claude Code (ECC)](https://github.com/affaan-m/everything-claude-code). Many of the rules, agent patterns, and skill structures originated from ECC and were adapted for Kiro IDE's native format (steering, hooks, skills).

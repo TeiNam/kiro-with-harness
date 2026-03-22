@@ -106,3 +106,7 @@ Kiro 컨텍스트에 주입되는 룰과 가이드라인:
 ├── scripts/                    # 훅 스크립트 및 인스톨러 라이브러리
 └── .kiro/                      # 이 프로젝트 자체의 Kiro 설정
 ```
+
+## 감사의 말
+
+이 프로젝트는 [Everything Claude Code (ECC)](https://github.com/affaan-m/everything-claude-code)를 많이 참고하여 만들었습니다. 룰, 에이전트 패턴, 스킬 구조의 상당 부분이 ECC에서 비롯되었으며, Kiro IDE 네이티브 포맷(steering, hooks, skills)에 맞게 변환했습니다.
