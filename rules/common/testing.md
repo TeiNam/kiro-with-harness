@@ -1,5 +1,11 @@
 # Testing Guidelines
 
+## Running Tests
+
+- **Never use `cd` to change directories before running tests** — always use the `cwd` parameter in executeBash instead
+- Always verify the project root with `pwd` or use absolute paths when running test commands
+- For Python projects: run `pytest` with `cwd` set to the project root, not with `cd && pytest`
+
 ## Coverage Targets
 
 - Aim for 80%+ coverage on business logic, utilities, and critical paths

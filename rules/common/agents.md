@@ -47,6 +47,13 @@ Agents MUST NOT use terminal commands to create or write files:
 - **Never pipe long text through terminal commands** (e.g., `echo "..." >> file`) — use fsWrite or fsAppend tools instead
 - Always use the appropriate file writing tools provided by the IDE
 
+## Agent Test Execution Rules
+
+Agents MUST NOT use `cd` to change directories before running tests:
+- **Never use `cd <path> && pytest`** — use the `cwd` parameter in executeBash instead
+- Always pass the project root as `cwd` when running test commands
+- For Python: `executeBash({ command: "pytest", cwd: "/absolute/path/to/project" })`
+
 ## Multi-Perspective Analysis
 
 For complex problems, use split role sub-agents:

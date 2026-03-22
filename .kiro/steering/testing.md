@@ -9,6 +9,12 @@ Test types (all required):
 
 No throwaway terminal tests — always write proper test code, delete after confirmed passing.
 
+## Running Tests
+
+- **Never use `cd` to change directories before running tests** — always use the `cwd` parameter in executeBash instead
+- Always verify the project root with `pwd` or use absolute paths when running test commands
+- For Python projects: run `pytest` with `cwd` set to the project root, not with `cd && pytest`
+
 ## TDD Workflow (Required)
 
 1. Write the test first (RED)
