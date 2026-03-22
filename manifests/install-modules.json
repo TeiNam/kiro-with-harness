@@ -32,7 +32,8 @@
         { "from": "rules/common/testing.md", "template": "steering-always", "merge": ["agents/tdd-guide.md", "skills/tdd-workflow/SKILL.md"] },
         { "from": "rules/common/git-workflow.md", "template": "steering-always" },
         { "from": "rules/common/patterns.md", "template": "steering-always" },
-        { "from": "rules/common/performance.md", "template": "steering-always" }
+        { "from": "rules/common/performance.md", "template": "steering-always" },
+        { "from": "rules/common/product.md", "template": "steering-always" }
       ],
       "outputDir": ".kiro/steering",
       "defaultInstall": true
