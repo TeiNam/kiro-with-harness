@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -d /Users/tei/dev/kiro-with-harness/rules/*/)",
+      "Bash(/tmp/check_files.txt:*)",
+      "Read(//tmp/**)",
+      "Bash(cat /Users/tei/dev/kiro-with-harness/hooks/console-log-warn.kiro.hook | python3 -m json.tool 2>&1 | head -20)",
+      "Bash(for skill:*)",
+      "Read(//Users/tei/dev/kiro-with-harness/=== Verification of manifests/**)",
+      "Bash(__NEW_LINE_fa5f1f8c6d6d262d__ bash:*)",
+      "Bash(node install.js --list 2>&1)",
+      "Read(//private/tmp/**)",
+      "Bash(rm -rf kiro-test-install)",
+      "Bash(mkdir kiro-test-install:*)",
+      "Bash(node /Users/tei/dev/kiro-with-harness/install.js developer --target /tmp/kiro-test-install)",
+      "Bash(cd /tmp && rm -rf kiro-harness-test && mkdir kiro-harness-test && node /Users/tei/dev/kiro-with-harness/install.js developer --target /tmp/kiro-harness-test 2>&1 | tail -5)",
+      "Bash(cd /tmp/kiro-harness-test && python3 -c \"import json; json.load\\(open\\('.kiro/settings/mcp.json'\\)\\); print\\('✓ Generated mcp.json is valid JSON'\\)\")",
+      "Bash(python3 -c \"import json; json.load\\(open\\('mcp-configs/mcp-servers.json'\\)\\); print\\('✓ Source mcp-servers.json is valid JSON'\\)\")",
+      "Bash(wc -l \"/tmp/kiro-harness-test/.kiro/steering/\"*.md | sort -n | tail -20)",
+      "Bash(cd /tmp && rm -rf kiro-harness-test && mkdir kiro-harness-test && node /Users/tei/dev/kiro-with-harness/install.js developer --target /tmp/kiro-harness-test 2>&1)",
+      "Bash(node /Users/tei/dev/kiro-with-harness/install.js core --target /tmp/kiro-harness-test 2>&1 | tail -15)",
+      "Bash(cd /tmp && rm -rf kiro-global-test && mkdir -p kiro-global-test && node /Users/tei/dev/kiro-with-harness/install.js global --target /tmp/kiro-global-test 2>&1 | grep -E \"OK|SKIP|Target\")",
+      "Bash(cd /tmp && rm -rf kiro-final-test && mkdir kiro-final-test && node /Users/tei/dev/kiro-with-harness/install.js developer --target /tmp/kiro-final-test 2>&1 | grep -E \"SKIP|ERROR|WARNING\" ; echo \"---\" ; head -5 /tmp/kiro-final-test/.kiro/steering/security.md ; echo \"...\" ; grep -c \"You are\" /tmp/kiro-final-test/.kiro/steering/security.md /tmp/kiro-final-test/.kiro/steering/testing.md ; echo \"---\" ; head -10 /tmp/kiro-final-test/.kiro/steering/performance.md)",
+      "Bash(node install.js --list)",
+      "Bash(mkdir -p /private/tmp/kiro-test-core && node /Users/tei/dev/kiro-with-harness/install.js --profile core --target /private/tmp/kiro-test-core 2>&1)",
+      "Bash(mkdir -p /private/tmp/kiro-test-dev && node /Users/tei/dev/kiro-with-harness/install.js --profile developer --target /private/tmp/kiro-test-dev 2>&1)",
+      "Bash(mkdir -p /private/tmp/kiro-test-full && node /Users/tei/dev/kiro-with-harness/install.js --profile full --target /private/tmp/kiro-test-full 2>&1)",
+      "Bash(mkdir -p /private/tmp/kiro-test-global && node /Users/tei/dev/kiro-with-harness/install.js --profile global --target /private/tmp/kiro-test-global 2>&1)",
+      "Bash(node /Users/tei/dev/kiro-with-harness/install.js --status --target /private/tmp/kiro-test-dev 2>&1)",
+      "Bash(node install.js --profile full --target /private/tmp/kiro-final-test 2>&1)",
+      "Bash(mkdir -p /private/tmp/kiro-final-test && node install.js --profile full --target /private/tmp/kiro-final-test 2>&1)",
+      "Bash(rm -rf /private/tmp/kiro-final-test && mkdir -p /private/tmp/kiro-final-test && node install.js --profile full --target /private/tmp/kiro-final-test 2>&1 | tail -20)",
+      "Bash(rm -rf /private/tmp/kiro-final-test && mkdir -p /private/tmp/kiro-final-test && node install.js --profile full --target /private/tmp/kiro-final-test 2>&1 | grep -E '\\(hooks|hook|Done\\)')",
+      "Bash(grep -l preToolUse /private/tmp/kiro-final-test/.kiro/hooks/*.kiro.hook)",
+      "Bash(rm -rf /private/tmp/kiro-final-test && mkdir -p /private/tmp/kiro-final-test && node install.js --profile full --target /private/tmp/kiro-final-test 2>&1 | tail -3)",
+      "Bash(rm -rf /private/tmp/kiro-final-test && mkdir -p /private/tmp/kiro-final-test && node install.js --profile full --target /private/tmp/kiro-final-test 2>&1 | tail -5)",
+      "Bash(ls -d /Users/tei/dev/kiro-with-harness/skills/*/ | xargs -I{} basename {} | sort > /tmp/all-skills.txt\ngrep -oE 'skills/[^/\"]+' /Users/tei/dev/kiro-with-harness/manifests/install-modules.json | sed 's|skills/||' | sort -u > /tmp/manifest-skills.txt\n\necho \"Total: $\\(wc -l < /tmp/all-skills.txt | tr -d ' '\\), In manifest: $\\(wc -l < /tmp/manifest-skills.txt | tr -d ' '\\)\"\necho \"\"\necho \"=== Unregistered \\(reference-only / meta / template\\) ===\"\ncomm -23 /tmp/all-skills.txt /tmp/manifest-skills.txt)"
+    ]
+  }
+}

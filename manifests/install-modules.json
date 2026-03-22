@@ -1,0 +1,367 @@
+{
+  "version": 1,
+  "target": "kiro",
+  "modules": [
+    {
+      "id": "steering-global",
+      "description": "Universal rules (always inclusion) — git workflow, work patterns, problem-solving approach. Applicable to any task: coding, writing, research",
+      "sources": [
+        { "from": "rules/common/git-workflow.md", "template": "steering-always" },
+        { "from": "rules/common/patterns.md", "template": "steering-always" },
+        { "from": "rules/common/performance.md", "template": "steering-always" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "hooks-global",
+      "description": "Universal Kiro hooks — post-task review, pre-write guard",
+      "hooks": [
+        { "id": "review-on-stop", "name": "Post-Task Review", "event": "agentStop", "action": "askAgent", "prompt": "Briefly review the completed work: 1) any security issues 2) proper error handling 3) no leftover console.log 4) tests needed for changes. Report issues only." },
+        { "id": "pre-write-guard", "name": "Pre-Write Guard", "event": "preToolUse", "toolTypes": ["write"], "action": "askAgent", "prompt": "Before this write, check ALL of the following in one pass:\n1. SIZE — If the content exceeds 800 lines, BLOCK the write. Split into focused modules under 400 lines.\n2. SECRETS — No hardcoded API keys, tokens, passwords, or connection strings. Use env vars.\n3. DOC LOCATION — If creating a .md or .txt file outside docs/, .kiro/, README.md, CONTRIBUTING.md, CHANGELOG.md, or LICENSE, warn that docs should go in docs/.\nOnly report issues found. If all checks pass, proceed silently." }
+      ],
+      "outputDir": ".kiro/hooks",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-core",
+      "description": "Common rules (always inclusion) — coding-style, security, testing, git-workflow, patterns, performance",
+      "sources": [
+        { "from": "rules/common/coding-style.md", "template": "steering-always" },
+        { "from": "rules/common/security.md", "template": "steering-always", "merge": ["agents/security-reviewer.md", "skills/security-review/SKILL.md"] },
+        { "from": "rules/common/testing.md", "template": "steering-always", "merge": ["agents/tdd-guide.md", "skills/tdd-workflow/SKILL.md"] },
+        { "from": "rules/common/git-workflow.md", "template": "steering-always" },
+        { "from": "rules/common/patterns.md", "template": "steering-always" },
+        { "from": "rules/common/performance.md", "template": "steering-always" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": true
+    },
+    {
+      "id": "steering-languages",
+      "description": "Language-specific rules (fileMatch inclusion) — loaded only when matching files are opened",
+      "sources": [
+        { "from": "rules/typescript", "output": "typescript-rules.md", "fileMatch": "**/*.ts,**/*.tsx,**/*.js,**/*.jsx" },
+        { "from": "rules/python", "output": "python-rules.md", "fileMatch": "**/*.py,**/*.pyi" },
+        { "from": "rules/golang", "output": "golang-rules.md", "fileMatch": "**/*.go" },
+        { "from": "rules/rust", "output": "rust-rules.md", "fileMatch": "**/*.rs" },
+        { "from": "rules/java", "output": "java-rules.md", "fileMatch": "**/*.java" },
+        { "from": "rules/kotlin", "output": "kotlin-rules.md", "fileMatch": "**/*.kt,**/*.kts" },
+        { "from": "rules/swift", "output": "swift-rules.md", "fileMatch": "**/*.swift" },
+        { "from": "rules/php", "output": "php-rules.md", "fileMatch": "**/*.php" },
+        { "from": "rules/cpp", "output": "cpp-rules.md", "fileMatch": "**/*.cpp,**/*.hpp,**/*.cc,**/*.h,**/*.cxx" },
+        { "from": "rules/csharp", "output": "csharp-rules.md", "fileMatch": "**/*.cs" },
+        { "from": "rules/perl", "output": "perl-rules.md", "fileMatch": "**/*.pl,**/*.pm,**/*.t" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-agent-knowledge",
+      "description": "Agent domain knowledge extracted as steering (manual inclusion) — code review checklist, build error fixes, planning template",
+      "sources": [
+        { "from": "agents/code-reviewer.md", "output": "code-review-checklist.md", "inclusion": "manual" },
+        { "from": "agents/build-error-resolver.md", "output": "build-error-fixes.md", "inclusion": "manual" },
+        { "from": "agents/planner.md", "output": "planning-template.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-skills",
+      "description": "Workflow skill knowledge (manual inclusion) — verification loop, eval harness",
+      "sources": [
+        { "from": "skills/verification-loop/SKILL.md", "output": "verification-loop.md", "inclusion": "manual" },
+        { "from": "skills/eval-harness/SKILL.md", "output": "eval-harness.md", "inclusion": "manual" },
+        { "from": "skills/coding-standards/SKILL.md", "output": "coding-standards.md", "inclusion": "manual" },
+        { "from": "skills/iterative-retrieval/SKILL.md", "output": "iterative-retrieval.md", "inclusion": "manual" },
+        { "from": "skills/prompt-optimizer/SKILL.md", "output": "prompt-optimizer.md", "inclusion": "manual" },
+        { "from": "skills/security-review/SKILL.md", "output": "security-review.md", "inclusion": "manual" },
+        { "from": "skills/security-scan/SKILL.md", "output": "security-scan.md", "inclusion": "manual" },
+        { "from": "skills/e2e-testing/SKILL.md", "output": "e2e-testing.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-writing-research",
+      "description": "Writing and research skill knowledge (manual inclusion) — article writing, content engine, deep research, search-first, market research, investor materials",
+      "sources": [
+        { "from": "skills/article-writing/SKILL.md", "output": "article-writing.md", "inclusion": "manual" },
+        { "from": "skills/content-engine/SKILL.md", "output": "content-engine.md", "inclusion": "manual" },
+        { "from": "skills/deep-research/SKILL.md", "output": "deep-research.md", "inclusion": "manual" },
+        { "from": "skills/search-first/SKILL.md", "output": "search-first.md", "inclusion": "manual" },
+        { "from": "skills/market-research/SKILL.md", "output": "market-research.md", "inclusion": "manual" },
+        { "from": "skills/crosspost/SKILL.md", "output": "crosspost.md", "inclusion": "manual" },
+        { "from": "skills/investor-materials/SKILL.md", "output": "investor-materials.md", "inclusion": "manual" },
+        { "from": "skills/investor-outreach/SKILL.md", "output": "investor-outreach.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-infra",
+      "description": "Infrastructure skills (manual) — docker, deployment, database migrations",
+      "sources": [
+        { "from": "skills/docker-patterns/SKILL.md", "output": "docker-patterns.md", "inclusion": "manual" },
+        { "from": "skills/deployment-patterns/SKILL.md", "output": "deployment-patterns.md", "inclusion": "manual" },
+        { "from": "skills/database-migrations/SKILL.md", "output": "database-migrations.md", "inclusion": "manual" },
+        { "from": "skills/postgres-guideline/SKILL.md", "output": "postgres-guideline.md", "inclusion": "manual" },
+        { "from": "skills/mysql-guideline/SKILL.md", "output": "mysql-guideline.md", "inclusion": "manual" },
+        { "from": "skills/mongodb-guideline/SKILL.md", "output": "mongodb-guideline.md", "inclusion": "manual" },
+        { "from": "skills/dynamodb-guideline/SKILL.md", "output": "dynamodb-guideline.md", "inclusion": "manual" },
+        { "from": "skills/backend-patterns/SKILL.md", "output": "backend-patterns.md", "inclusion": "manual" },
+        { "from": "skills/clickhouse-io/SKILL.md", "output": "clickhouse-io.md", "inclusion": "manual" },
+        { "from": "skills/jpa-patterns/SKILL.md", "output": "jpa-patterns.md", "inclusion": "manual" },
+        { "from": "skills/content-hash-cache-pattern/SKILL.md", "output": "content-hash-cache.md", "inclusion": "manual" },
+        { "from": "skills/video-editing/SKILL.md", "output": "video-editing.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-django",
+      "description": "Django skills (manual) — patterns, TDD, security, verification",
+      "sources": [
+        { "from": "skills/django-patterns/SKILL.md", "output": "django-patterns.md", "inclusion": "manual" },
+        { "from": "skills/django-tdd/SKILL.md", "output": "django-tdd.md", "inclusion": "manual" },
+        { "from": "skills/django-security/SKILL.md", "output": "django-security.md", "inclusion": "manual" },
+        { "from": "skills/django-verification/SKILL.md", "output": "django-verification.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-springboot",
+      "description": "Spring Boot skills (manual) — patterns, TDD, security, verification",
+      "sources": [
+        { "from": "skills/springboot-patterns/SKILL.md", "output": "springboot-patterns.md", "inclusion": "manual" },
+        { "from": "skills/springboot-tdd/SKILL.md", "output": "springboot-tdd.md", "inclusion": "manual" },
+        { "from": "skills/springboot-security/SKILL.md", "output": "springboot-security.md", "inclusion": "manual" },
+        { "from": "skills/springboot-verification/SKILL.md", "output": "springboot-verification.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-laravel",
+      "description": "Laravel skills (manual) — patterns, TDD, security, verification",
+      "sources": [
+        { "from": "skills/laravel-patterns/SKILL.md", "output": "laravel-patterns.md", "inclusion": "manual" },
+        { "from": "skills/laravel-tdd/SKILL.md", "output": "laravel-tdd.md", "inclusion": "manual" },
+        { "from": "skills/laravel-security/SKILL.md", "output": "laravel-security.md", "inclusion": "manual" },
+        { "from": "skills/laravel-verification/SKILL.md", "output": "laravel-verification.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-obsidian",
+      "description": "Obsidian plugin development skills (manual) — best practices, i18n, TypeScript/Chromium, release checklist",
+      "sources": [
+        { "from": "skills/obsidian-plugin-develop/SKILL.md", "output": "obsidian-plugin-develop.md", "inclusion": "manual" },
+        { "from": "skills/obsidian-plugin-develop/i18n-patterns.md", "output": "obsidian-i18n-patterns.md", "inclusion": "manual" },
+        { "from": "skills/obsidian-plugin-develop/typescript-chromium.md", "output": "obsidian-typescript-chromium.md", "inclusion": "manual" },
+        { "from": "skills/obsidian-plugin-develop/release-checklist.md", "output": "obsidian-release-checklist.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-fastapi",
+      "description": "FastAPI backend best practices (manual) — project structure, async patterns, domain modeling, API design, testing, security, deployment",
+      "sources": [
+        { "from": "skills/fastapi-backend-best-practices/SKILL.md", "output": "fastapi-best-practices.md", "inclusion": "manual" },
+        { "from": "skills/fastapi-backend-best-practices/project-structure/README.md", "output": "fastapi-project-structure.md", "inclusion": "manual" },
+        { "from": "skills/fastapi-backend-best-practices/async-patterns/README.md", "output": "fastapi-async-patterns.md", "inclusion": "manual" },
+        { "from": "skills/fastapi-backend-best-practices/domain-modeling/README.md", "output": "fastapi-domain-modeling.md", "inclusion": "manual" },
+        { "from": "skills/fastapi-backend-best-practices/api-design/README.md", "output": "fastapi-api-design.md", "inclusion": "manual" },
+        { "from": "skills/fastapi-backend-best-practices/testing/README.md", "output": "fastapi-testing.md", "inclusion": "manual" },
+        { "from": "skills/fastapi-backend-best-practices/security/README.md", "output": "fastapi-security.md", "inclusion": "manual" },
+        { "from": "skills/fastapi-backend-best-practices/deployment/README.md", "output": "fastapi-deployment.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-frontend-frameworks",
+      "description": "Frontend framework skills (manual) — Next.js Turbopack, Nuxt4, Bun, Flutter, Liquid Glass, slides",
+      "sources": [
+        { "from": "skills/nextjs-turbopack/SKILL.md", "output": "nextjs-turbopack.md", "inclusion": "manual" },
+        { "from": "skills/nuxt4-patterns/SKILL.md", "output": "nuxt4-patterns.md", "inclusion": "manual" },
+        { "from": "skills/bun-runtime/SKILL.md", "output": "bun-runtime.md", "inclusion": "manual" },
+        { "from": "skills/frontend-patterns/SKILL.md", "output": "frontend-patterns.md", "inclusion": "manual" },
+        { "from": "skills/flutter-dart-code-review/SKILL.md", "output": "flutter-dart-review.md", "inclusion": "manual" },
+        { "from": "skills/liquid-glass-design/SKILL.md", "output": "liquid-glass-design.md", "inclusion": "manual" },
+        { "from": "skills/frontend-slides/SKILL.md", "output": "frontend-slides.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-mobile",
+      "description": "Mobile skills (manual) — Android, Compose, SwiftUI, Swift concurrency/actors/protocols, Kotlin",
+      "sources": [
+        { "from": "skills/android-clean-architecture/SKILL.md", "output": "android-clean-architecture.md", "inclusion": "manual" },
+        { "from": "skills/compose-multiplatform-patterns/SKILL.md", "output": "compose-multiplatform.md", "inclusion": "manual" },
+        { "from": "skills/swiftui-patterns/SKILL.md", "output": "swiftui-patterns.md", "inclusion": "manual" },
+        { "from": "skills/swift-concurrency-6-2/SKILL.md", "output": "swift-concurrency.md", "inclusion": "manual" },
+        { "from": "skills/swift-actor-persistence/SKILL.md", "output": "swift-actor-persistence.md", "inclusion": "manual" },
+        { "from": "skills/swift-protocol-di-testing/SKILL.md", "output": "swift-protocol-di.md", "inclusion": "manual" },
+        { "from": "skills/kotlin-coroutines-flows/SKILL.md", "output": "kotlin-coroutines-flows.md", "inclusion": "manual" },
+        { "from": "skills/kotlin-ktor-patterns/SKILL.md", "output": "kotlin-ktor-patterns.md", "inclusion": "manual" },
+        { "from": "skills/kotlin-exposed-patterns/SKILL.md", "output": "kotlin-exposed.md", "inclusion": "manual" },
+        { "from": "skills/kotlin-patterns/SKILL.md", "output": "kotlin-patterns.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-ai-llm",
+      "description": "AI/LLM skills (manual) — Claude API, cost-aware pipeline, on-device models, PyTorch, regex vs LLM, AI regression testing",
+      "sources": [
+        { "from": "skills/claude-api/SKILL.md", "output": "claude-api.md", "inclusion": "manual" },
+        { "from": "skills/cost-aware-llm-pipeline/SKILL.md", "output": "cost-aware-llm.md", "inclusion": "manual" },
+        { "from": "skills/foundation-models-on-device/SKILL.md", "output": "on-device-models.md", "inclusion": "manual" },
+        { "from": "skills/pytorch-patterns/SKILL.md", "output": "pytorch-patterns.md", "inclusion": "manual" },
+        { "from": "skills/regex-vs-llm-structured-text/SKILL.md", "output": "regex-vs-llm.md", "inclusion": "manual" },
+        { "from": "skills/ai-regression-testing/SKILL.md", "output": "ai-regression-testing.md", "inclusion": "manual" },
+        { "from": "skills/agent-eval/SKILL.md", "output": "agent-eval.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-architecture",
+      "description": "Architecture skills (manual) — API design, ADRs, blueprint, MCP server patterns, codebase onboarding, agent harness design",
+      "sources": [
+        { "from": "skills/api-design/SKILL.md", "output": "api-design.md", "inclusion": "manual" },
+        { "from": "skills/architecture-decision-records/SKILL.md", "output": "adr.md", "inclusion": "manual" },
+        { "from": "skills/blueprint/SKILL.md", "output": "blueprint.md", "inclusion": "manual" },
+        { "from": "skills/mcp-server-patterns/SKILL.md", "output": "mcp-server-patterns.md", "inclusion": "manual" },
+        { "from": "skills/codebase-onboarding/SKILL.md", "output": "codebase-onboarding.md", "inclusion": "manual" },
+        { "from": "skills/agent-harness-construction/SKILL.md", "output": "agent-harness-design.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-quality",
+      "description": "Quality/automation skills (manual) — continuous learning, strategic compact, context budget, agentic engineering, AI-first, enterprise ops, doc-lookup",
+      "sources": [
+        { "from": "skills/continuous-learning-v2/SKILL.md", "output": "continuous-learning.md", "inclusion": "manual" },
+        { "from": "skills/strategic-compact/SKILL.md", "output": "strategic-compact.md", "inclusion": "manual" },
+        { "from": "skills/context-budget/SKILL.md", "output": "context-budget.md", "inclusion": "manual" },
+        { "from": "skills/agentic-engineering/SKILL.md", "output": "agentic-engineering.md", "inclusion": "manual" },
+        { "from": "skills/ai-first-engineering/SKILL.md", "output": "ai-first-engineering.md", "inclusion": "manual" },
+        { "from": "skills/enterprise-agent-ops/SKILL.md", "output": "enterprise-agent-ops.md", "inclusion": "manual" },
+        { "from": "skills/documentation-lookup/SKILL.md", "output": "documentation-lookup.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-domain",
+      "description": "Domain-specific business skills (manual) — supply chain, manufacturing, energy, compliance",
+      "sources": [
+        { "from": "skills/carrier-relationship-management/SKILL.md", "output": "carrier-management.md", "inclusion": "manual" },
+        { "from": "skills/customs-trade-compliance/SKILL.md", "output": "customs-compliance.md", "inclusion": "manual" },
+        { "from": "skills/energy-procurement/SKILL.md", "output": "energy-procurement.md", "inclusion": "manual" },
+        { "from": "skills/inventory-demand-planning/SKILL.md", "output": "inventory-planning.md", "inclusion": "manual" },
+        { "from": "skills/logistics-exception-management/SKILL.md", "output": "logistics-exceptions.md", "inclusion": "manual" },
+        { "from": "skills/production-scheduling/SKILL.md", "output": "production-scheduling.md", "inclusion": "manual" },
+        { "from": "skills/quality-nonconformance/SKILL.md", "output": "quality-nonconformance.md", "inclusion": "manual" },
+        { "from": "skills/returns-reverse-logistics/SKILL.md", "output": "returns-logistics.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-lang-testing",
+      "description": "Language-specific testing/security skills (manual) — Python, Go, Rust, C++, Kotlin, Perl testing + Perl security",
+      "sources": [
+        { "from": "skills/python-testing/SKILL.md", "output": "python-testing.md", "inclusion": "manual" },
+        { "from": "skills/golang-testing/SKILL.md", "output": "golang-testing.md", "inclusion": "manual" },
+        { "from": "skills/rust-testing/SKILL.md", "output": "rust-testing.md", "inclusion": "manual" },
+        { "from": "skills/cpp-testing/SKILL.md", "output": "cpp-testing.md", "inclusion": "manual" },
+        { "from": "skills/kotlin-testing/SKILL.md", "output": "kotlin-testing.md", "inclusion": "manual" },
+        { "from": "skills/perl-testing/SKILL.md", "output": "perl-testing.md", "inclusion": "manual" },
+        { "from": "skills/perl-security/SKILL.md", "output": "perl-security.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "steering-lang-patterns",
+      "description": "Language-specific pattern skills (manual) — Python, Go, Rust, Perl, C++, Java patterns",
+      "sources": [
+        { "from": "skills/python-patterns/SKILL.md", "output": "python-patterns.md", "inclusion": "manual" },
+        { "from": "skills/golang-patterns/SKILL.md", "output": "golang-patterns.md", "inclusion": "manual" },
+        { "from": "skills/rust-patterns/SKILL.md", "output": "rust-patterns.md", "inclusion": "manual" },
+        { "from": "skills/perl-patterns/SKILL.md", "output": "perl-patterns.md", "inclusion": "manual" },
+        { "from": "skills/cpp-coding-standards/SKILL.md", "output": "cpp-patterns.md", "inclusion": "manual" },
+        { "from": "skills/java-coding-standards/SKILL.md", "output": "java-patterns.md", "inclusion": "manual" }
+      ],
+      "outputDir": ".kiro/steering",
+      "defaultInstall": false
+    },
+    {
+      "id": "hooks-core",
+      "description": "Essential Kiro hooks — pre-write guard (security + size + doc location)",
+      "hooks": [{ "id": "pre-write-guard", "name": "Pre-Write Guard", "event": "preToolUse", "toolTypes": ["write"], "action": "askAgent", "prompt": "Before this write, check ALL of the following in one pass:\n1. SIZE — If the content exceeds 800 lines, BLOCK the write. Split into focused modules under 400 lines.\n2. SECRETS — No hardcoded API keys, tokens, passwords, or connection strings. Use env vars.\n3. DOC LOCATION — If creating a .md or .txt file outside docs/, .kiro/, README.md, CONTRIBUTING.md, CHANGELOG.md, or LICENSE, warn that docs should go in docs/.\nOnly report issues found. If all checks pass, proceed silently." }],
+      "outputDir": ".kiro/hooks",
+      "defaultInstall": true
+    },
+    {
+      "id": "hooks-quality",
+      "description": "Quality Kiro hooks — lint, typecheck, code review, test",
+      "hooks": [
+        { "id": "diagnostics-on-save", "name": "Diagnostics After TS/JS Edit", "event": "fileEdited", "patterns": ["*.ts", "*.tsx", "*.js", "*.jsx"], "action": "askAgent", "prompt": "A TS/JS file was edited. Use getDiagnostics to check for lint errors and type errors in a single pass. Do NOT use executeBash or terminal — use getDiagnostics only. Report any issues found." },
+        { "id": "review-on-stop", "name": "Post-Task Code Review", "event": "agentStop", "action": "askAgent", "prompt": "Briefly review the completed work: 1) any security issues 2) proper error handling 3) no leftover console.log 4) tests needed for changes. Report issues only." },
+        { "id": "test-after-task", "name": "Test After Spec Task", "event": "postTaskExecution", "action": "askAgent", "prompt": "A spec task was completed. Remind the user to run tests manually in their terminal: npm test. Do NOT use executeBash or terminal to run tests directly — it may block or hang." }
+      ],
+      "outputDir": ".kiro/hooks",
+      "defaultInstall": false
+    },
+    {
+      "id": "hooks-guardrails",
+      "description": "Guardrail Kiro hooks — post-write review (console.log, TODO)",
+      "hooks": [
+        { "id": "post-write-review", "name": "Post-Write Code Review", "event": "postToolUse", "toolTypes": ["write"], "action": "askAgent", "prompt": "Briefly check the file just written for: 1) any console.log statements (flag for removal — ignore console.error/console.warn), 2) new TODO/FIXME/HACK comments (suggest creating tracked issues instead). Only report if issues are found." }
+      ],
+      "outputDir": ".kiro/hooks",
+      "defaultInstall": false
+    },
+    {
+      "id": "mcp-catalog",
+      "description": "MCP server catalog (Kiro built-ins excluded) — reference, enable as needed",
+      "sources": [{ "from": "mcp-configs/mcp-servers.json", "output": "mcp.json" }],
+      "outputDir": ".kiro/settings",
+      "defaultInstall": true
+    },
+    {
+      "id": "docs-eval-harness",
+      "description": "Eval harness guide — eval-driven development framework with pass@k metrics",
+      "sources": [
+        { "from": "docs/eval-harness.md", "output": "eval-harness.md" }
+      ],
+      "outputDir": "docs",
+      "defaultInstall": false
+    },
+    {
+      "id": "docs-prompt-templates",
+      "description": "Prompt templates — reusable prompt patterns for common workflows",
+      "sources": [
+        { "from": "docs/prompt-templates.md", "output": "prompt-templates.md" }
+      ],
+      "outputDir": "docs",
+      "defaultInstall": false
+    },
+    {
+      "id": "harness-reference",
+      "description": "Harness source reference — original rules, agents, skills, hooks for manual consultation",
+      "paths": ["rules/", "agents/", "skills/", "hooks/", "scripts/hooks/", "scripts/lib/"],
+      "defaultInstall": false
+    }
+  ]
+}

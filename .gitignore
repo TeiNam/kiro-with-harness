@@ -1,0 +1,61 @@
+# Generated .gitignore
+# Stacks: Node.js
+# Date: 2026-03-23
+
+# === Global: OS ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# === Global: IDE & Editors ===
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+.cursor/
+
+# === Global: Kiro IDE ===
+.kiro/specs/
+
+# === Global: Security ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets
+credentials.json
+service-account*.json
+
+# === Node.js ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+dist/
+build/
+out/
+
+coverage/
+.nyc_output/
+
+*.tsbuildinfo

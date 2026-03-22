@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "target": "kiro",
+  "profiles": {
+    "global": {
+      "description": "Universal baseline for any purpose — git workflow, work patterns, essential guardrails, prompt templates. Works for coding, writing, research, or any task",
+      "modules": ["steering-global", "hooks-global", "docs-prompt-templates", "mcp-catalog"]
+    },
+    "core": {
+      "description": "Minimal harness baseline — common rules, security, testing, quality hooks",
+      "modules": ["steering-core", "hooks-core", "mcp-catalog"]
+    },
+    "developer": {
+      "description": "Standard developer setup — core + language rules + agent knowledge + workflow skills",
+      "modules": ["steering-core", "steering-languages", "steering-agent-knowledge", "steering-skills", "steering-writing-research", "steering-infra", "steering-architecture", "steering-quality", "steering-lang-testing", "steering-lang-patterns", "hooks-core", "hooks-quality", "hooks-guardrails", "docs-eval-harness", "docs-prompt-templates", "mcp-catalog"]
+    },
+    "full": {
+      "description": "Full install — all steering + hooks + MCP + harness source reference",
+      "modules": ["steering-core", "steering-languages", "steering-agent-knowledge", "steering-skills", "steering-writing-research", "steering-infra", "steering-django", "steering-springboot", "steering-laravel", "steering-frontend-frameworks", "steering-obsidian", "steering-fastapi", "steering-mobile", "steering-ai-llm", "steering-architecture", "steering-quality", "steering-domain", "steering-lang-testing", "steering-lang-patterns", "hooks-core", "hooks-quality", "hooks-guardrails", "docs-eval-harness", "docs-prompt-templates", "mcp-catalog", "harness-reference"]
+    },
+    "writer": {
+      "description": "Writing and content creation — articles, social media, research, crossposting",
+      "modules": ["steering-core", "steering-writing-research", "hooks-core", "docs-prompt-templates", "mcp-catalog"]
+    },
+    "mobile": {
+      "description": "Mobile development — Android, Compose Multiplatform, SwiftUI, Swift concurrency",
+      "modules": ["steering-core", "steering-languages", "steering-mobile", "hooks-core", "hooks-quality", "mcp-catalog"]
+    },
+    "ai": {
+      "description": "AI/LLM development — Claude API, cost-aware pipelines, on-device models, PyTorch",
+      "modules": ["steering-core", "steering-languages", "steering-ai-llm", "hooks-core", "hooks-quality", "docs-eval-harness", "mcp-catalog"]
+    },
+    "backend": {
+      "description": "Backend/API development — Django, Spring Boot, Laravel, infrastructure, database",
+      "modules": ["steering-core", "steering-languages", "steering-agent-knowledge", "steering-infra", "steering-django", "steering-springboot", "steering-laravel", "steering-fastapi", "steering-architecture", "hooks-core", "hooks-quality", "hooks-guardrails", "mcp-catalog"]
+    },
+    "frontend": {
+      "description": "Frontend development — Next.js, Nuxt4, Bun, TypeScript rules",
+      "modules": ["steering-core", "steering-languages", "steering-frontend-frameworks", "hooks-core", "hooks-quality", "hooks-guardrails", "mcp-catalog"]
+    },
+    "architect": {
+      "description": "Architecture and design — API design, ADRs, blueprint, MCP patterns, quality automation",
+      "modules": ["steering-core", "steering-agent-knowledge", "steering-architecture", "steering-quality", "steering-infra", "hooks-core", "docs-eval-harness", "docs-prompt-templates", "mcp-catalog"]
+    }
+  }
+}
