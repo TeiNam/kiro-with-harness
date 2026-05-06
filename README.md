@@ -11,31 +11,66 @@ Harness engineering for Kiro IDE. Profile-based installer that deploys curated s
 
 ## Quick Start
 
+The installer uses a two-tier approach: **global** (shared across all projects) and **workspace** (project-specific).
+
 ```bash
-# Install global baseline (to ~/.kiro)
+# First time? Run without arguments for a guided setup
+node install.js
+
+# Step 1: Install global baseline (agents, MCP, essential skills → ~/.kiro)
 node install.js global
 
-# Install developer profile (to current project)
+# Step 2: Install workspace profile (to current project)
 node install.js developer
 
-# Install specific profile to a target project
+# Or install to a specific project
 node install.js backend --target /path/to/project
 
 # Install specific modules only
 node install.js --modules steering-infra,hooks-quality
+
+# Explicit scope with modules
+node install.js --scope global --modules agents-global,skills-global
 
 # List all profiles and modules
 node install.js --list
 
 # Check installation status
 node install.js --status
+node install.js --status --scope global
 ```
+
+> **Note:** If global settings are not detected, the installer will recommend installing global first. Global settings provide the foundation (agents, guardrails, MCP catalog) that all workspaces inherit.
+
+## Installation Tiers
+
+### Global (`~/.kiro/`)
+
+Installed once, applies to all Kiro workspaces:
+
+| Component | Contents |
+|-----------|----------|
+| Steering | Git workflow, patterns, performance rules |
+| Hooks | Post-task review, pre-write guard (size/secrets/doc-location) |
+| Agents | 7 global agents — architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, translator-docs |
+| Skills | 4 essential skills — verification loop, coding standards, strategic compact, context budget |
+| MCP | Full MCP server catalog (enable as needed) |
+
+### Workspace (`.kiro/` in project)
+
+Project-specific configuration layered on top of global:
+
+| Component | Contents |
+|-----------|----------|
+| Steering | Coding style, security, testing + language-specific rules (fileMatch) + framework skills (manual) |
+| Hooks | Pre-write guard, quality hooks, guardrails |
+| MCP | Same catalog (workspace can override) |
 
 ## Profiles
 
 | Profile | Description |
 |---------|-------------|
-| `global` | Universal baseline — git workflow, guardrails, prompt templates. Installs to `~/.kiro/` |
+| `global` | Universal baseline — global agents, essential skills, guardrails, MCP catalog. Installs to `~/.kiro/` |
 | `core` | Minimal dev baseline — common rules, security hook, MCP |
 | `developer` | Standard setup — core + languages, skills, infra, architecture, quality, hooks |
 | `full` | Everything — all modules + harness source reference |
@@ -94,17 +129,33 @@ Pre-configured MCP server catalog.
 ## Project Structure
 
 ```
-├── install.js                  # Installer script
+├── install.js                  # Installer script (global/workspace routing)
 ├── manifests/
-│   ├── install-modules.json    # Module definitions (26 modules)
+│   ├── install-modules.json    # Module definitions (28 modules)
 │   └── install-profiles.json   # Profile definitions (10 profiles)
 ├── rules/                      # Steering source (common + 11 languages)
-├── agents/                     # 27 custom agents
+├── agents/                     # 27 custom agents (IDE + CLI formats)
 ├── skills/                     # 96 skill packages
 ├── docs/                       # Guides (eval harness, prompt templates, comparison)
 ├── mcp-configs/                # MCP server configurations
-├── scripts/                    # Hook scripts and installer libraries
+├── scripts/                    # Build/audit utilities
 └── .kiro/                      # This project's own Kiro config
+```
+
+## CLI Reference
+
+```
+node install.js [options] [profile]
+
+Options:
+  (no args)              Interactive setup guide
+  --list                 Show all profiles and modules
+  --status               Show installation status for current directory
+  --status --scope global  Show global installation status
+  --target <path>        Install to specified directory
+  --scope <global|workspace>  Explicit installation scope
+  --modules <list>       Install specific modules (comma-separated)
+  --profile <name>       Explicit profile selection
 ```
 
 ## Acknowledgments

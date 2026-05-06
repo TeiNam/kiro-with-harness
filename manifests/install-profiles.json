@@ -3,8 +3,8 @@
   "target": "kiro",
   "profiles": {
     "global": {
-      "description": "Universal baseline for any purpose — git workflow, work patterns, essential guardrails, prompt templates. Works for coding, writing, research, or any task",
-      "modules": ["steering-global", "hooks-global", "docs-prompt-templates", "mcp-catalog"]
+      "description": "Universal baseline for any purpose — global agents, essential skills, guardrails, MCP catalog. Works for coding, writing, research, or any task",
+      "modules": ["steering-global", "hooks-global", "agents-global", "skills-global", "mcp-catalog"]
     },
     "core": {
       "description": "Minimal harness baseline — common rules, security, testing, quality hooks",
