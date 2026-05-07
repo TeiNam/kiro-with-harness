@@ -41,6 +41,57 @@
       "defaultInstall": false
     },
     {
+      "id": "agents-workspace-reviewers",
+      "description": "Workspace language reviewers (IDE agents) — typescript, python, go, rust, java, kotlin, cpp, flutter",
+      "sources": [
+        { "from": "agents/ide/typescript-reviewer.md", "output": "typescript-reviewer.md" },
+        { "from": "agents/ide/python-reviewer.md", "output": "python-reviewer.md" },
+        { "from": "agents/ide/go-reviewer.md", "output": "go-reviewer.md" },
+        { "from": "agents/ide/rust-reviewer.md", "output": "rust-reviewer.md" },
+        { "from": "agents/ide/java-reviewer.md", "output": "java-reviewer.md" },
+        { "from": "agents/ide/kotlin-reviewer.md", "output": "kotlin-reviewer.md" },
+        { "from": "agents/ide/cpp-reviewer.md", "output": "cpp-reviewer.md" },
+        { "from": "agents/ide/flutter-reviewer.md", "output": "flutter-reviewer.md" }
+      ],
+      "outputDir": ".kiro/agents",
+      "defaultInstall": false
+    },
+    {
+      "id": "agents-workspace-build",
+      "description": "Workspace build resolvers (IDE agents) — cpp, go, java, kotlin, pytorch, rust",
+      "sources": [
+        { "from": "agents/ide/cpp-build-resolver.md", "output": "cpp-build-resolver.md" },
+        { "from": "agents/ide/go-build-resolver.md", "output": "go-build-resolver.md" },
+        { "from": "agents/ide/java-build-resolver.md", "output": "java-build-resolver.md" },
+        { "from": "agents/ide/kotlin-build-resolver.md", "output": "kotlin-build-resolver.md" },
+        { "from": "agents/ide/pytorch-build-resolver.md", "output": "pytorch-build-resolver.md" },
+        { "from": "agents/ide/rust-build-resolver.md", "output": "rust-build-resolver.md" }
+      ],
+      "outputDir": ".kiro/agents",
+      "defaultInstall": false
+    },
+    {
+      "id": "agents-workspace-quality",
+      "description": "Workspace quality agents (IDE agents) — database-reviewer, e2e-runner, rdbms-data-modeler",
+      "sources": [
+        { "from": "agents/ide/database-reviewer.md", "output": "database-reviewer.md" },
+        { "from": "agents/ide/e2e-runner.md", "output": "e2e-runner.md" },
+        { "from": "agents/ide/rdbms-data-modeler.md", "output": "rdbms-data-modeler.md" }
+      ],
+      "outputDir": ".kiro/agents",
+      "defaultInstall": false
+    },
+    {
+      "id": "agents-workspace-writing",
+      "description": "Workspace writing agents (IDE agents) — article-writer, content-creator",
+      "sources": [
+        { "from": "agents/ide/article-writer.md", "output": "article-writer.md" },
+        { "from": "agents/ide/content-creator.md", "output": "content-creator.md" }
+      ],
+      "outputDir": ".kiro/agents",
+      "defaultInstall": false
+    },
+    {
       "id": "skills-global",
       "description": "Essential global skills (manual inclusion) — verification loop, coding standards, strategic compact, context budget",
       "sources": [
