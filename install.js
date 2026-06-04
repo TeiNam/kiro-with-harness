@@ -14,6 +14,7 @@
  *   node install.js --modules steering-core,hooks-core [--target ...]
  *   node install.js --list                                   # 프로파일/모듈 목록
  *   node install.js --status [--target ...]                  # 설치 상태 확인
+ *   node install.js <profile> --dry-run                      # 변경 없이 미리보기 (어느 명령에나 추가 가능)
  */
 
 const fs = require('fs');
@@ -27,10 +28,34 @@ const MODULES_MANIFEST = JSON.parse(
   fs.readFileSync(path.join(HARNESS_ROOT, 'manifests/install-modules.json'), 'utf8')
 );
 
+// dry-run 모드: true이면 파일시스템을 변경하지 않고 수행될 작업만 출력한다.
+// main()에서 --dry-run 플래그에 따라 1회 설정된다(CLI 수준 구성 플래그).
+let DRY_RUN = false;
+
 // --- Utilities ---
 
 function ensureDir(dir) {
+  // dry-run: 디렉터리를 만들지 않는다(이어지는 쓰기도 건너뛰므로 안전).
+  if (DRY_RUN) return;
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+/**
+ * 관리 대상 파일 1개를 기록한다. dry-run이면 실제로 쓰지 않고 수행될 작업만 출력하되,
+ * tracked 집합에는 추가하여 요약/개수가 실제 설치와 동일하게 보고되도록 한다.
+ * @param {string} dest        쓸 파일의 절대 경로.
+ * @param {string} content     파일 내용.
+ * @param {string} targetRoot  관리 파일 상대 경로 계산의 기준 루트.
+ * @param {Set<string>} tracked 관리 파일 경로 집합(상대 경로).
+ */
+function writeManaged(dest, content, targetRoot, tracked) {
+  tracked.add(path.relative(targetRoot, dest));
+  if (DRY_RUN) {
+    console.log(`  DRY-RUN: would write ${dest}`);
+    return;
+  }
+  fs.writeFileSync(dest, content, 'utf8');
+  console.log(`  OK: ${dest}`);
 }
 
 const MANIFEST_FILE = '.harness-manifest.json';
@@ -53,6 +78,11 @@ function readManifest(targetRoot, isGlobalProfile) {
 
 function writeManifest(targetRoot, managedFiles, isGlobalProfile) {
   const p = getManifestPath(targetRoot, isGlobalProfile);
+  // dry-run: 매니페스트를 갱신하지 않는다(설치 상태를 그대로 보존).
+  if (DRY_RUN) {
+    console.log(`  DRY-RUN: would update manifest ${p}`);
+    return;
+  }
   ensureDir(path.dirname(p));
   fs.writeFileSync(p, JSON.stringify({ managedFiles: [...managedFiles].sort(), installedAt: new Date().toISOString() }, null, 2) + '\n', 'utf8');
 }
@@ -63,6 +93,12 @@ function cleanManagedFiles(targetRoot, isGlobalProfile) {
   for (const rel of managedFiles) {
     const full = path.join(targetRoot, rel);
     if (fs.existsSync(full) && fs.statSync(full).isFile()) {
+      // dry-run: 실제로 지우지 않고 제거 대상만 집계/표시한다.
+      if (DRY_RUN) {
+        console.log(`  DRY-RUN: would remove ${full}`);
+        removed++;
+        continue;
+      }
       fs.unlinkSync(full);
       removed++;
     }
@@ -116,9 +152,7 @@ function generateAlwaysSteering(source, targetDir, targetRoot, tracked) {
   }
 
   const dest = path.join(targetDir, `${basename}.md`);
-  fs.writeFileSync(dest, body + '\n', 'utf8');
-  tracked.add(path.relative(targetRoot, dest));
-  console.log(`  OK: ${dest}`);
+  writeManaged(dest, body + '\n', targetRoot, tracked);
 }
 
 function generateFileMatchSteering(source, targetDir, targetRoot, tracked) {
@@ -137,9 +171,7 @@ function generateFileMatchSteering(source, targetDir, targetRoot, tracked) {
 
   const frontmatter = `---\ninclusion: fileMatch\nfileMatchPattern: "${source.fileMatch}"\n---\n`;
   const dest = path.join(targetDir, source.output);
-  fs.writeFileSync(dest, frontmatter + body.trim() + '\n', 'utf8');
-  tracked.add(path.relative(targetRoot, dest));
-  console.log(`  OK: ${dest}`);
+  writeManaged(dest, frontmatter + body.trim() + '\n', targetRoot, tracked);
 }
 
 function generateManualSteering(source, targetDir, targetRoot, tracked) {
@@ -152,9 +184,7 @@ function generateManualSteering(source, targetDir, targetRoot, tracked) {
   const body = stripFrontmatter(content);
   const frontmatter = `---\ninclusion: manual\n---\n`;
   const dest = path.join(targetDir, source.output);
-  fs.writeFileSync(dest, frontmatter + body + '\n', 'utf8');
-  tracked.add(path.relative(targetRoot, dest));
-  console.log(`  OK: ${dest}`);
+  writeManaged(dest, frontmatter + body + '\n', targetRoot, tracked);
 }
 
 // --- Hook Generator ---
@@ -174,9 +204,7 @@ function generateHook(hookDef, targetDir, targetRoot, tracked) {
   if (hookDef.action === 'askAgent') hook.then.prompt = hookDef.prompt;
 
   const dest = path.join(targetDir, `${hookDef.id}.kiro.hook`);
-  fs.writeFileSync(dest, JSON.stringify(hook, null, 2) + '\n', 'utf8');
-  tracked.add(path.relative(targetRoot, dest));
-  console.log(`  OK: ${dest}`);
+  writeManaged(dest, JSON.stringify(hook, null, 2) + '\n', targetRoot, tracked);
 }
 
 
@@ -201,9 +229,7 @@ function installModule(mod, targetRoot, tracked, outputDirOverride) {
         const content = readSource(source.from);
         if (content) {
           const dest = path.join(outDir, source.output);
-          fs.writeFileSync(dest, content, 'utf8');
-          tracked.add(path.relative(targetRoot, dest));
-          console.log(`  OK: ${dest}`);
+          writeManaged(dest, content, targetRoot, tracked);
         }
       }
     }
@@ -224,6 +250,10 @@ function installModule(mod, targetRoot, tracked, outputDirOverride) {
 
   if (mod.postInstall) {
     console.log(`  RUN: ${mod.postInstall}`);
+    if (DRY_RUN) {
+      console.log(`  DRY-RUN: would run post-install command (skipped)`);
+      return;
+    }
     try {
       const { execSync } = require('child_process');
       execSync(mod.postInstall, { stdio: 'pipe', timeout: 10000 });
@@ -246,6 +276,7 @@ function parseArgs() {
     scope: null,         // 'global' | 'workspace' | null (auto-detect)
     list: false,
     status: false,
+    dryRun: false,
     showIntro: args.length === 0,
   };
 
@@ -273,6 +304,7 @@ function parseArgs() {
         break;
       case '--list':    opts.list = true; break;
       case '--status':  opts.status = true; break;
+      case '--dry-run': opts.dryRun = true; break;
       default:
         if (!args[i].startsWith('-')) opts.profile = args[i];
     }
@@ -339,8 +371,14 @@ function showStatus(targetRoot, isGlobal) {
 function main() {
   const opts = parseArgs();
 
+  // dry-run 구성: 이후 모든 파일시스템 변경 함수가 이 플래그를 존중한다.
+  DRY_RUN = opts.dryRun;
+
   console.log('Kiro Harness Installer v1.0.0');
   console.log('=============================');
+  if (DRY_RUN) {
+    console.log('** DRY-RUN 모드 — 파일을 변경하지 않고 수행될 작업만 표시합니다 **');
+  }
 
   if (opts.list) { listProfiles(); return; }
   if (opts.status) {
@@ -408,6 +446,7 @@ function main() {
     console.log('  node install.js core                    # 워크스페이스 최소 설치');
     console.log('  node install.js developer               # 워크스페이스 개발자 설치');
     console.log('  node install.js full                    # 워크스페이스 전체 설치');
+    console.log('  node install.js <profile> --dry-run     # 변경 없이 미리보기');
     console.log('');
     console.log('프로파일 목록: global, core, developer, full, writer,');
     console.log('              mobile, ai, backend, frontend, architect');
@@ -492,6 +531,13 @@ function main() {
   if (skipped > 0) {
     console.warn(`\nWARNING: ${skipped} module(s) were skipped (not found in manifest).`);
   }
+
+  if (DRY_RUN) {
+    console.log(`\nDRY-RUN complete. ${tracked.size} file(s) would be written. No changes were made.`);
+    console.log('Re-run without --dry-run to apply.');
+    return;
+  }
+
   console.log(`\nDone. ${tracked.size} managed files written. Run \`node install.js --status\` to verify.`);
 
   // 글로벌 설치 완료 후 다음 단계 안내
