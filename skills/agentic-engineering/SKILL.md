@@ -29,6 +29,8 @@ Apply the 15-minute unit rule:
 - each unit should have a single dominant risk
 - each unit should expose a clear done condition
 
+Model independent units as a DAG; delegate stages with no `depends_on` edges in parallel to isolated sub-agents, then converge after verifying each result.
+
 ## Model Routing
 
 - Haiku: classification, boilerplate transforms, narrow edits
@@ -40,6 +42,7 @@ Apply the 15-minute unit rule:
 - Continue session for closely-coupled units.
 - Start fresh session after major phase transitions.
 - Compact after milestone completion, not during active debugging.
+- Delegate exploration, research, and broad codebase reads to sub-agents whose isolated context windows absorb the bulk, keeping the main context lean.
 
 ## Review Focus for AI-Generated Code
 

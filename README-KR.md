@@ -66,6 +66,18 @@ node install.js --status --scope global
 | 훅 | 쓰기 전 가드, 품질 훅, 가드레일 |
 | MCP | 동일 카탈로그 (워크스페이스에서 오버라이드 가능) |
 
+## 모델
+
+에이전트 모델 할당은 역할 기반 정책을 따릅니다. 각 에이전트 정의의 `model` 필드가 단일 진실 원천(single source of truth)입니다.
+
+| 역할 | 모델 | 에이전트 |
+|------|------|----------|
+| 추론 중심 | `claude-opus-4.8` | architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, 언어별 reviewer/build-resolver |
+| 비용 최적화 | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
+| 범용 | 상속 | `model`을 명시하지 않은 에이전트는 채팅에서 선택된 모델을 상속 |
+
+> **Opus 4.8 가용성:** `claude-opus-4.8`은 **experimental**이며 **us-east-1**과 **eu-central-1**에서만 제공됩니다. **Kiro CLI v2.5.0+**가 필요합니다. `claude-opus-4.8`로 고정된 에이전트는 구버전 CLI나 미지원 리전에서 모델을 해석하지 못합니다 — 조용한 실패를 막으려면 Kiro CLI를 업그레이드하세요.
+
 ## 프로필
 
 | 프로필 | 설명 |

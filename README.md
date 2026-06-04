@@ -66,6 +66,18 @@ Project-specific configuration layered on top of global:
 | Hooks | Pre-write guard, quality hooks, guardrails |
 | MCP | Same catalog (workspace can override) |
 
+## Models
+
+Agent model assignments follow a role-based policy. The `model` field in each agent definition is the single source of truth.
+
+| Role | Model | Agents |
+|------|-------|--------|
+| Reasoning | `claude-opus-4.8` | architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, and language-specific reviewers/build-resolvers |
+| Cost-optimized | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
+| General | inherited | Agents without an explicit `model` inherit the model selected in chat |
+
+> **Opus 4.8 availability:** `claude-opus-4.8` is **experimental** and available only in **us-east-1** and **eu-central-1**. It requires **Kiro CLI v2.5.0+**. Agents pinned to `claude-opus-4.8` will fail to resolve on older CLI versions or unsupported regions — upgrade Kiro CLI to avoid silent failures.
+
 ## Profiles
 
 | Profile | Description |

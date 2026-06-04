@@ -2,6 +2,27 @@
 
 Kiro 훅(Hook)은 `.kiro/hooks/`에 정의된 이벤트 기반 자동화입니다. IDE 이벤트에 의해 트리거되며 에이전트 프롬프트 또는 셸 명령을 실행합니다.
 
+> **참조 출처**: 훅 이벤트 타입과 스키마는 Kiro 공식 문서([kiro.dev/docs/hooks/types](https://kiro.dev/docs/hooks/types/))를 기준으로 확인했습니다. 확인 일자: 2026-06-03.
+
+## 훅 이벤트 타입
+
+Kiro는 다음 훅 이벤트(트리거) 타입을 지원합니다. 각 훅 정의는 정확히 하나의 `event`를 선언합니다. 아래에 문서화된 하네스 훅은 이 중 일부를 사용합니다.
+
+| 이벤트 타입 | 트리거 시점 |
+|------------|------------|
+| `promptSubmit` | 사용자가 프롬프트를 제출할 때 |
+| `agentStop` | 에이전트가 턴을 완료하고 응답을 마칠 때 |
+| `preToolUse` | 에이전트가 도구를 호출하기 직전 |
+| `postToolUse` | 에이전트가 도구를 호출한 후 |
+| `fileCreated` | 설정된 패턴과 일치하는 파일이 생성될 때 |
+| `fileEdited` | 설정된 패턴과 일치하는 파일이 저장될 때 |
+| `fileDeleted` | 설정된 패턴과 일치하는 파일이 삭제될 때 |
+| `preTaskExecution` | 스펙(Spec) 작업이 시작되기 직전(상태가 in_progress로 변경) |
+| `postTaskExecution` | 스펙(Spec) 작업이 완료될 때(상태가 completed로 변경) |
+| `userTriggered` | 훅을 수동으로 실행할 때 |
+
+`preToolUse`와 `postToolUse`의 경우 대상 도구를 이름으로 선택합니다. 내장 카테고리로 `read`, `write`, `shell`, `web`, `spec`, `*`(모든 도구)가 있으며, 소스 접두사 `@mcp`, `@powers`, `@builtin`은 정규식으로 매칭됩니다.
+
 ## 사용 가능한 훅
 
 ### pre-write-guard (hooks-core)

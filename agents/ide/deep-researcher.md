@@ -1,6 +1,7 @@
 ---
 name: deep-researcher
 description: Multi-source deep research specialist. Searches the web, synthesizes findings, and delivers cited reports. Use for thorough research on any topic with evidence and citations.
+model: claude-opus-4.8
 ---
 
 # Deep Researcher

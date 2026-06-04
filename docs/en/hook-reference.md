@@ -2,6 +2,27 @@
 
 Kiro hooks are event-driven automations defined in `.kiro/hooks/`. They trigger on IDE events and run agent prompts or shell commands.
 
+> **Reference source**: Hook event types and schema verified against the official Kiro documentation ([kiro.dev/docs/hooks/types](https://kiro.dev/docs/hooks/types/)). Verification date: 2026-06-03.
+
+## Hook Event Types
+
+Kiro supports the following hook event (trigger) types. Each hook definition declares exactly one `event`. The harness hooks documented below use a subset of these.
+
+| Event Type | Triggers When |
+|------------|---------------|
+| `promptSubmit` | The user submits a prompt |
+| `agentStop` | The agent completes its turn and finishes responding |
+| `preToolUse` | The agent is about to invoke a tool |
+| `postToolUse` | The agent has invoked a tool |
+| `fileCreated` | A file matching the configured patterns is created |
+| `fileEdited` | A file matching the configured patterns is saved |
+| `fileDeleted` | A file matching the configured patterns is deleted |
+| `preTaskExecution` | A spec task is about to start (status changes to in_progress) |
+| `postTaskExecution` | A spec task completes (status changes to completed) |
+| `userTriggered` | The hook is run manually on demand |
+
+For `preToolUse` and `postToolUse`, target tools are selected by name. Built-in categories include `read`, `write`, `shell`, `web`, `spec`, and `*` (all tools). Source prefixes `@mcp`, `@powers`, and `@builtin` are matched by regex.
+
 ## Available Hooks
 
 ### pre-write-guard (hooks-core)

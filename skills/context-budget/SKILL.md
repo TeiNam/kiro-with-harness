@@ -75,7 +75,7 @@ Context Budget Report
 ═══════════════════════════════════════
 
 Total estimated overhead: ~XX,XXX tokens
-Context model: Claude Sonnet (200K window)
+Context model: Claude Opus 4.8 (1M-token context window, 128K max output)
 Effective available context: ~XXX,XXX tokens (XX%)
 
 Component Breakdown:
@@ -122,8 +122,8 @@ Skill: Full report + per-file breakdown showing planner.md (213 lines, 1,840 tok
 **Pre-expansion check**
 ```
 User: I want to add 5 more MCP servers, do I have room?
-Skill: Current overhead 33% → adding 5 servers (~50 tools) would add ~25,000 tokens → pushes to 45% overhead
-       Recommendation: remove 2 CLI-replaceable servers first to stay under 40%
+Skill: Current overhead ~6% of the 1M window → adding 5 servers (~50 tools) would add ~25,000 tokens → ~9% overhead
+       Plenty of headroom, but leaner context still improves focus and lowers cost: drop 2 CLI-replaceable servers to avoid needless overhead
 ```
 
 ## Best Practices
@@ -133,3 +133,4 @@ Skill: Current overhead 33% → adding 5 servers (~50 tools) would add ~25,000 t
 - **Agent descriptions are loaded always**: even if the agent is never invoked, its description field is present in every Task tool context
 - **Verbose mode for debugging**: use when you need to pinpoint the exact files driving overhead, not for regular audits
 - **Audit after changes**: run after adding any agent, skill, or MCP server to catch creep early
+- **Delegate to keep the main context lean**: offload heavy exploration, research, and read-intensive investigation to sub-agents with isolated context windows, so the main session ingests only their distilled findings instead of the full search trail

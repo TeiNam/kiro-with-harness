@@ -3,6 +3,8 @@
 > A document summarizing the key differences between Kiro IDE and Claude Code,
 > and what changes when applying a Claude Code-based harness to Kiro
 > Written: 2026-03-22
+>
+> **Reference source** (verified 2026-06-03): custom agents & subagents — <https://kiro.dev/docs/chat/subagents/>; official model list (Opus 4.8 / Haiku 4.5) — <https://kiro.dev/docs/models/>; Opus 4.8 release — <https://kiro.dev/changelog/models/claude-opus-4-8-now-available/>; global steering & AGENTS.md — <https://kiro.dev/changelog/remote-mcp-and-global-steering/>
 
 ---
 
@@ -11,16 +13,18 @@
 | Area | Claude Code | Kiro IDE |
 |------|-------------|----------|
 | **Rules/Guidelines** | `rules/` directory, `CLAUDE.md` | `.kiro/steering/*.md` (always / fileMatch / manual) |
+| **Global Steering** | `rules/` (project-level only) | `~/.kiro/steering/` (global) + project `.kiro/steering/` |
+| **AGENTS.md Standard** | `CLAUDE.md` | `AGENTS.md` standard supported |
 | **Hook System** | `hooks.json` (PreToolUse / PostToolUse / Stop, etc.) | `.kiro/hooks/*.kiro.hook` (fileEdited / preToolUse / postToolUse, etc.) |
 | **Hook Input** | Receives JSON via stdin, can block with exit code 2 | Event metadata only, delegates judgment via `preToolUse` + `askAgent` |
 | **Slash Commands** | `commands/*.md` (59 commands) | None — request the same tasks via conversation |
-| **Custom Agents** | `agents/*.md` (sub-agent delegation) | None — only built-in agents (context-gatherer, general-task-execution) |
+| **Custom Agents** | `agents/*.md` (sub-agent delegation) | Supported — `.kiro/agents/*.md` custom agents; built-in subagents: context-gathering, general-purpose |
 | **Skills** | `skills/*/SKILL.md` (auto-detected) | Auto/conditional/manual detection supported via `.kiro/steering/*.md` |
 | **Specs** | None | `.kiro/specs/` (Requirements → Design → Implementation Tasks) — Kiro-exclusive feature |
 | **MCP Configuration** | `mcp-configs/mcp-servers.json` | `.kiro/settings/mcp.json` |
 | **Session Persistence** | Manually managed via `session-start.js` / `session-end.js` hooks | Managed by Kiro internally — no separate scripts needed |
-| **Context Compression** | `/compact`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | Managed by Kiro internally |
-| **Model Routing** | `/model sonnet`, `CLAUDE_CODE_SUBAGENT_MODEL` | Managed by Kiro internally |
+| **Context Compression** | `/compact`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | Managed by Kiro internally (automatic context compaction) |
+| **Model Routing** | `/model sonnet`, `CLAUDE_CODE_SUBAGENT_MODEL` | Managed by Kiro internally; per-agent override via custom agent `model` frontmatter |
 | **Hook Profile Control** | `HOOK_PROFILE=minimal\|standard\|strict` environment variable | None — add/remove hook files directly |
 
 ---
@@ -117,13 +121,45 @@ Both platforms support event-driven automation, but the schema and behavior diff
 
 Claude Code allows defining and delegating to custom sub-agents via `agents/*.md`.
 
-Kiro supports **built-in agents only**:
-- `context-gatherer` — Explores the codebase and identifies relevant files
-- `general-task-execution` — General-purpose task execution
+Kiro **supports custom agents**. Define them as `.md` files in `~/.kiro/agents` (global) or `<workspace>/.kiro/agents` (workspace). Kiro also ships **built-in subagents**:
+- `context-gathering` — Explores the codebase and identifies relevant files
+- `general-purpose` — General-purpose task execution
 
-Custom agent definition files cannot be used directly in Kiro.
-However, the **domain knowledge** contained in agents (checklists, workflows, patterns)
-can be converted to steering to integrate into Kiro's default behavior.
+Each built-in subagent runs in its **own isolated context window**, and subagents are also exposed as **slash commands**.
+
+**Custom agent frontmatter spec**
+
+```yaml
+---
+name: my-reviewer          # required
+description: When to use this agent
+tools: [fs_read, grep_search]
+model: claude-opus-4.8     # default: inherits the model selected in chat
+includeMcpJson: true
+includePowers: false
+---
+```
+
+| Field | Required | Purpose |
+|-------|----------|---------|
+| `name` | Yes | Unique agent identifier |
+| `description` | No | When the agent should be used |
+| `tools` | No | Tools the agent may call |
+| `model` | No | Model override (default: inherits the chat model) |
+| `includeMcpJson` | No | Whether to load MCP server config |
+| `includePowers` | No | Whether to load installed Powers |
+
+**Constraints**: Subagents **cannot access Specs**, and **Hooks do not fire within subagents**.
+
+**Agent model table**
+
+| Model | Context Window | Max Output | Credit Multiplier | Availability |
+|-------|----------------|------------|-------------------|--------------|
+| `claude-opus-4.8` | 1M | 128K | 2.2x | experimental (us-east-1 / eu-central-1, Kiro CLI v2.5.0+) |
+| `claude-haiku-4.5` | — | — | — | GA |
+
+The **domain knowledge** contained in legacy agents (checklists, workflows, patterns)
+can still be converted to steering as an auxiliary path:
 
 | Claude Code Agent | Knowledge to Extract | Kiro Steering Conversion |
 |-------------------|---------------------|--------------------------|
@@ -184,7 +220,7 @@ Claude Code gives developers direct control over all of these:
 - Model routing: `/model sonnet`, `CLAUDE_CODE_SUBAGENT_MODEL`
 - Cost tracking: `cost-tracker.js` hook
 
-Kiro **manages all of these internally**. No separate scripts or environment variables are needed.
+Kiro **manages session persistence and context compaction internally**. No separate scripts or environment variables are needed. Model routing is also managed by Kiro, but can be **explicitly overridden per agent** via the custom agent `model` frontmatter field.
 
 ---
 
@@ -193,7 +229,7 @@ Kiro **manages all of these internally**. No separate scripts or environment var
 | Component | Reason |
 |-----------|--------|
 | `commands/` (59 slash commands) | Kiro has no slash command system |
-| `agents/` (27 custom agents) | Custom agent definition not possible in Kiro |
+| `agents/` (27 custom agents) | Directly portable to Kiro custom agents (`.kiro/agents/*.md`) |
 | `scripts/hooks/session-*.js` | Kiro manages sessions internally |
 | `scripts/hooks/suggest-compact.js`, `pre-compact.js` | Kiro has no `/compact` |
 | `scripts/hooks/cost-tracker.js` | Claude Code-exclusive telemetry |

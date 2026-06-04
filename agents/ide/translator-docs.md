@@ -1,6 +1,7 @@
 ---
 name: translator-docs
 description: Bidirectional Korean ↔ English translation and documentation specialist. Handles business email translation, technical document translation, and README/API documentation writing. Prioritizes naturalness and intent preservation over literal accuracy.
+model: claude-haiku-4.5
 tools: ["read", "write"]
 ---
 

@@ -4,21 +4,23 @@
   "modules": [
     {
       "id": "steering-global",
-      "description": "Universal rules (always inclusion) — git workflow, work patterns, problem-solving approach. Applicable to any task: coding, writing, research",
+      "description": "Universal rules — always inclusion: git-workflow. Manual (#keyword) inclusion: patterns, performance (task-specific, demoted from always for token efficiency). Applicable to any task: coding, writing, research",
       "sources": [
         { "from": "rules/common/git-workflow.md", "template": "steering-always" },
-        { "from": "rules/common/patterns.md", "template": "steering-always" },
-        { "from": "rules/common/performance.md", "template": "steering-always" }
+        { "from": "rules/common/patterns.md", "output": "patterns.md", "inclusion": "manual" },
+        { "from": "rules/common/performance.md", "output": "performance.md", "inclusion": "manual" }
       ],
       "outputDir": ".kiro/steering",
       "defaultInstall": false
     },
     {
       "id": "hooks-global",
-      "description": "Universal Kiro hooks — post-task review, pre-write guard",
+      "description": "Universal Kiro hooks — post-task review, pre-write guard, spec task verification, repeated-lesson capture (self-evolution)",
       "hooks": [
         { "id": "review-on-stop", "name": "Post-Task Review", "event": "agentStop", "action": "askAgent", "prompt": "Briefly review the completed work: 1) any security issues 2) proper error handling 3) no leftover console.log 4) tests needed for changes. Report issues only." },
-        { "id": "pre-write-guard", "name": "Pre-Write Guard", "event": "preToolUse", "toolTypes": ["write"], "action": "askAgent", "prompt": "Before this write, check ALL of the following in one pass:\n1. SIZE — If the content exceeds 800 lines, BLOCK the write. Split into focused modules under 400 lines.\n2. SECRETS — No hardcoded API keys, tokens, passwords, or connection strings. Use env vars.\n3. DOC LOCATION — If creating a .md or .txt file outside docs/, .kiro/, README.md, CONTRIBUTING.md, CHANGELOG.md, or LICENSE, warn that docs should go in docs/.\nOnly report issues found. If all checks pass, proceed silently." }
+        { "id": "pre-write-guard", "name": "Pre-Write Guard", "event": "preToolUse", "toolTypes": ["write"], "action": "askAgent", "prompt": "Before this write, check ALL of the following in one pass:\n1. SIZE — If the content exceeds 800 lines, BLOCK the write. Split into focused modules under 400 lines.\n2. SECRETS — No hardcoded API keys, tokens, passwords, or connection strings. Use env vars.\n3. DOC LOCATION — If creating a .md or .txt file outside docs/, .kiro/, README.md, CONTRIBUTING.md, CHANGELOG.md, or LICENSE, warn that docs should go in docs/.\nOnly report issues found. If all checks pass, proceed silently." },
+        { "id": "test-after-task", "name": "Test After Spec Task", "event": "postTaskExecution", "action": "askAgent", "prompt": "A spec task was completed. Check if there are relevant test files for the changed code. If tests exist, run them using the project's test command. If no tests exist, suggest what tests should be written." },
+        { "id": "capture-lessons", "name": "Capture Repeated Lessons", "event": "agentStop", "action": "askAgent", "prompt": "이번 작업에서 반복 가능한 교정 사항(동일 유형의 리뷰 지적, 빌드 실패 패턴, 사용자 정정)이 있었는지 식별하라. 있다면 .kiro/steering/lessons-learned.md에 추가할 한 줄 교훈을 제안하라. 사용자 자산을 수정하기 전 반드시 사용자 확인을 받고, 변경 내역을 추적 가능하게 남겨라. 교훈이 없으면 조용히 종료하라." }
       ],
       "outputDir": ".kiro/hooks",
       "defaultInstall": false
@@ -28,6 +30,7 @@
       "description": "Global agents (custom agents) — kiro-cli orchestrator, architect, code-reviewer, deep-researcher, security-reviewer, translator-docs, refactor-cleaner, devops",
       "sources": [
         { "from": "agents/cli/global/kiro-cli.json", "output": "kiro-cli.json" },
+        { "from": "agents/cli/global/peer-reviewer.json", "output": "peer-reviewer.json" },
         { "from": "agents/ide/architect.md", "output": "architect.md" },
         { "from": "agents/ide/code-reviewer.md", "output": "code-reviewer.md" },
         { "from": "agents/ide/deep-researcher.md", "output": "deep-researcher.md" },
@@ -93,26 +96,29 @@
     },
     {
       "id": "skills-global",
-      "description": "Essential global skills (manual inclusion) — verification loop, coding standards, strategic compact, context budget",
+      "description": "Essential global skills (manual inclusion) — verification loop, coding standards, strategic compact, context budget, agentic engineering, lessons learned. Plus AGENTS.md global agent collaboration guide (raw, auto-recognized by Kiro)",
       "sources": [
         { "from": "skills/verification-loop/SKILL.md", "output": "verification-loop.md", "inclusion": "manual" },
         { "from": "skills/coding-standards/SKILL.md", "output": "coding-standards.md", "inclusion": "manual" },
         { "from": "skills/strategic-compact/SKILL.md", "output": "strategic-compact.md", "inclusion": "manual" },
-        { "from": "skills/context-budget/SKILL.md", "output": "context-budget.md", "inclusion": "manual" }
+        { "from": "skills/context-budget/SKILL.md", "output": "context-budget.md", "inclusion": "manual" },
+        { "from": "skills/agentic-engineering/SKILL.md", "output": "agentic-engineering.md", "inclusion": "manual" },
+        { "from": "skills/lessons-learned/SKILL.md", "output": "lessons-learned.md", "inclusion": "manual" },
+        { "from": "agents/AGENTS.md", "output": "AGENTS.md" }
       ],
       "outputDir": ".kiro/steering",
       "defaultInstall": false
     },
     {
       "id": "steering-core",
-      "description": "Common rules (always inclusion) — coding-style, security, testing, git-workflow, patterns, performance",
+      "description": "Common rules — always inclusion: coding-style, security, testing, git-workflow, product. Manual (#keyword) inclusion: patterns, performance (task-specific, demoted from always for token efficiency)",
       "sources": [
         { "from": "rules/common/coding-style.md", "template": "steering-always" },
         { "from": "rules/common/security.md", "template": "steering-always", "merge": ["agents/security-reviewer.md", "skills/security-review/SKILL.md"] },
         { "from": "rules/common/testing.md", "template": "steering-always", "merge": ["agents/tdd-guide.md", "skills/tdd-workflow/SKILL.md"] },
         { "from": "rules/common/git-workflow.md", "template": "steering-always" },
-        { "from": "rules/common/patterns.md", "template": "steering-always" },
-        { "from": "rules/common/performance.md", "template": "steering-always" },
+        { "from": "rules/common/patterns.md", "output": "patterns.md", "inclusion": "manual" },
+        { "from": "rules/common/performance.md", "output": "performance.md", "inclusion": "manual" },
         { "from": "rules/common/product.md", "template": "steering-always" }
       ],
       "outputDir": ".kiro/steering",
@@ -328,9 +334,10 @@
     },
     {
       "id": "steering-quality",
-      "description": "Quality/automation skills (manual) — continuous learning, strategic compact, context budget, agentic engineering, AI-first, enterprise ops, doc-lookup",
+      "description": "Quality/automation skills (manual) — continuous learning, lessons-learned log, strategic compact, context budget, agentic engineering, AI-first, enterprise ops, doc-lookup",
       "sources": [
         { "from": "skills/continuous-learning-v2/SKILL.md", "output": "continuous-learning.md", "inclusion": "manual" },
+        { "from": "skills/lessons-learned/SKILL.md", "output": "lessons-learned.md", "inclusion": "manual" },
         { "from": "skills/strategic-compact/SKILL.md", "output": "strategic-compact.md", "inclusion": "manual" },
         { "from": "skills/context-budget/SKILL.md", "output": "context-budget.md", "inclusion": "manual" },
         { "from": "skills/agentic-engineering/SKILL.md", "output": "agentic-engineering.md", "inclusion": "manual" },
@@ -398,12 +405,13 @@
     },
     {
       "id": "hooks-quality",
-      "description": "Quality Kiro hooks — diagnostics, code review, spec task verification",
+      "description": "Quality Kiro hooks — diagnostics, code review, spec task verification, repeated-lesson capture (self-evolution)",
       "hooks": [
         { "id": "diagnostics-on-save", "name": "Diagnostics After Code Edit", "event": "fileEdited", "patterns": ["*.ts", "*.tsx", "*.js", "*.jsx", "*.py", "*.go", "*.rs", "*.java", "*.kt"], "action": "askAgent", "prompt": "A code file was edited. Use getDiagnostics to check for compile errors, lint errors, and type errors. Report any issues found concisely. Do NOT use executeBash or terminal." },
         { "id": "review-on-stop", "name": "Post-Task Code Review", "event": "agentStop", "action": "askAgent", "prompt": "Briefly review the completed work: 1) any security issues 2) proper error handling 3) no leftover console.log 4) tests needed for changes. Report issues only." },
         { "id": "test-after-task", "name": "Test After Spec Task", "event": "postTaskExecution", "action": "askAgent", "prompt": "A spec task was completed. Check if there are relevant test files for the changed code. If tests exist, run them using the project's test command. If no tests exist, suggest what tests should be written." },
-        { "id": "pre-task-plan", "name": "Pre-Task Planning", "event": "preTaskExecution", "action": "askAgent", "prompt": "Before starting this spec task, briefly verify: 1) Are all dependencies from previous tasks completed? 2) Are the acceptance criteria clear? 3) What files will likely need changes? List the plan in 3-5 bullet points, then proceed." }
+        { "id": "pre-task-plan", "name": "Pre-Task Planning", "event": "preTaskExecution", "action": "askAgent", "prompt": "Before starting this spec task, briefly verify: 1) Are all dependencies from previous tasks completed? 2) Are the acceptance criteria clear? 3) What files will likely need changes? List the plan in 3-5 bullet points, then proceed." },
+        { "id": "capture-lessons", "name": "Capture Repeated Lessons", "event": "agentStop", "action": "askAgent", "prompt": "이번 작업에서 반복 가능한 교정 사항(동일 유형의 리뷰 지적, 빌드 실패 패턴, 사용자 정정)이 있었는지 식별하라. 있다면 .kiro/steering/lessons-learned.md에 추가할 한 줄 교훈을 제안하라. 사용자 자산을 수정하기 전 반드시 사용자 확인을 받고, 변경 내역을 추적 가능하게 남겨라. 교훈이 없으면 조용히 종료하라." }
       ],
       "outputDir": ".kiro/hooks",
       "defaultInstall": false

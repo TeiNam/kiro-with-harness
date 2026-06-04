@@ -29,6 +29,7 @@ desktop.ini
 
 # === Global: Kiro IDE ===
 .kiro/specs/
+.kiro/tmp/
 
 # === Global: Security ===
 .env

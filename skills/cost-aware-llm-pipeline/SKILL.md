@@ -158,6 +158,7 @@ def process(text: str, config: Config, tracker: CostTracker) -> tuple[Result, Co
 | Haiku 4.5 | $0.80 | $4.00 | 1x |
 | Sonnet 4.6 | $3.00 | $15.00 | ~4x |
 | Opus 4.5 | $15.00 | $75.00 | ~19x |
+| Opus 4.8 | $15.00 | $75.00 | ~19x |
 
 ## Best Practices
 

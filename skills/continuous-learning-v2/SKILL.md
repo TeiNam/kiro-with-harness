@@ -354,6 +354,58 @@ v2.1 is fully compatible with v2.0 and v1:
 - No actual code or conversation content is shared
 - You control what gets exported and promoted
 
+## Kiro Environment Application (Kiro Reinterpretation)
+
+> **Applies to: Kiro IDE / harness deployments.** The procedure described above is the
+> original Claude Code implementation and is preserved unchanged. The section below explains
+> how to achieve the same *self-evolution* goal inside Kiro, which does not provide the same
+> primitives.
+
+### Application Limits (Assumption 5)
+
+The original `continuous-learning-v2` design depends on two Claude Code–specific facilities
+that **Kiro does not guarantee**:
+
+- **Claude Code hooks** (`PreToolUse` / `PostToolUse` → `observe.sh`) that observe every
+  prompt and tool call 100% of the time.
+- The **`~/.claude/homunculus/` directory tree** (`instincts/*.yaml`, `observations.jsonl`,
+  per-project hashes) used as the instinct/observation store.
+
+Kiro has neither the `PreToolUse`/`PostToolUse` observation hooks nor the `~/.claude/homunculus`
+store, and there is no background observer agent or `/evolve` · `/promote` slash-command runtime.
+Therefore, in Kiro the self-evolution mechanism is **reinterpreted using only Kiro-supported
+means** — steering files, Kiro hooks, and spec artifacts. The original procedure remains valid
+only on Claude Code.
+
+### Kiro Substitution Mapping
+
+| Claude Code original | Kiro substitute |
+|---|---|
+| `PreToolUse` / `PostToolUse` hooks observing all actions | Kiro `agentStop` / `postTaskExecution` hook + `askAgent` action to identify lessons |
+| `~/.claude/homunculus/instincts/*.yaml` store | manual-inclusion steering file `.kiro/steering/lessons-learned.md` (designated learning log) |
+| Background Haiku observer agent | the hook's `askAgent` instructs adding a correction summary to `lessons-learned.md` |
+| `/evolve`, `/promote` slash commands | Kiro spec artifacts or manual review to promote lessons into rules (steering) |
+
+### Kiro Mechanism
+
+1. **Learning log location** — `.kiro/steering/lessons-learned.md` (inclusion: manual).
+   Repeated corrections (recurring review findings, build-failure patterns, user corrections)
+   are accumulated here, replacing the per-project `instincts/*.yaml` store.
+2. **Capture hook** — a Kiro Hook_Definition that follows the Kiro hook schema
+   (`event` / `action` / `prompt`). On `agentStop` (or `postTaskExecution`) it uses `askAgent`
+   to detect whether the session produced a repeatable lesson and, if so, proposes a one-line
+   entry for `lessons-learned.md`.
+3. **User-confirmation gate** — the hook **never auto-edits** `lessons-learned.md`. It only
+   *proposes* a lesson; the actual write happens after user confirmation, keeping every change
+   to user assets traceable.
+4. **Promotion** — instead of `/evolve` and `/promote`, lessons graduate into enforced rules
+   through normal Kiro spec artifacts or manual review (e.g. moving a stabilized lesson into a
+   dedicated steering rule).
+
+> The Claude Code observer/instinct pipeline (atomic instincts, confidence scoring, project
+> hashing, export/import) still describes the *conceptual* model. In Kiro it is realized at a
+> coarser granularity: a human-readable lessons log plus a confirmation-gated capture hook.
+
 ## Related
 
 - [Skill Creator](https://skill-creator.app) - Generate instincts from repo history

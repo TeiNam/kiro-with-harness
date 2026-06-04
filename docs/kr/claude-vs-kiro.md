@@ -3,6 +3,8 @@
 > Kiro IDE와 Claude Code의 핵심 차이를 이해하고,
 > Claude Code 기반 하네스를 Kiro에 적용할 때 무엇이 달라지는지 정리한 문서
 > 작성일: 2026-03-22
+>
+> **참조 출처** (확인 일자 2026-06-03): 커스텀 에이전트·서브에이전트 — <https://kiro.dev/docs/chat/subagents/>; 공식 모델 목록(Opus 4.8 / Haiku 4.5) — <https://kiro.dev/docs/models/>; Opus 4.8 출시 — <https://kiro.dev/changelog/models/claude-opus-4-8-now-available/>; 글로벌 steering·AGENTS.md — <https://kiro.dev/changelog/remote-mcp-and-global-steering/>
 
 ---
 
@@ -11,16 +13,18 @@
 | 영역 | Claude Code | Kiro IDE |
 |------|-------------|----------|
 | **규칙/가이드라인** | `rules/` 디렉토리, `CLAUDE.md` | `.kiro/steering/*.md` (always / fileMatch / manual) |
+| **글로벌 스티어링** | `rules/` (프로젝트 단위만) | `~/.kiro/steering/` (글로벌) + 프로젝트 `.kiro/steering/` |
+| **AGENTS.md 표준** | `CLAUDE.md` | `AGENTS.md` 표준 지원 |
 | **훅 시스템** | `hooks.json` (PreToolUse / PostToolUse / Stop 등) | `.kiro/hooks/*.kiro.hook` (fileEdited / preToolUse / postToolUse 등) |
 | **훅 입력** | stdin으로 JSON 수신, exit code 2로 차단 가능 | 이벤트 메타데이터만, `preToolUse` + `askAgent`로 판단 위임 |
 | **슬래시 커맨드** | `commands/*.md` (59개) | 없음 — 대화로 동일 작업 요청 |
-| **커스텀 에이전트** | `agents/*.md` (서브에이전트 위임) | 없음 — 내장 에이전트만 사용 (context-gatherer, general-task-execution) |
+| **커스텀 에이전트** | `agents/*.md` (서브에이전트 위임) | 지원 — `.kiro/agents/*.md` 커스텀 에이전트; 내장 서브에이전트: context-gathering, general-purpose |
 | **스킬** | `skills/*/SKILL.md` (자동 감지) | `.kiro/steering/*.md`에서 자동/조건부/수동 감지 지원 |
 | **스펙** | 없음 | `.kiro/specs/` (요구사항 → 설계 → 구현 태스크) — Kiro 고유 기능 |
 | **MCP 설정** | `mcp-configs/mcp-servers.json` | `.kiro/settings/mcp.json` |
 | **세션 영속화** | `session-start.js` / `session-end.js` 훅으로 직접 관리 | Kiro가 자체 관리 — 별도 스크립트 불필요 |
-| **컨텍스트 압축** | `/compact`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | Kiro가 자체 관리 |
-| **모델 라우팅** | `/model sonnet`, `CLAUDE_CODE_SUBAGENT_MODEL` | Kiro가 자체 관리 |
+| **컨텍스트 압축** | `/compact`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | Kiro가 자체 관리 (자동 컨텍스트 압축) |
+| **모델 라우팅** | `/model sonnet`, `CLAUDE_CODE_SUBAGENT_MODEL` | Kiro가 자체 관리; 커스텀 에이전트 `model` frontmatter로 에이전트별 재정의 가능 |
 | **훅 프로파일 제어** | `HOOK_PROFILE=minimal\|standard\|strict` 환경 변수 | 없음 — 훅 파일 자체를 추가/제거 |
 
 ---
@@ -117,13 +121,45 @@ fileMatchPattern: "**/*.ts,**/*.tsx"
 
 Claude Code는 `agents/*.md`로 커스텀 서브에이전트를 정의하고 위임할 수 있습니다.
 
-Kiro는 **내장 에이전트만** 지원합니다:
-- `context-gatherer` — 코드베이스 탐색 및 관련 파일 식별
-- `general-task-execution` — 범용 태스크 실행
+Kiro는 **커스텀 에이전트를 지원**합니다. `~/.kiro/agents`(글로벌) 또는 `<workspace>/.kiro/agents`(워크스페이스)에 `.md` 파일로 정의합니다. Kiro는 **내장 서브에이전트**도 함께 제공합니다:
+- `context-gathering` — 코드베이스 탐색 및 관련 파일 식별
+- `general-purpose` — 범용 태스크 실행
 
-커스텀 에이전트 정의 파일은 Kiro에서 직접 사용할 수 없습니다.
-단, 에이전트가 담고 있는 **도메인 지식**(체크리스트, 워크플로우, 패턴)은
-스티어링으로 변환하여 Kiro의 기본 동작에 녹일 수 있습니다.
+각 내장 서브에이전트는 **격리된 컨텍스트 윈도우**를 가지며, 서브에이전트는 **슬래시 커맨드**로도 노출됩니다.
+
+**커스텀 에이전트 frontmatter 스펙**
+
+```yaml
+---
+name: my-reviewer          # required
+description: When to use this agent
+tools: [fs_read, grep_search]
+model: claude-opus-4.8     # default: inherits the model selected in chat
+includeMcpJson: true
+includePowers: false
+---
+```
+
+| 필드 | 필수 | 용도 |
+|-------|----------|---------|
+| `name` | 예 | 고유 에이전트 식별자 |
+| `description` | 아니오 | 에이전트 사용 시점 |
+| `tools` | 아니오 | 에이전트가 호출 가능한 도구 |
+| `model` | 아니오 | 모델 재정의 (기본값: 채팅 모델 상속) |
+| `includeMcpJson` | 아니오 | MCP 서버 설정 로드 여부 |
+| `includePowers` | 아니오 | 설치된 Powers 로드 여부 |
+
+**제약**: 서브에이전트는 **Specs에 접근할 수 없고**, **Hooks는 서브에이전트 내에서 발화하지 않습니다**.
+
+**에이전트 모델 표**
+
+| 모델 | 컨텍스트 윈도우 | 최대 출력 | Credit Multiplier | 가용성 |
+|-------|----------------|------------|-------------------|--------------|
+| `claude-opus-4.8` | 1M | 128K | 2.2x | experimental (us-east-1 / eu-central-1, Kiro CLI v2.5.0+) |
+| `claude-haiku-4.5` | — | — | — | GA |
+
+기존 에이전트가 담고 있는 **도메인 지식**(체크리스트, 워크플로우, 패턴)은
+보조 수단으로 여전히 스티어링으로 변환할 수 있습니다:
 
 | Claude Code 에이전트 | 추출할 지식 | Kiro 스티어링 변환 |
 |---------------------|-----------|-------------------|
@@ -184,7 +220,7 @@ Claude Code는 이 모든 것을 개발자가 직접 제어합니다:
 - 모델 라우팅: `/model sonnet`, `CLAUDE_CODE_SUBAGENT_MODEL`
 - 비용 추적: `cost-tracker.js` 훅
 
-Kiro는 이 모든 것을 **자체적으로 관리**합니다. 별도 스크립트나 환경 변수가 필요 없습니다.
+Kiro는 **세션 영속화와 컨텍스트 압축을 자체적으로 관리**합니다. 별도 스크립트나 환경 변수가 필요 없습니다. 모델 라우팅 역시 Kiro가 관리하지만, 커스텀 에이전트 `model` frontmatter 필드로 **에이전트별 명시 재정의**가 가능합니다.
 
 ---
 
@@ -193,7 +229,7 @@ Kiro는 이 모든 것을 **자체적으로 관리**합니다. 별도 스크립�
 | 구성 요소 | 이유 |
 |----------|------|
 | `commands/` (슬래시 커맨드 59개) | Kiro에 슬래시 커맨드 시스템 없음 |
-| `agents/` (커스텀 에이전트 27개) | Kiro에 커스텀 에이전트 정의 불가 |
+| `agents/` (커스텀 에이전트 27개) | Kiro 커스텀 에이전트(`.kiro/agents/*.md`)로 직접 이식 가능 |
 | `scripts/hooks/session-*.js` | Kiro가 세션 자체 관리 |
 | `scripts/hooks/suggest-compact.js`, `pre-compact.js` | Kiro에 `/compact` 없음 |
 | `scripts/hooks/cost-tracker.js` | Claude Code 전용 텔레메트리 |

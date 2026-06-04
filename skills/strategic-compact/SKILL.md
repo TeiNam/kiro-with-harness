@@ -10,7 +10,7 @@ Suggests manual `/compact` at strategic points in your workflow rather than rely
 
 ## When to Activate
 
-- Running long sessions that approach context limits (200K+ tokens)
+- Running long sessions that approach the context limit (nearing the 1M-token context window)
 - Working on multi-phase tasks (research → plan → implement → test)
 - Switching between unrelated tasks within the same session
 - After completing a major milestone and starting new work
@@ -18,10 +18,9 @@ Suggests manual `/compact` at strategic points in your workflow rather than rely
 
 ## Why Strategic Compaction?
 
-Auto-compaction triggers at arbitrary points:
-- Often mid-task, losing important context
-- No awareness of logical task boundaries
-- Can interrupt complex multi-step operations
+Auto-compaction is automatic but limit-driven:
+- It triggers as the 1M-token context window fills, not at logical task boundaries
+- It preserves continuity so work can resume, but cannot know which intermediate context matters most for your next step
 
 Strategic compaction at logical boundaries:
 - **After exploration, before execution** — Compact research context, keep implementation plan
