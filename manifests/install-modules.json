@@ -96,10 +96,8 @@
     },
     {
       "id": "skills-global",
-      "description": "Essential global skills (manual inclusion) — verification loop, coding standards, strategic compact, context budget, agentic engineering, lessons learned. Plus AGENTS.md global agent collaboration guide (raw, auto-recognized by Kiro)",
+      "description": "Essential global skills (manual inclusion) — strategic compact, context budget, agentic engineering, lessons learned. Plus AGENTS.md global agent collaboration guide (raw, auto-recognized by Kiro). Coding-biased skills (verification-loop, coding-standards) live in the workspace steering-skills module instead.",
       "sources": [
-        { "from": "skills/verification-loop/SKILL.md", "output": "verification-loop.md", "inclusion": "manual" },
-        { "from": "skills/coding-standards/SKILL.md", "output": "coding-standards.md", "inclusion": "manual" },
         { "from": "skills/strategic-compact/SKILL.md", "output": "strategic-compact.md", "inclusion": "manual" },
         { "from": "skills/context-budget/SKILL.md", "output": "context-budget.md", "inclusion": "manual" },
         { "from": "skills/agentic-engineering/SKILL.md", "output": "agentic-engineering.md", "inclusion": "manual" },
