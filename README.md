@@ -7,7 +7,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Harness engineering for Kiro IDE. Profile-based installer that deploys curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces.
+Harness engineering for Kiro IDE. Profile-based installer that deploys curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. Tuned for Claude Opus 4.8 — role-based model routing, DAG-style parallel delegation, and a shared agent collaboration guide (AGENTS.md).
 
 ## Quick Start
 
@@ -38,6 +38,9 @@ node install.js --list
 # Check installation status
 node install.js --status
 node install.js --status --scope global
+
+# Preview changes without writing anything (works with any command)
+node install.js global --dry-run
 ```
 
 > **Note:** If global settings are not detected, the installer will recommend installing global first. Global settings provide the foundation (agents, guardrails, MCP catalog) that all workspaces inherit.
@@ -50,10 +53,10 @@ Installed once, applies to all Kiro workspaces:
 
 | Component | Contents |
 |-----------|----------|
-| Steering | Git workflow, patterns, performance rules |
-| Hooks | Post-task review, pre-write guard (size/secrets/doc-location) |
-| Agents | 7 global agents — architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, translator-docs |
-| Skills | 4 essential skills — verification loop, coding standards, strategic compact, context budget |
+| Steering | Git workflow, patterns, performance rules + AGENTS.md (agent collaboration guide, auto-recognized by Kiro) |
+| Hooks | Post-task review, pre-write guard (size/secrets/doc-location), spec-task test reminder, repeated-lesson capture (self-evolution) |
+| Agents | 9 global CLI agents — kiro-cli (orchestrator), architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, peer-reviewer (terminal Claude Code cross-model review), translator-docs |
+| Skills | Essential universal skills (manual) — strategic compact, context budget, agentic engineering, lessons learned. Coding-biased skills (verification loop, coding standards) live in the workspace tier |
 | MCP | Full MCP server catalog (enable as needed) |
 
 ### Workspace (`.kiro/` in project)
@@ -100,28 +103,34 @@ Agent model assignments follow a role-based policy. The `model` field in each ag
 Rules and guidelines injected into Kiro context:
 - Always-on: coding style, security, testing, git workflow, patterns, performance
 - File-match: language-specific rules (11 languages) loaded when matching files are opened
-- Manual: 96 skills loaded on demand — frameworks, DB guidelines, AI/LLM, architecture, etc.
+- Manual: 103 skills loaded on demand — frameworks, DB guidelines, AI/LLM, architecture, etc.
 
 ### Hooks (`.kiro/hooks/`)
 
-Event-driven automations:
-- Pre-write guard (size limit, secret detection, doc location check)
-- Post-task code review
-- Diagnostics on TS/JS file edit
-- Post-write console.log/TODO warning
-- Spec task test reminder
+Event-driven automations (which ones install depends on the module/profile):
+- Pre-write guard — size limit, secret detection, doc-location check (`preToolUse`)
+- Pre-shell / post-shell guard — command safety review (`preToolUse`/`postToolUse`, guardrails)
+- Post-write cleanup — console.log/TODO warning (`postToolUse`)
+- Diagnostics on TS/JS file save (`fileEdited`)
+- New-file scaffold check (`fileCreated`)
+- Post-task code review (`agentStop`)
+- Spec-task test reminder (`postTaskExecution`)
+- Repeated-lesson capture — self-evolution, proposes lessons-learned entries with user confirmation (`agentStop`)
+- Pre-task plan (`preTaskExecution`, quality profile)
 
 ### Agents (`agents/`)
 
-27 custom agents:
-- General: architect, planner, code-reviewer, security-reviewer, build-error-resolver, refactor-cleaner, doc-updater, database-reviewer
-- Testing: tdd-guide, e2e-runner
-- Writing: article-writer, content-creator, deep-researcher
-- Language-specific: reviewers and build resolvers for TypeScript, Python, Go, Rust, Java, Kotlin, C++, Flutter
+Provided in two formats — **IDE** (26 Markdown agents) and **CLI** (JSON: 9 global + 20 workspace):
+- Orchestration & global: kiro-cli (orchestrator), architect, code-reviewer, security-reviewer, refactor-cleaner, devops, deep-researcher, peer-reviewer (terminal Claude Code cross-model review), translator-docs
+- Language reviewers: TypeScript, Python, Go, Rust, Java, Kotlin, C++, Flutter
+- Build resolvers: C++, Go, Java, Kotlin, Rust, PyTorch + generic build-error-resolver
+- Data: database-reviewer, rdbms-data-modeler
+- Testing: e2e-runner
+- Writing: article-writer, content-creator
 
 ### Skills (`skills/`)
 
-96 skills organized by domain:
+103 skills organized by domain:
 - Infrastructure: Docker, deployment, database migrations, backend patterns
 - Databases: PostgreSQL, MySQL, MongoDB, DynamoDB, ClickHouse
 - Backend frameworks: Django, Spring Boot, Laravel, FastAPI
@@ -143,14 +152,14 @@ Pre-configured MCP server catalog.
 ```
 ├── install.js                  # Installer script (global/workspace routing)
 ├── manifests/
-│   ├── install-modules.json    # Module definitions (28 modules)
+│   ├── install-modules.json    # Module definitions (34 modules)
 │   └── install-profiles.json   # Profile definitions (10 profiles)
 ├── rules/                      # Steering source (common + 11 languages)
-├── agents/                     # 27 custom agents (IDE + CLI formats)
-├── skills/                     # 96 skill packages
-├── docs/                       # Guides (eval harness, prompt templates, comparison)
+├── agents/                     # IDE (26 .md) + CLI (9 global + 20 workspace) agent definitions + AGENTS.md
+├── skills/                     # 103 skill packages
+├── docs/                       # Guides — migration, profiles, skill catalog, hook reference, eval harness, prompt templates (EN + KR)
 ├── mcp-configs/                # MCP server configurations
-├── scripts/                    # Build/audit utilities
+├── scripts/                    # Build/audit utilities (validate-agents, validate-models, validate-baseline)
 └── .kiro/                      # This project's own Kiro config
 ```
 
@@ -168,6 +177,7 @@ Options:
   --scope <global|workspace>  Explicit installation scope
   --modules <list>       Install specific modules (comma-separated)
   --profile <name>       Explicit profile selection
+  --dry-run              Preview all changes without writing/removing any file
 ```
 
 ## Acknowledgments

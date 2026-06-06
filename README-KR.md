@@ -7,7 +7,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://qr.kakaopay.com/Ej74xpc815dc06149)
 
-Kiro IDE용 하네스 엔지니어링. 프로필 기반 인스톨러로 스티어링 룰, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다.
+Kiro IDE용 하네스 엔지니어링. 프로필 기반 인스톨러로 스티어링 룰, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. Claude Opus 4.8에 맞춰 튜닝 — 역할 기반 모델 라우팅, DAG 방식 병렬 위임, 공유 에이전트 협업 규약(AGENTS.md)을 포함합니다.
 
 ## 빠른 시작
 
@@ -38,6 +38,9 @@ node install.js --list
 # 설치 상태 확인
 node install.js --status
 node install.js --status --scope global
+
+# 변경 없이 미리보기 (어느 명령에든 추가 가능)
+node install.js global --dry-run
 ```
 
 > **참고:** 글로벌 설정이 감지되지 않으면 글로벌 설치를 먼저 권장합니다. 글로벌 설정은 모든 워크스페이스가 상속하는 기반(에이전트, 가드레일, MCP 카탈로그)을 제공합니다.
@@ -50,10 +53,10 @@ node install.js --status --scope global
 
 | 구성 요소 | 내용 |
 |-----------|------|
-| 스티어링 | Git 워크플로우, 패턴, 성능 규칙 |
-| 훅 | 작업 완료 후 리뷰, 쓰기 전 가드 (크기/시크릿/문서 위치) |
-| 에이전트 | 7개 글로벌 에이전트 — architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, translator-docs |
-| 스킬 | 4개 필수 스킬 — verification loop, coding standards, strategic compact, context budget |
+| 스티어링 | Git 워크플로우, 패턴, 성능 규칙 + AGENTS.md (에이전트 협업 규약, Kiro가 자동 인식) |
+| 훅 | 작업 완료 후 리뷰, 쓰기 전 가드 (크기/시크릿/문서 위치), 스펙 작업 후 테스트 리마인더, 반복 교훈 포착 (자기 진화) |
+| 에이전트 | 9개 글로벌 CLI 에이전트 — kiro-cli (오케스트레이터), architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, peer-reviewer (터미널 Claude Code 교차 모델 리뷰), translator-docs |
+| 스킬 | 필수 범용 스킬 (manual) — strategic compact, context budget, agentic engineering, lessons learned. 코딩 편향 스킬(verification loop, coding standards)은 워크스페이스 계층에 위치 |
 | MCP | 전체 MCP 서버 카탈로그 (필요 시 활성화) |
 
 ### 워크스페이스 (프로젝트의 `.kiro/`)
@@ -100,28 +103,34 @@ node install.js --status --scope global
 Kiro 컨텍스트에 주입되는 룰과 가이드라인:
 - 상시 적용: 코딩 스타일, 보안, 테스트, git 워크플로우, 패턴, 성능
 - 파일 매치: 해당 파일 열 때만 로드되는 언어별 룰 (11개 언어)
-- 수동: 필요할 때만 로드하는 96개 스킬 — 프레임워크, DB 가이드라인, AI/LLM, 아키텍처 등
+- 수동: 필요할 때만 로드하는 103개 스킬 — 프레임워크, DB 가이드라인, AI/LLM, 아키텍처 등
 
 ### 훅 (`.kiro/hooks/`)
 
-이벤트 기반 자동화:
-- 쓰기 전 가드 (파일 크기 제한, 시크릿 감지, 문서 위치 체크)
-- 작업 완료 후 코드 리뷰
-- TS/JS 파일 편집 시 진단
-- 쓰기 후 console.log/TODO 경고
-- 스펙 작업 후 테스트 리마인더
+이벤트 기반 자동화 (설치 여부는 모듈/프로필에 따라 다름):
+- 쓰기 전 가드 — 파일 크기 제한, 시크릿 감지, 문서 위치 체크 (`preToolUse`)
+- 셸 실행 전/후 가드 — 명령 안전성 리뷰 (`preToolUse`/`postToolUse`, 가드레일)
+- 쓰기 후 정리 — console.log/TODO 경고 (`postToolUse`)
+- TS/JS 파일 저장 시 진단 (`fileEdited`)
+- 새 파일 스캐폴드 체크 (`fileCreated`)
+- 작업 완료 후 코드 리뷰 (`agentStop`)
+- 스펙 작업 후 테스트 리마인더 (`postTaskExecution`)
+- 반복 교훈 포착 — 자기 진화, 사용자 확인 후 lessons-learned 항목 제안 (`agentStop`)
+- 작업 전 계획 (`preTaskExecution`, 품질 프로필)
 
 ### 에이전트 (`agents/`)
 
-27개 커스텀 에이전트:
-- 범용: architect, planner, code-reviewer, security-reviewer, build-error-resolver, refactor-cleaner, doc-updater, database-reviewer
-- 테스트: tdd-guide, e2e-runner
-- 글쓰기: article-writer, content-creator, deep-researcher
-- 언어별: TypeScript, Python, Go, Rust, Java, Kotlin, C++, Flutter 리뷰어 및 빌드 리졸버
+두 가지 포맷으로 제공 — **IDE** (26개 마크다운 에이전트)와 **CLI** (JSON: 글로벌 9개 + 워크스페이스 20개):
+- 오케스트레이션·글로벌: kiro-cli (오케스트레이터), architect, code-reviewer, security-reviewer, refactor-cleaner, devops, deep-researcher, peer-reviewer (터미널 Claude Code 교차 모델 리뷰), translator-docs
+- 언어 리뷰어: TypeScript, Python, Go, Rust, Java, Kotlin, C++, Flutter
+- 빌드 리졸버: C++, Go, Java, Kotlin, Rust, PyTorch + 범용 build-error-resolver
+- 데이터: database-reviewer, rdbms-data-modeler
+- 테스트: e2e-runner
+- 글쓰기: article-writer, content-creator
 
 ### 스킬 (`skills/`)
 
-96개 스킬 (도메인별 구성):
+103개 스킬 (도메인별 구성):
 - 인프라: Docker, 배포, 데이터베이스 마이그레이션, 백엔드 패턴
 - 데이터베이스: PostgreSQL, MySQL, MongoDB, DynamoDB, ClickHouse
 - 백엔드 프레임워크: Django, Spring Boot, Laravel, FastAPI
@@ -143,14 +152,14 @@ Kiro 컨텍스트에 주입되는 룰과 가이드라인:
 ```
 ├── install.js                  # 인스톨러 스크립트 (글로벌/워크스페이스 라우팅)
 ├── manifests/
-│   ├── install-modules.json    # 모듈 정의 (28개 모듈)
+│   ├── install-modules.json    # 모듈 정의 (34개 모듈)
 │   └── install-profiles.json   # 프로필 정의 (10개 프로필)
 ├── rules/                      # 스티어링 소스 (공통 + 11개 언어)
-├── agents/                     # 27개 커스텀 에이전트 (IDE + CLI 포맷)
-├── skills/                     # 96개 스킬 패키지
-├── docs/                       # 가이드 (eval harness, 프롬프트 템플릿, 비교)
+├── agents/                     # IDE (26개 .md) + CLI (글로벌 9개 + 워크스페이스 20개) 에이전트 정의 + AGENTS.md
+├── skills/                     # 103개 스킬 패키지
+├── docs/                       # 가이드 — 마이그레이션, 프로필, 스킬 카탈로그, 훅 레퍼런스, eval harness, 프롬프트 템플릿 (EN + KR)
 ├── mcp-configs/                # MCP 서버 설정
-├── scripts/                    # 빌드/감사 유틸리티
+├── scripts/                    # 빌드/감사 유틸리티 (validate-agents, validate-models, validate-baseline)
 └── .kiro/                      # 이 프로젝트 자체의 Kiro 설정
 ```
 
@@ -168,6 +177,7 @@ node install.js [options] [profile]
   --scope <global|workspace>  명시적 설치 범위
   --modules <목록>       특정 모듈만 설치 (쉼표 구분)
   --profile <이름>       명시적 프로필 선택
+  --dry-run              파일을 쓰거나 지우지 않고 변경 사항만 미리보기
 ```
 
 ## 감사의 말
