@@ -57,6 +57,7 @@ Installed once, applies to all Kiro workspaces:
 | Hooks | Post-task review, pre-write guard (size/secrets/doc-location), spec-task test reminder, repeated-lesson capture (self-evolution) |
 | Agents | 9 global CLI agents — kiro-cli (orchestrator), architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, peer-reviewer (terminal Claude Code cross-model review), translator-docs |
 | Skills | Essential universal skills (manual) — strategic compact, context budget, agentic engineering, lessons learned. Coding-biased skills (verification loop, coding standards) live in the workspace tier |
+| Native skills | Real `skill://` resources under `~/.kiro/skills/` — humanize-korean (AI Korean-text humanizer); progressively loaded by the kiro-cli orchestrator |
 | MCP | Full MCP server catalog (enable as needed) |
 
 ### Workspace (`.kiro/` in project)
@@ -103,7 +104,7 @@ Agent model assignments follow a role-based policy. The `model` field in each ag
 Rules and guidelines injected into Kiro context:
 - Always-on: coding style, security, testing, git workflow, patterns, performance
 - File-match: language-specific rules (11 languages) loaded when matching files are opened
-- Manual: 103 skills loaded on demand — frameworks, DB guidelines, AI/LLM, architecture, etc.
+- Manual: 104 skills loaded on demand — frameworks, DB guidelines, AI/LLM, architecture, etc.
 
 ### Hooks (`.kiro/hooks/`)
 
@@ -130,7 +131,7 @@ Provided in two formats — **IDE** (26 Markdown agents) and **CLI** (JSON: 9 gl
 
 ### Skills (`skills/`)
 
-103 skills organized by domain:
+104 skills organized by domain:
 - Infrastructure: Docker, deployment, database migrations, backend patterns
 - Databases: PostgreSQL, MySQL, MongoDB, DynamoDB, ClickHouse
 - Backend frameworks: Django, Spring Boot, Laravel, FastAPI
@@ -152,11 +153,11 @@ Pre-configured MCP server catalog.
 ```
 ├── install.js                  # Installer script (global/workspace routing)
 ├── manifests/
-│   ├── install-modules.json    # Module definitions (34 modules)
+│   ├── install-modules.json    # Module definitions (35 modules)
 │   └── install-profiles.json   # Profile definitions (10 profiles)
 ├── rules/                      # Steering source (common + 11 languages)
 ├── agents/                     # IDE (26 .md) + CLI (9 global + 20 workspace) agent definitions + AGENTS.md
-├── skills/                     # 103 skill packages
+├── skills/                     # 104 skill packages
 ├── docs/                       # Guides — migration, profiles, skill catalog, hook reference, eval harness, prompt templates (EN + KR)
 ├── mcp-configs/                # MCP server configurations
 ├── scripts/                    # Build/audit utilities (validate-agents, validate-models, validate-baseline)

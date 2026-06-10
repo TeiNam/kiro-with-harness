@@ -108,6 +108,24 @@
       "defaultInstall": false
     },
     {
+      "id": "skills-kiro-native",
+      "description": "Native Kiro skills installed as real skill:// resources (directory + references preserved, progressive loading). humanize-korean — AI 한글 티 제거/윤문 오케스트레이터. Loaded via the kiro-cli agent's skill:// glob; activates on Korean humanize triggers.",
+      "sources": [
+        { "from": "skills/humanize-korean/SKILL.md", "output": "humanize-korean/SKILL.md" },
+        { "from": "skills/humanize-korean/references/quick-rules.md", "output": "humanize-korean/references/quick-rules.md" },
+        { "from": "skills/humanize-korean/references/ai-tell-taxonomy.md", "output": "humanize-korean/references/ai-tell-taxonomy.md" },
+        { "from": "skills/humanize-korean/references/rewriting-playbook.md", "output": "humanize-korean/references/rewriting-playbook.md" },
+        { "from": "skills/humanize-korean/references/scholarship.md", "output": "humanize-korean/references/scholarship.md" },
+        { "from": "skills/humanize-korean/references/web-service-spec.md", "output": "humanize-korean/references/web-service-spec.md" },
+        { "from": "skills/humanize-korean/references/metrics.py", "output": "humanize-korean/references/metrics.py" },
+        { "from": "skills/humanize-korean/references/metrics_v2.py", "output": "humanize-korean/references/metrics_v2.py" },
+        { "from": "skills/humanize-korean/references/baseline.json", "output": "humanize-korean/references/baseline.json" },
+        { "from": "skills/humanize-korean/references/baseline_v2.json", "output": "humanize-korean/references/baseline_v2.json" }
+      ],
+      "outputDir": ".kiro/skills",
+      "defaultInstall": false
+    },
+    {
       "id": "steering-core",
       "description": "Common rules — always inclusion: coding-style, security, testing, git-workflow, product. Manual (#keyword) inclusion: patterns, performance (task-specific, demoted from always for token efficiency)",
       "sources": [

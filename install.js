@@ -54,6 +54,7 @@ function writeManaged(dest, content, targetRoot, tracked) {
     console.log(`  DRY-RUN: would write ${dest}`);
     return;
   }
+  ensureDir(path.dirname(dest));
   fs.writeFileSync(dest, content, 'utf8');
   console.log(`  OK: ${dest}`);
 }

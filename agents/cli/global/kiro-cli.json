@@ -16,7 +16,9 @@
     "todo_list",
     "subagent"
   ],
-  "resources": [],
+  "resources": [
+    "skill://~/.kiro/skills/**/SKILL.md"
+  ],
   "model": "claude-opus-4.8",
   "mcpServers": {},
   "toolsSettings": {

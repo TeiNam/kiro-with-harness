@@ -57,6 +57,7 @@ node install.js global --dry-run
 | 훅 | 작업 완료 후 리뷰, 쓰기 전 가드 (크기/시크릿/문서 위치), 스펙 작업 후 테스트 리마인더, 반복 교훈 포착 (자기 진화) |
 | 에이전트 | 9개 글로벌 CLI 에이전트 — kiro-cli (오케스트레이터), architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, peer-reviewer (터미널 Claude Code 교차 모델 리뷰), translator-docs |
 | 스킬 | 필수 범용 스킬 (manual) — strategic compact, context budget, agentic engineering, lessons learned. 코딩 편향 스킬(verification loop, coding standards)은 워크스페이스 계층에 위치 |
+| 네이티브 스킬 | `~/.kiro/skills/` 하위 실제 `skill://` 리소스 — humanize-korean (AI 한글 윤문); kiro-cli 오케스트레이터가 점진 로딩 |
 | MCP | 전체 MCP 서버 카탈로그 (필요 시 활성화) |
 
 ### 워크스페이스 (프로젝트의 `.kiro/`)
@@ -103,7 +104,7 @@ node install.js global --dry-run
 Kiro 컨텍스트에 주입되는 룰과 가이드라인:
 - 상시 적용: 코딩 스타일, 보안, 테스트, git 워크플로우, 패턴, 성능
 - 파일 매치: 해당 파일 열 때만 로드되는 언어별 룰 (11개 언어)
-- 수동: 필요할 때만 로드하는 103개 스킬 — 프레임워크, DB 가이드라인, AI/LLM, 아키텍처 등
+- 수동: 필요할 때만 로드하는 104개 스킬 — 프레임워크, DB 가이드라인, AI/LLM, 아키텍처 등
 
 ### 훅 (`.kiro/hooks/`)
 
@@ -130,7 +131,7 @@ Kiro 컨텍스트에 주입되는 룰과 가이드라인:
 
 ### 스킬 (`skills/`)
 
-103개 스킬 (도메인별 구성):
+104개 스킬 (도메인별 구성):
 - 인프라: Docker, 배포, 데이터베이스 마이그레이션, 백엔드 패턴
 - 데이터베이스: PostgreSQL, MySQL, MongoDB, DynamoDB, ClickHouse
 - 백엔드 프레임워크: Django, Spring Boot, Laravel, FastAPI
@@ -152,11 +153,11 @@ Kiro 컨텍스트에 주입되는 룰과 가이드라인:
 ```
 ├── install.js                  # 인스톨러 스크립트 (글로벌/워크스페이스 라우팅)
 ├── manifests/
-│   ├── install-modules.json    # 모듈 정의 (34개 모듈)
+│   ├── install-modules.json    # 모듈 정의 (35개 모듈)
 │   └── install-profiles.json   # 프로필 정의 (10개 프로필)
 ├── rules/                      # 스티어링 소스 (공통 + 11개 언어)
 ├── agents/                     # IDE (26개 .md) + CLI (글로벌 9개 + 워크스페이스 20개) 에이전트 정의 + AGENTS.md
-├── skills/                     # 103개 스킬 패키지
+├── skills/                     # 104개 스킬 패키지
 ├── docs/                       # 가이드 — 마이그레이션, 프로필, 스킬 카탈로그, 훅 레퍼런스, eval harness, 프롬프트 템플릿 (EN + KR)
 ├── mcp-configs/                # MCP 서버 설정
 ├── scripts/                    # 빌드/감사 유틸리티 (validate-agents, validate-models, validate-baseline)

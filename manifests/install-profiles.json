@@ -4,7 +4,7 @@
   "profiles": {
     "global": {
       "description": "Universal baseline for any purpose — global agents, essential skills, guardrails, MCP catalog. Works for coding, writing, research, or any task",
-      "modules": ["steering-global", "hooks-global", "agents-global", "skills-global", "mcp-catalog"]
+      "modules": ["steering-global", "hooks-global", "agents-global", "skills-global", "skills-kiro-native", "mcp-catalog"]
     },
     "core": {
       "description": "Minimal harness baseline — common rules, security, testing, quality hooks",
