@@ -118,6 +118,7 @@ Event-driven automations (which ones install depends on the module/profile):
 - Spec-task test reminder (`postTaskExecution`)
 - Repeated-lesson capture — self-evolution, proposes lessons-learned entries with user confirmation (`agentStop`)
 - Pre-task plan (`preTaskExecution`, quality profile)
+- Pre-push docs gate — update CHANGELOG/README before a remote push (`preToolUse`, guardrails)
 
 ### Agents (`agents/`)
 

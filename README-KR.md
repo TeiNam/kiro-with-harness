@@ -118,6 +118,7 @@ Kiro 컨텍스트에 주입되는 룰과 가이드라인:
 - 스펙 작업 후 테스트 리마인더 (`postTaskExecution`)
 - 반복 교훈 포착 — 자기 진화, 사용자 확인 후 lessons-learned 항목 제안 (`agentStop`)
 - 작업 전 계획 (`preTaskExecution`, 품질 프로필)
+- 푸시 전 문서 게이트 — 원격 푸시 전 CHANGELOG/README 갱신 (`preToolUse`, 가드레일)
 
 ### 에이전트 (`agents/`)
 
