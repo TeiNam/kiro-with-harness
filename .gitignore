@@ -28,8 +28,7 @@ desktop.ini
 .cursor/
 
 # === Global: Kiro IDE ===
-.kiro/specs/
-.kiro/tmp/
+.kiro/
 
 # === Global: Security ===
 .env
