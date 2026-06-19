@@ -2,6 +2,7 @@
 name: nextjs-turbopack
 description: Next.js 16+ and Turbopack — incremental bundling, FS caching, dev speed, and when to use Turbopack vs webpack.
 origin: harness
+workloads: [frontend, typescript]
 ---
 
 # Next.js and Turbopack

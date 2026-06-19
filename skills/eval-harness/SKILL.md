@@ -2,6 +2,7 @@
 name: eval-harness
 description: Formal evaluation framework implementing eval-driven development (EDD) principles
 origin: harness
+workloads: [ai-agent]
 ---
 
 # Eval Harness Skill

@@ -2,6 +2,7 @@
 name: django-tdd
 description: Django testing strategies with pytest-django, TDD methodology, factory_boy, mocking, coverage, and testing Django REST Framework APIs.
 origin: harness
+workloads: [python]
 ---
 
 # Django Testing with TDD

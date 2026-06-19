@@ -16,6 +16,7 @@ origin: community
 metadata:
   author: YannJY02
   version: "1.0.0"
+workloads: [ai-agent]
 ---
 
 # Prompt Optimizer

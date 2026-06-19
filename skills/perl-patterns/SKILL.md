@@ -2,6 +2,7 @@
 name: perl-patterns
 description: Modern Perl 5.36+ idioms, best practices, and conventions for building robust, maintainable Perl applications.
 origin: harness
+workloads: [perl]
 ---
 
 # Modern Perl Development Patterns

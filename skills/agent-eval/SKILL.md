@@ -2,6 +2,7 @@
 name: agent-eval
 description: Head-to-head comparison of coding agents on custom tasks with pass rate, cost, time, and consistency metrics
 origin: harness
+workloads: [ai-agent]
 ---
 
 # Agent Eval Skill

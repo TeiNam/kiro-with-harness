@@ -2,6 +2,7 @@
 name: verification-loop
 description: "A comprehensive verification system for code quality assurance."
 origin: harness
+workloads: [core]
 ---
 
 # Verification Loop Skill

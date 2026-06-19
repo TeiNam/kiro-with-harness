@@ -7,179 +7,189 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Harness engineering for Kiro IDE. Profile-based installer that deploys curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. Tuned for Claude Opus 4.8 — role-based model routing, DAG-style parallel delegation, and a shared agent collaboration guide (AGENTS.md).
+Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. Tuned for Claude Opus 4.8 — role-based model routing, DAG-style parallel delegation, and a shared agent collaboration guide (AGENTS.md).
 
 ## Quick Start
 
-The installer uses a two-tier approach: **global** (shared across all projects) and **workspace** (project-specific).
+The installer uses a **tier × workload** model: choose `cli` or `ide`, then select workloads.
 
 ```bash
-# First time? Run without arguments for a guided setup
-node install.js
+# CLI tier: install global baseline (orchestrator agents, skills → ~/.kiro)
+node install.js cli --scope global --workload core
 
-# Step 1: Install global baseline (agents, MCP, essential skills → ~/.kiro)
-node install.js global
+# CLI tier: install workspace config (language reviewers, build resolvers → project .kiro)
+node install.js cli --scope workspace --workload rust,python
 
-# Step 2: Install workspace profile (to current project)
-node install.js developer
+# IDE tier: install project config (agents, hooks, steering → project .kiro)
+node install.js ide --workload typescript,frontend
 
-# Or install to a specific project
-node install.js backend --target /path/to/project
+# Install multiple workloads
+node install.js cli --scope global --workload cloud,rust,go
 
-# Install specific modules only
-node install.js --modules steering-infra,hooks-quality
+# Install all workloads (excluding lab)
+node install.js cli --scope global --workload all
 
-# Explicit scope with modules
-node install.js --scope global --modules agents-global,skills-global
-
-# List all profiles and modules
+# List available workloads
 node install.js --list
 
 # Check installation status
 node install.js --status
 node install.js --status --scope global
 
-# Preview changes without writing anything (works with any command)
-node install.js global --dry-run
+# Preview without writing (works with any command)
+node install.js cli --scope global --workload core --dry-run
 ```
 
-> **Note:** If global settings are not detected, the installer will recommend installing global first. Global settings provide the foundation (agents, guardrails, MCP catalog) that all workspaces inherit.
+> **Defaults:** CLI installs globally by default (~/.kiro); IDE installs workspace by default (project .kiro).
 
 ## Installation Tiers
 
-### Global (`~/.kiro/`)
+### CLI Tier (`kiro-cli chat`)
 
-Installed once, applies to all Kiro workspaces:
+Installs JSON agents with embedded hooks; skills as progressive `skill://` resources.
 
-| Component | Contents |
-|-----------|----------|
-| Steering | Git workflow, patterns, performance rules + AGENTS.md (agent collaboration guide, auto-recognized by Kiro) |
-| Hooks | Post-task review, pre-write guard (size/secrets/doc-location), spec-task test reminder, repeated-lesson capture (self-evolution) |
-| Agents | 9 global CLI agents — kiro-cli (orchestrator), architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, peer-reviewer (terminal Claude Code cross-model review), translator-docs |
-| Skills | Essential universal skills (manual) — strategic compact, context budget, agentic engineering, lessons learned. Coding-biased skills (verification loop, coding standards) live in the workspace tier |
-| Native skills | Real `skill://` resources under `~/.kiro/skills/` — humanize-korean (AI Korean-text humanizer); progressively loaded by the kiro-cli orchestrator |
-| MCP | Full MCP server catalog (enable as needed) |
+**Global** (`~/.kiro/agents`, `~/.kiro/skills/`):
+- Orchestration agents: kiro-cli, architect, deep-researcher, devops, peer-reviewer
+- Review agents: code-reviewer, security-reviewer, translator-docs
+- Steering: AGENTS.md (agent collaboration guide)
+- Skills: progressive `skill://` load by orchestrator
 
-### Workspace (`.kiro/` in project)
+**Workspace** (`.kiro/agents/`):
+- Language reviewers, build-resolvers (per workload)
+- e2e-runner, database-reviewer, rdbms-data-modeler
+- Article-writer, content-creator
 
-Project-specific configuration layered on top of global:
+### IDE Tier (Kiro IDE)
 
-| Component | Contents |
-|-----------|----------|
-| Steering | Coding style, security, testing + language-specific rules (fileMatch) + framework skills (manual) |
-| Hooks | Pre-write guard, quality hooks, guardrails |
-| MCP | Same catalog (workspace can override) |
+Installs Markdown agents and separate hook files; skills convert to steering (manual inclusion).
+
+**Workspace** (`.kiro/agents/`, `.kiro/hooks/`, `.kiro/steering/`):
+- Agents: same roles as CLI, in Markdown format
+- Hooks: pre-write-guard, review-on-stop, capture-lessons, changelog-on-commit (optimized set)
+- Steering: language rules (fileMatch), core rules (always), manual skills
+- MCP: `.kiro/settings/mcp.json`
+
+## Workloads (29 Total)
+
+All installs include **core** (universal rules, base agents). Select additional workloads by name.
+
+| Category | Workload | Purpose |
+|----------|----------|---------|
+| **Languages** | python, rust, go, java, javascript, typescript, node, kotlin, cpp, csharp, php, perl, swift | Per-language rules, reviewers, build resolvers (select only needed languages) |
+| **Specialized** | ai-agent, ai, cloud, frontend, mobile, python-data | Agent/harness building; LLM/ML use; DevOps/FinOps/Terraform/AWS/Docker/K8s; React/Next/Nuxt; Android/Swift/Compose; DuckDB/pandas/ClickHouse |
+| **Databases** | postgres, mysql, mongodb, dynamodb | DB-specific rules and reviewers |
+| **Other** | architecture, writing, domain, obsidian | API design/ADRs; articles/research; business domains; Obsidian integration |
+| **Special** | lab | Hidden; opt-in via `--workload lab` |
+
+Example: `--workload core,rust,postgres,cloud` installs Rust, PostgreSQL, and cloud (DevOps/FinOps) support.
+
+## Review Backend Toggle
+
+Control how code review agents are installed with `--review-backend`:
+
+- `--review-backend claude` (default): Exclude native reviewers; route review through `peer-reviewer` agent (calls terminal Claude Code for cross-model second opinion)
+- `--review-backend kiro`: Install native Kiro reviewer agents (code-reviewer, security-reviewer, language reviewers)
+
+Build agents (build-error-resolver, language build-resolvers, e2e-runner, kiro-cli) are always native regardless of this toggle.
 
 ## Models
 
-Agent model assignments follow a role-based policy. The `model` field in each agent definition is the single source of truth.
+Agent model assignments are role-based. The `model` field in each agent definition is the single source of truth.
 
 | Role | Model | Agents |
 |------|-------|--------|
-| Reasoning | `claude-opus-4.8` | architect, code-reviewer, deep-researcher, security-reviewer, refactor-cleaner, devops, and language-specific reviewers/build-resolvers |
+| Reasoning | `claude-opus-4.8` | architect, code-reviewer, security-reviewer, deep-researcher, devops, refactor-cleaner, language reviewers, build-resolvers |
 | Cost-optimized | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
-| General | inherited | Agents without an explicit `model` inherit the model selected in chat |
+| General | inherited | Agents without explicit `model` inherit the model selected in chat |
 
-> **Opus 4.8 availability:** `claude-opus-4.8` is **experimental** and available only in **us-east-1** and **eu-central-1**. It requires **Kiro CLI v2.5.0+**. Agents pinned to `claude-opus-4.8` will fail to resolve on older CLI versions or unsupported regions — upgrade Kiro CLI to avoid silent failures.
-
-## Profiles
-
-| Profile | Description |
-|---------|-------------|
-| `global` | Universal baseline — global agents, essential skills, guardrails, MCP catalog. Installs to `~/.kiro/` |
-| `core` | Minimal dev baseline — common rules, security hook, MCP |
-| `developer` | Standard setup — core + languages, skills, infra, architecture, quality, hooks |
-| `full` | Everything — all modules + harness source reference |
-| `writer` | Writing/content — articles, social media, research |
-| `mobile` | Mobile dev — Android, Compose, SwiftUI, Swift concurrency |
-| `ai` | AI/LLM dev — Claude API, cost-aware pipelines, PyTorch |
-| `backend` | Backend/API — Django, Spring Boot, Laravel, FastAPI, infra, DB |
-| `frontend` | Frontend — Next.js, Nuxt4, Bun, TypeScript |
-| `architect` | Architecture — API design, ADRs, blueprint, quality |
+> **Opus 4.8 availability:** `claude-opus-4.8` is **experimental** and available only in **us-east-1** and **eu-central-1**. It requires **Kiro CLI v2.5.0+**. Agents pinned to `claude-opus-4.8` will fail on older CLI versions or unsupported regions — upgrade Kiro CLI to avoid silent failures.
 
 ## What Gets Installed
 
-### Steering (`.kiro/steering/`)
+### Agents
 
-Rules and guidelines injected into Kiro context:
+**CLI tier** installs JSON agents under `agents/cli/`:
+- Global (`~/.kiro/agents/`): orchestration (kiro-cli, architect, deep-researcher, devops, peer-reviewer), review agents (code-reviewer, security-reviewer, translator-docs)
+- Workspace (`.kiro/agents/`): language reviewers, build-resolvers, database agents, e2e-runner, content agents
+
+**IDE tier** installs Markdown agents under `.kiro/agents/` with the same roles.
+
+### Hooks
+
+**CLI tier**: hooks embedded in agent JSON (not separate files).
+
+**IDE tier** (`.kiro/hooks/`): optimized set of event-driven automations:
+- pre-write-guard: size limit, secret detection, doc-location check
+- review-on-stop: post-task code review
+- capture-lessons: self-evolution feedback loop
+- changelog-on-commit: maintain a date-organized CHANGELOG (`## YYYY-MM-DD`) on git commit
+
+### Steering
+
+**CLI tier**: global steering limited to AGENTS.md (agent collaboration guide); agents reference skills via `skill://`.
+
+**IDE tier** (`.kiro/steering/`):
 - Always-on: coding style, security, testing, git workflow, patterns, performance
-- File-match: language-specific rules (11 languages) loaded when matching files are opened
-- Manual: 104 skills loaded on demand — frameworks, DB guidelines, AI/LLM, architecture, etc.
+- FileMatch: language-specific rules loaded per file type
+- Manual: skills loaded on demand (119 total; workload-tagged for selective inclusion)
 
-### Hooks (`.kiro/hooks/`)
+### Skills
 
-Event-driven automations (which ones install depends on the module/profile):
-- Pre-write guard — size limit, secret detection, doc-location check (`preToolUse`)
-- Pre-shell / post-shell guard — command safety review (`preToolUse`/`postToolUse`, guardrails)
-- Post-write cleanup — console.log/TODO warning (`postToolUse`)
-- Diagnostics on TS/JS file save (`fileEdited`)
-- New-file scaffold check (`fileCreated`)
-- Post-task code review (`agentStop`)
-- Spec-task test reminder (`postTaskExecution`)
-- Repeated-lesson capture — self-evolution, proposes lessons-learned entries with user confirmation (`agentStop`)
-- Pre-task plan (`preTaskExecution`, quality profile)
-- Pre-push docs gate — update CHANGELOG/README before a remote push (`preToolUse`, guardrails)
-
-### Agents (`agents/`)
-
-Provided in two formats — **IDE** (26 Markdown agents) and **CLI** (JSON: 9 global + 20 workspace):
-- Orchestration & global: kiro-cli (orchestrator), architect, code-reviewer, security-reviewer, refactor-cleaner, devops, deep-researcher, peer-reviewer (terminal Claude Code cross-model review), translator-docs
-- Language reviewers: TypeScript, Python, Go, Rust, Java, Kotlin, C++, Flutter
-- Build resolvers: C++, Go, Java, Kotlin, Rust, PyTorch + generic build-error-resolver
-- Data: database-reviewer, rdbms-data-modeler
-- Testing: e2e-runner
-- Writing: article-writer, content-creator
-
-### Skills (`skills/`)
-
-104 skills organized by domain:
+119 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
+- Core: context budget, strategic compact, agentic engineering, lessons learned
 - Infrastructure: Docker, deployment, database migrations, backend patterns
-- Databases: PostgreSQL, MySQL, MongoDB, DynamoDB, ClickHouse
-- Backend frameworks: Django, Spring Boot, Laravel, FastAPI
-- Frontend: Next.js, Nuxt4, Bun, Flutter, Liquid Glass
-- Mobile: Android, Compose Multiplatform, SwiftUI, Swift concurrency, Kotlin
-- AI/LLM: Claude API, cost-aware pipelines, PyTorch, on-device models
-- Architecture: API design, ADRs, blueprint, MCP server patterns
-- Quality: agentic engineering, context budget, continuous learning
-- Writing: articles, content engine, deep research, crossposting
-- Domain: supply chain, manufacturing, energy, compliance
-- Languages: testing and patterns for Python, Go, Rust, C++, Kotlin, Perl, Java
+- Databases: PostgreSQL, MySQL, MongoDB, DynamoDB
+- Backend: Django, Spring Boot, Laravel, FastAPI
+- Frontend: Next.js, Nuxt4, Bun
+- Mobile: Android, Compose, SwiftUI, Swift concurrency
+- AI/LLM: Claude API, cost-aware pipelines, PyTorch
+- Architecture: API design, ADRs, blueprint, MCP patterns
+- Writing: articles, content, research, crossposting
 
-### MCP (`.kiro/settings/mcp.json`)
+### MCP
 
-Pre-configured MCP server catalog.
+Curated MCP server catalog installed to `.kiro/settings/mcp.json` (or `~/.kiro/settings/mcp.json` for CLI global).
+
+**Cloud workload** includes: terraform, aws-documentation, aws-core, cloudwatch, aws-ecs, aws-iam (DevOps); aws-pricing, aws-billing-cost-management (FinOps).
 
 ## Project Structure
 
 ```
-├── install.js                  # Installer script (global/workspace routing)
-├── manifests/
-│   ├── install-modules.json    # Module definitions (35 modules)
-│   └── install-profiles.json   # Profile definitions (10 profiles)
-├── rules/                      # Steering source (common + 11 languages)
-├── agents/                     # IDE (26 .md) + CLI (9 global + 20 workspace) agent definitions + AGENTS.md
-├── skills/                     # 104 skill packages
-├── docs/                       # Guides — migration, profiles, skill catalog, hook reference, eval harness, prompt templates (EN + KR)
+├── install.js                  # Tier × workload installer
+├── scripts/lib/
+│   ├── workloads.js            # Workload catalog and classification
+│   ├── select-assets.js        # Asset selection engine + review-backend filter
+│   ├── tiers.js                # CLI/IDE install planners
+│   └── tag-assets.js           # Workload tagging
+├── rules/                      # Steering source (common + per-language)
+├── agents/
+│   ├── cli/                    # CLI agents (global + workspace)
+│   ├── ide/                    # IDE agents (Markdown)
+│   └── AGENTS.md               # Shared agent collaboration guide
+├── skills/                     # 119 skill packages (workload-tagged)
 ├── mcp-configs/                # MCP server configurations
-├── scripts/                    # Build/audit utilities (validate-agents, validate-models, validate-baseline)
+├── scripts/                    # Validation utilities (validate-agents.js, validate-models.js)
+├── docs/                       # Guides (English + Korean)
 └── .kiro/                      # This project's own Kiro config
 ```
 
 ## CLI Reference
 
 ```
-node install.js [options] [profile]
+node install.js <tier> [options]
+
+Tiers:
+  cli                Install for kiro-cli chat
+  ide                Install for Kiro IDE
 
 Options:
-  (no args)              Interactive setup guide
-  --list                 Show all profiles and modules
-  --status               Show installation status for current directory
-  --status --scope global  Show global installation status
-  --target <path>        Install to specified directory
-  --scope <global|workspace>  Explicit installation scope
-  --modules <list>       Install specific modules (comma-separated)
-  --profile <name>       Explicit profile selection
-  --dry-run              Preview all changes without writing/removing any file
+  --scope <global|workspace>     Installation scope (default: global for CLI, workspace for IDE)
+  --workload <list|all>          Comma-separated workloads or 'all' (default: core only)
+  --review-backend <kiro|claude> Code review routing (default: claude)
+  --target <path>                Install to specified directory
+  --dry-run                      Preview changes without writing
+  --list                         Show all workloads
+  --status                       Show installation status
 ```
 
 ## Acknowledgments

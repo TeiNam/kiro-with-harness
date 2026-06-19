@@ -2,6 +2,7 @@
 name: clickhouse-io
 description: ClickHouse database patterns, query optimization, analytics, and data engineering best practices for high-performance analytical workloads.
 origin: harness
+workloads: [python-data]
 ---
 
 # ClickHouse Analytics Patterns

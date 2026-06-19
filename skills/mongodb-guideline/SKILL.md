@@ -7,6 +7,7 @@ description: >
   embedded document, content schema, metadata, 도큐먼트 설계,
   채팅/로그 저장, 사용자 설정, 컨텐츠/메타데이터 관련 작업.
 origin: custom
+workloads: [mongodb]
 ---
 
 # MongoDB Database Guideline

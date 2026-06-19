@@ -2,6 +2,7 @@
 name: e2e-testing
 description: Playwright E2E testing patterns, Page Object Model, configuration, CI/CD integration, artifact management, and flaky test strategies.
 origin: harness
+workloads: [core]
 ---
 
 # E2E Testing Patterns

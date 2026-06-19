@@ -2,6 +2,7 @@
 name: agent-harness-construction
 description: Design and optimize AI agent action spaces, tool definitions, and observation formatting for higher completion rates.
 origin: harness
+workloads: [ai-agent]
 ---
 
 # Agent Harness Construction

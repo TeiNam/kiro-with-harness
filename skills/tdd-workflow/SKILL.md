@@ -2,6 +2,7 @@
 name: tdd-workflow
 description: Test-driven development workflow for writing features, fixing bugs, or refactoring code with comprehensive test coverage.
 origin: harness
+workloads: [core]
 ---
 
 # Test-Driven Development Workflow

@@ -1,137 +1,67 @@
-# 프로필(Profile) 선택 가이드
+# 워크로드 가이드
 
-## 빠른 결정
+> 이 문서는 기존 프로파일 기반 모델을 대체합니다. 설치기는 이제 명명된 프로파일이 아니라
+> **티어 × 워크로드**로 자산을 선택합니다. 전체 레퍼런스는 [README](../../README-KR.md)를 참고하세요.
 
-| 당신은... | 사용할 프로필 |
-|------------|-------------|
-| Kiro를 처음 설정하는 경우 | `global` (이후 프로젝트 프로필 추가) |
-| 개발 프로젝트를 시작하는 경우 | `core` (최소) 또는 `developer` (권장) |
-| REST API를 구축하는 경우 | `backend` |
-| 웹 프론트엔드를 구축하는 경우 | `frontend` |
-| 모바일 앱을 구축하는 경우 | `mobile` |
-| AI/LLM 작업을 하는 경우 | `ai` |
-| 시스템 아키텍처를 설계하는 경우 | `architect` |
-| 글이나 콘텐츠를 작성하는 경우 | `writer` |
-| 모든 기능을 원하는 경우 | `full` |
-
-## 프로필 모듈 맵
+## 모델
 
 ```
-global ─── steering-global, hooks-global, docs-prompt-templates, mcp-catalog
-
-core ───── steering-core, hooks-core, mcp-catalog
-
-developer ─ steering-core
-           ├── steering-languages (11개 언어)
-           ├── steering-agent-knowledge
-           ├── steering-skills
-           ├── steering-writing-research
-           ├── steering-infra
-           ├── steering-architecture
-           ├── steering-quality
-           ├── steering-lang-testing
-           ├── steering-lang-patterns
-           ├── hooks-core + hooks-quality + hooks-guardrails
-           ├── docs-eval-harness + docs-prompt-templates
-           └── mcp-catalog
-
-backend ─── steering-core
-           ├── steering-languages
-           ├── steering-agent-knowledge
-           ├── steering-infra
-           ├── steering-django
-           ├── steering-springboot
-           ├── steering-laravel
-           ├── steering-fastapi
-           ├── steering-architecture
-           ├── hooks-core + hooks-quality + hooks-guardrails
-           └── mcp-catalog
-
-frontend ── steering-core
-           ├── steering-languages
-           ├── steering-frontend-frameworks
-           ├── hooks-core + hooks-quality + hooks-guardrails
-           └── mcp-catalog
-
-mobile ──── steering-core
-           ├── steering-languages
-           ├── steering-mobile
-           ├── hooks-core + hooks-quality
-           └── mcp-catalog
-
-ai ──────── steering-core
-           ├── steering-languages
-           ├── steering-ai-llm
-           ├── hooks-core + hooks-quality
-           ├── docs-eval-harness
-           └── mcp-catalog
-
-architect ─ steering-core
-           ├── steering-agent-knowledge
-           ├── steering-architecture
-           ├── steering-quality
-           ├── steering-infra
-           ├── hooks-core
-           ├── docs-eval-harness + docs-prompt-templates
-           └── mcp-catalog
-
-writer ──── steering-core
-           ├── steering-writing-research
-           ├── hooks-core
-           ├── docs-prompt-templates
-           └── mcp-catalog
-
-full ────── (모든 모듈)
+node install.js <cli|ide> [--scope global|workspace] [--workload a,b|all] [--review-backend kiro|claude] [--dry-run]
 ```
 
-## 설치 패턴
+- **티어(tier)** — `cli`(`kiro-cli chat`용: JSON 에이전트, 에이전트 JSON 내부 훅, `skill://` 스킬) 또는 `ide`(Kiro IDE용: Markdown 에이전트, `.kiro/hooks/*.kiro.hook`, 스티어링).
+- **스코프(scope)** — `global`(`~/.kiro`, CLI 기본) 또는 `workspace`(프로젝트 `.kiro`, IDE 기본).
+- **워크로드(workload)** — 오늘 무슨 작업을 하는가. `core`는 항상 설치되고, 필요한 것을 추가합니다.
 
-### 최초 설정
+## 워크로드 목록
+
+`core`는 항상 포함됩니다. 추가 워크로드를 이름으로 선택합니다(콤마 구분, 또는 `all`로 `lab` 제외 전체).
+
+| 분류 | 워크로드 |
+|------|----------|
+| 언어 | python, rust, go, java, javascript, typescript, node, kotlin, cpp, csharp, php, perl, swift |
+| 특화 | ai-agent, ai, cloud, frontend, mobile, python-data |
+| 데이터베이스 | mysql, postgres, mongodb, dynamodb |
+| 기타 | architecture, writing, domain, obsidian |
+| 특수 | lab (숨김; `--workload lab`로만 설치) |
+
+언어는 함께 쓰는 경우가 드물어 언어별로 분리했습니다 — `rust`를 골라도 `go` 자산은 끌려오지 않습니다. 자산은 `workloads:` frontmatter가 활성 집합과 교집합일 때 설치됩니다.
+
+## 예시
 
 ```bash
-# 1. 글로벌 기본 설정 설치 (한 번만, 모든 프로젝트에 적용)
-node install.js global
+# Rust 백엔드 서비스, Kiro 네이티브 리뷰
+node install.js cli --scope workspace --workload rust --review-backend kiro
 
-# 2. 프로젝트 프로필 설치
-node install.js developer
+# 클라우드 / IaC 작업 (devops + FinOps MCP, Terraform, AWS 스킬)
+node install.js cli --scope global --workload cloud
+
+# IDE 프로젝트: TypeScript + 프론트엔드
+node install.js ide --workload typescript,frontend
+
+# 전체 (lab 제외)
+node install.js cli --scope global --workload all
 ```
 
-### 프로필 조합
+## 리뷰 백엔드
 
-프로필은 누적 방식입니다. 여러 번 설치하여 조합할 수 있습니다:
+`--review-backend`는 코드 리뷰에만 적용됩니다:
 
-```bash
-node install.js backend
-node install.js --modules steering-ai-llm    # 백엔드 프로젝트에 AI 스킬 추가
-```
+- `claude`(기본) — 리뷰를 `peer-reviewer`로 라우팅하여 터미널 Claude Code(`claude -p`)로 교차 모델 검토를 받습니다.
+- `kiro` — 네이티브 Kiro 리뷰어 에이전트(code-reviewer, security-reviewer, 언어별 `*-reviewer`)를 설치합니다.
 
-### 모듈 단독 설치
+프로그래밍·빌드·오케스트레이터 에이전트는 이 토글과 무관하게 항상 Kiro 네이티브입니다.
 
-프로필을 건너뛰고 개별 모듈만 선택할 수 있습니다:
+## 글로벌 ↔ 워크스페이스 상속
 
-```bash
-node install.js --modules steering-django,steering-infra,hooks-core
-```
+워크스페이스 설치는 글로벌에 이미 설치된 파일과 바이트 단위로 동일한 파일을 상속(스킵)하므로, `--scope workspace`는 글로벌 베이스라인과 다른 것만 추가합니다. `node install.js --status --scope global`로 글로벌 매니페스트를 확인하세요.
 
-### 설치 상태 확인
+## 프로파일에서 마이그레이션
 
-```bash
-node install.js --status
-```
-
-## 글로벌(Global) vs 프로젝트(Project)
-
-| 범위 | 위치 | 용도 |
-|-------|----------|---------|
-| 글로벌 | `~/.kiro/` | 모든 프로젝트에 적용되는 범용 규칙 (git 워크플로, 가드레일) |
-| 프로젝트 | 프로젝트 루트의 `.kiro/` | 프로젝트별 규칙, 훅(Hook), 스킬(Skill) |
-
-`global` 프로필은 `~/.kiro/`에 설치됩니다. 다른 모든 프로필은 현재 프로젝트(또는 `--target` 경로)에 설치됩니다.
-
-## 스티어링(Steering) 포함 유형
-
-| 유형 | 로드 시점 | 예시 |
-|------|-------------|---------|
-| always | 모든 Kiro 세션 | coding-style, security, testing |
-| fileMatch | 일치하는 파일이 열릴 때 | `.ts` 파일 편집 시 TypeScript 규칙 |
-| manual | 사용자가 채팅에서 `#`으로 추가 | Django 패턴, PostgreSQL 가이드라인 |
+| 구 프로파일 명령 | 새 대응 |
+|------------------|---------|
+| `install.js global` | `install.js cli --scope global --workload core` |
+| `install.js developer` | `install.js cli --scope workspace --workload <사용 언어>` |
+| `install.js backend` | `install.js cli --scope workspace --workload python,cloud` 등 |
+| `install.js frontend` | `install.js ide --workload typescript,frontend` |
+| `install.js full` | `install.js cli --scope global --workload all` |

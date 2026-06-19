@@ -20,40 +20,74 @@
     }
   },
   "mcpServersDocker": {
-    "_comment": "Docker-based MCP servers. Run the pull command before first use. Used by agents that declare them in mcpServers.",
+    "_comment": "Docker-based MCP servers (FinOps + DevOps essentials for the devops agent). Run the pull command before first use. Images: hashicorp/* (official), Docker-official mcp/* (built from awslabs sources), acuvity/* (curated awslabs mirrors).",
+    "_credentials": "AWS servers need credentials at runtime. The args forward host env (AWS_REGION/AWS_PROFILE + static keys). For SSO/named profiles, also mount your config dir — add: \"-v\", \"$HOME/.aws:/root/.aws:ro\". terraform (registry) and aws-pricing/aws-documentation (public APIs) work without credentials.",
+
+    "_devops": "===== DevOps / Infrastructure =====",
+    "terraform": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server"],
+      "description": "Terraform Registry integration — provider docs, module specs, version/registry metadata for IaC (HashiCorp official, GA)",
+      "pull": "docker pull hashicorp/terraform-mcp-server",
+      "category": "devops",
+      "usedBy": ["devops"]
+    },
     "aws-documentation": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "acuvity/mcp-server-aws-documentation"],
+      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "acuvity/mcp-server-aws-documentation"],
       "description": "AWS documentation search, content recommendations, and markdown conversion",
       "pull": "docker pull acuvity/mcp-server-aws-documentation",
+      "category": "devops",
       "usedBy": ["devops"]
     },
-    "aws-core-mcp-server": {
+    "aws-core": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "acuvity/mcp-server-aws-core"],
-      "description": "AWS core API operations (S3, EC2, IAM, etc.)",
+      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "-e", "AWS_PROFILE", "-e", "AWS_ACCESS_KEY_ID", "-e", "AWS_SECRET_ACCESS_KEY", "-e", "AWS_SESSION_TOKEN", "acuvity/mcp-server-aws-core"],
+      "description": "AWS core API operations and task orchestration (S3, EC2, IAM, etc.)",
       "pull": "docker pull acuvity/mcp-server-aws-core",
+      "category": "devops",
       "usedBy": ["devops"]
     },
-    "aws-cloudwatch-logs": {
+    "cloudwatch": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "acuvity/mcp-server-aws-cloudwatch-logs"],
-      "description": "CloudWatch Logs querying and analysis with Logs Insights",
-      "pull": "docker pull acuvity/mcp-server-aws-cloudwatch-logs",
+      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "-e", "AWS_PROFILE", "-e", "AWS_ACCESS_KEY_ID", "-e", "AWS_SECRET_ACCESS_KEY", "-e", "AWS_SESSION_TOKEN", "mcp/cloudwatch-mcp-server"],
+      "description": "CloudWatch metrics, alarms, and Logs Insights — operational troubleshooting (supersedes the narrower cloudwatch-logs)",
+      "pull": "docker pull mcp/cloudwatch-mcp-server",
+      "category": "devops",
       "usedBy": ["devops"]
     },
     "aws-ecs": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "acuvity/mcp-server-aws-ecs"],
+      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "-e", "AWS_PROFILE", "-e", "AWS_ACCESS_KEY_ID", "-e", "AWS_SECRET_ACCESS_KEY", "-e", "AWS_SESSION_TOKEN", "acuvity/mcp-server-aws-ecs"],
       "description": "ECS containerization, deployment, troubleshooting, and infrastructure management",
       "pull": "docker pull acuvity/mcp-server-aws-ecs",
+      "category": "devops",
       "usedBy": ["devops"]
     },
-    "aws-cost-explorer": {
+    "aws-iam": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "acuvity/mcp-server-aws-cost-explorer"],
-      "description": "AWS cost and usage analysis through Cost Explorer API",
-      "pull": "docker pull acuvity/mcp-server-aws-cost-explorer",
+      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "-e", "AWS_PROFILE", "-e", "AWS_ACCESS_KEY_ID", "-e", "AWS_SECRET_ACCESS_KEY", "-e", "AWS_SESSION_TOKEN", "mcp/iam-mcp-server"],
+      "description": "IAM users, roles, groups, and policy management with security best practices (sensitive — enable per task)",
+      "pull": "docker pull mcp/iam-mcp-server",
+      "category": "devops",
+      "usedBy": ["devops"]
+    },
+
+    "_finops": "===== FinOps / Cost =====",
+    "aws-pricing": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "mcp/aws-pricing-mcp-server"],
+      "description": "Pre-deployment cost estimation and optimization from the AWS Price List API — answer 'what will this cost before I deploy?'",
+      "pull": "docker pull mcp/aws-pricing-mcp-server",
+      "category": "finops",
+      "usedBy": ["devops"]
+    },
+    "aws-billing-cost-management": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "-e", "AWS_PROFILE", "-e", "AWS_ACCESS_KEY_ID", "-e", "AWS_SECRET_ACCESS_KEY", "-e", "AWS_SESSION_TOKEN", "mcp/billing-cost-management-mcp-server"],
+      "description": "Actual spend, budgets, Cost Explorer, Compute Optimizer, Cost Optimization Hub, and pricing calculator (supersedes the narrower cost-explorer)",
+      "pull": "docker pull mcp/billing-cost-management-mcp-server",
+      "category": "finops",
       "usedBy": ["devops"]
     }
   },

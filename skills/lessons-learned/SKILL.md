@@ -3,6 +3,7 @@ name: lessons-learned
 description: Designated learning log for the harness self-evolution mechanism. Accumulates one-line lessons from repeated corrections — recurring review findings, build failure patterns, and user corrections — so the same mistake is not repeated across sessions.
 inclusion: manual
 origin: harness
+workloads: [core]
 ---
 
 # Lessons Learned

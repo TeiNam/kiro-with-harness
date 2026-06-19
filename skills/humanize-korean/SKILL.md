@@ -12,6 +12,7 @@ description: >
   "이 문단만", "2차 윤문"도 이 스킬. 단순 맞춤법·오탈자 교정은 직접 처리, 순수 번역은 번역 도구,
   내용 추가·삭제를 동반한 재작성은 별도 집필 작업.
 origin: im-not-ai (humanize-korean, Kiro CLI 이식판)
+workloads: [writing]
 ---
 
 # Humanize Korean — AI 한글 티 제거 (Kiro CLI 이식판)

@@ -11,6 +11,7 @@ description: >-
   DO NOT TRIGGER when: task is completable in a single PR or fewer
   than 3 tool calls, or user says "just do it".
 origin: community
+workloads: [architecture]
 ---
 
 # Blueprint — Construction Plan Generator

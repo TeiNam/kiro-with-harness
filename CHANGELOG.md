@@ -1,16 +1,23 @@
 # Changelog
 
-이 프로젝트의 주요 변경 사항을 기록합니다.
-형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따릅니다.
+이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
+형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
-## [Unreleased]
-
-### Added
-- `humanize-korean` 네이티브 스킬 추가 — AI가 쓴 한글 텍스트를 사람이 쓴 글처럼 윤문하는 오케스트레이터(SKILL.md + references 9).
-- `skills-kiro-native` 모듈 추가 — 스킬을 실제 `skill://` 리소스로 `~/.kiro/skills/`에 배포(디렉터리·references 보존, 점진 로딩). `global` 프로필에 등록.
-- 푸시-전 문서 갱신 훅(`changelog-readme-before-push`) 추가 — 원격 푸시 직전 CHANGELOG.md/README를 이번 변경에 맞춰 갱신하도록 유도(`hooks-guardrails` 모듈 + 로컬 `.kiro/hooks`).
+## 2026-06-20
 
 ### Changed
-- `kiro-cli` 오케스트레이터에 `skill://~/.kiro/skills/**/SKILL.md` 리소스를 배선해 글로벌 스킬을 점진 로딩.
-- `install.js`의 `writeManaged`에 파일별 `ensureDir`를 추가해 중첩 출력 경로(`.kiro/skills/<skill>/references/...`) 생성을 보강.
-- README(EN/KR)에 네이티브 스킬 항목과 모듈/스킬 수치(모듈 35, 스킬 104)를 반영.
+- Installer migrated from profile-based selection to tier (cli/ide) × workload model; profiles (global, developer, full, etc.) are removed and replaced by tier + workload options.
+- Per-language workloads split per-language rules, reviewers, and build resolvers (python, rust, go, java, javascript, typescript, node, kotlin, cpp, csharp, php, perl, swift).
+- README and README-KR updated to document tier × workload commands and new installation flow.
+
+### Added
+- `--review-backend` toggle to control code review agent routing: `kiro` (native reviewers) or `claude` (peer-reviewer + terminal Claude Code cross-model review; default).
+- Global ↔ workspace dedup via `.harness-manifest.json`; workspace installs skip files identical to global, reducing redundancy.
+- Terraform + FinOps MCP curation: terraform-mcp-server, aws-pricing (cost estimation), aws-billing-cost-management (spend tracking); wired into devops agent.
+- New skills: terraform-deployment (pinned Terraform versions), aws-cloud, aws-bedrock, terminal-ops, gitignore-generator; ported from the Claude harness: redis-patterns, prisma-patterns, duckdb-patterns, hexagonal-architecture, tech-writer, dashboard-builder, drawio-diagram, production-audit, cost-tracking, python-data-analysis.
+- Workload tagging system for 119 skills; skills filtered by active workload intersection.
+- Tech-writer agent bundle ported from the Claude harness (CLI JSON + IDE MD, Korean, writing workload): tech-writer-monolith, tech-doc-writer, doc-quality-detector, doc-clarity-reviewer, tech-fidelity-auditor.
+
+### Removed
+- Profile-based install commands (global, developer, full, writer, mobile, ai, backend, frontend, architect) — use tier + workload instead.
+- `manifests/install-profiles.json` and `manifests/install-modules.json` (legacy reference only; not used by current installer).

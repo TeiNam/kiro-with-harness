@@ -1,137 +1,67 @@
-# Profile Selection Guide
+# Workload Guide
 
-## Quick Decision
+> This guide replaces the former profile-based model. The installer now selects assets by
+> **tier × workload**, not by named profiles. See the [README](../../README.md) for the full reference.
 
-| You are... | Use profile |
-|------------|-------------|
-| Setting up Kiro for the first time | `global` (then add a project profile) |
-| Starting any dev project | `core` (minimal) or `developer` (recommended) |
-| Building a REST API | `backend` |
-| Building a web frontend | `frontend` |
-| Building a mobile app | `mobile` |
-| Working with AI/LLM | `ai` |
-| Designing system architecture | `architect` |
-| Writing articles or content | `writer` |
-| Want everything | `full` |
-
-## Profile Module Map
+## Model
 
 ```
-global ─── steering-global, hooks-global, docs-prompt-templates, mcp-catalog
-
-core ───── steering-core, hooks-core, mcp-catalog
-
-developer ─ steering-core
-           ├── steering-languages (11 languages)
-           ├── steering-agent-knowledge
-           ├── steering-skills
-           ├── steering-writing-research
-           ├── steering-infra
-           ├── steering-architecture
-           ├── steering-quality
-           ├── steering-lang-testing
-           ├── steering-lang-patterns
-           ├── hooks-core + hooks-quality + hooks-guardrails
-           ├── docs-eval-harness + docs-prompt-templates
-           └── mcp-catalog
-
-backend ─── steering-core
-           ├── steering-languages
-           ├── steering-agent-knowledge
-           ├── steering-infra
-           ├── steering-django
-           ├── steering-springboot
-           ├── steering-laravel
-           ├── steering-fastapi
-           ├── steering-architecture
-           ├── hooks-core + hooks-quality + hooks-guardrails
-           └── mcp-catalog
-
-frontend ── steering-core
-           ├── steering-languages
-           ├── steering-frontend-frameworks
-           ├── hooks-core + hooks-quality + hooks-guardrails
-           └── mcp-catalog
-
-mobile ──── steering-core
-           ├── steering-languages
-           ├── steering-mobile
-           ├── hooks-core + hooks-quality
-           └── mcp-catalog
-
-ai ──────── steering-core
-           ├── steering-languages
-           ├── steering-ai-llm
-           ├── hooks-core + hooks-quality
-           ├── docs-eval-harness
-           └── mcp-catalog
-
-architect ─ steering-core
-           ├── steering-agent-knowledge
-           ├── steering-architecture
-           ├── steering-quality
-           ├── steering-infra
-           ├── hooks-core
-           ├── docs-eval-harness + docs-prompt-templates
-           └── mcp-catalog
-
-writer ──── steering-core
-           ├── steering-writing-research
-           ├── hooks-core
-           ├── docs-prompt-templates
-           └── mcp-catalog
-
-full ────── (all modules)
+node install.js <cli|ide> [--scope global|workspace] [--workload a,b|all] [--review-backend kiro|claude] [--dry-run]
 ```
 
-## Installation Patterns
+- **Tier** — `cli` (for `kiro-cli chat`: JSON agents, hooks embedded in agent JSON, `skill://` skills) or `ide` (for Kiro IDE: Markdown agents, `.kiro/hooks/*.kiro.hook`, steering).
+- **Scope** — `global` (`~/.kiro`, CLI default) or `workspace` (project `.kiro`, IDE default).
+- **Workload** — what you are working on today. `core` is always installed; add others as needed.
 
-### First-time setup
+## Workloads
+
+`core` is always present. Select additional workloads by name (comma-separated, or `all` for every group except `lab`).
+
+| Category | Workloads |
+|----------|-----------|
+| Languages | python, rust, go, java, javascript, typescript, node, kotlin, cpp, csharp, php, perl, swift |
+| Specialized | ai-agent, ai, cloud, frontend, mobile, python-data |
+| Databases | mysql, postgres, mongodb, dynamodb |
+| Other | architecture, writing, domain, obsidian |
+| Special | lab (hidden; opt-in via `--workload lab`) |
+
+Languages are split per-language because they are rarely combined — selecting `rust` does not pull in `go` assets. An asset is installed when its `workloads:` frontmatter intersects your active set.
+
+## Examples
 
 ```bash
-# 1. Install global baseline (once, applies to all projects)
-node install.js global
+# Rust backend service, native Kiro review
+node install.js cli --scope workspace --workload rust --review-backend kiro
 
-# 2. Install project profile
-node install.js developer
+# Cloud / IaC work (devops + FinOps MCP, Terraform, AWS skills)
+node install.js cli --scope global --workload cloud
+
+# IDE project: TypeScript + frontend
+node install.js ide --workload typescript,frontend
+
+# Everything (except lab)
+node install.js cli --scope global --workload all
 ```
 
-### Combining profiles
+## Review backend
 
-Profiles are additive. Run multiple installs to combine:
+`--review-backend` controls code review only:
 
-```bash
-node install.js backend
-node install.js --modules steering-ai-llm    # add AI skills to backend project
-```
+- `claude` (default) — route review through `peer-reviewer`, which calls terminal Claude Code (`claude -p`) for a cross-model second opinion.
+- `kiro` — install native Kiro reviewer agents (code-reviewer, security-reviewer, language `*-reviewer`s).
 
-### Module-only install
+Programming, build, and orchestrator agents are always Kiro-native regardless of this toggle.
 
-Skip profiles entirely and pick individual modules:
+## Global ↔ workspace inheritance
 
-```bash
-node install.js --modules steering-django,steering-infra,hooks-core
-```
+A workspace install inherits (skips) any file byte-identical to one already installed globally, so `--scope workspace` only adds what differs from your global baseline. Run `node install.js --status --scope global` to inspect the global manifest.
 
-### Check what's installed
+## Migrating from profiles
 
-```bash
-node install.js --status
-```
-
-## Global vs Project
-
-| Scope | Location | Use for |
-|-------|----------|---------|
-| Global | `~/.kiro/` | Universal rules that apply everywhere (git workflow, guardrails) |
-| Project | `.kiro/` in project root | Project-specific rules, hooks, skills |
-
-The `global` profile installs to `~/.kiro/`. All other profiles install to the current project (or `--target` path).
-
-## Steering Inclusion Types
-
-| Type | Loaded when | Example |
-|------|-------------|---------|
-| always | Every Kiro session | coding-style, security, testing |
-| fileMatch | Matching file is opened | TypeScript rules when editing `.ts` |
-| manual | User adds via `#` in chat | Django patterns, PostgreSQL guideline |
+| Old profile command | New equivalent |
+|---------------------|----------------|
+| `install.js global` | `install.js cli --scope global --workload core` |
+| `install.js developer` | `install.js cli --scope workspace --workload <your languages>` |
+| `install.js backend` | `install.js cli --scope workspace --workload python,cloud` (etc.) |
+| `install.js frontend` | `install.js ide --workload typescript,frontend` |
+| `install.js full` | `install.js cli --scope global --workload all` |

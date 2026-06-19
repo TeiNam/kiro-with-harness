@@ -16,6 +16,7 @@ metadata:
   author: evos
   clawdbot:
     emoji: "🌐"
+workloads: [domain]
 ---
 
 # Customs & Trade Compliance

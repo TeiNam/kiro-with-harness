@@ -6,6 +6,7 @@ description: >
   partition key, sort key, overloading, Query vs Scan, TTL, DynamoDB Streams,
   boto3, aioboto3, TransactWrite, BatchWrite 관련 작업.
 origin: custom
+workloads: [dynamodb]
 ---
 
 # DynamoDB Guideline

@@ -2,6 +2,7 @@
 name: enterprise-agent-ops
 description: Operate long-lived agent workloads with observability, security boundaries, and lifecycle management.
 origin: harness
+workloads: [ai-agent]
 ---
 
 # Enterprise Agent Ops

@@ -2,6 +2,7 @@
 name: security-scan
 description: Scan your agent configuration directory for security vulnerabilities, misconfigurations, and injection risks using AgentShield. Checks project instructions, settings, MCP servers, hooks, and agent definitions.
 origin: harness
+workloads: [core]
 ---
 
 # Security Scan Skill

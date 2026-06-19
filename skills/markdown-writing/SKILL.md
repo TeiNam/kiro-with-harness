@@ -2,6 +2,7 @@
 name: markdown-writing
 description: Write markdown documents (README, guides, wikis, changelogs, API docs) by breaking them into small sequential chunks instead of generating one long file at a time. Use when the user needs structured markdown output that is long, multi-section, or likely to exceed a single generation window.
 origin: harness
+workloads: [writing]
 ---
 
 # Markdown Writing

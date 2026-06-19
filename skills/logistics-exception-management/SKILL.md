@@ -15,6 +15,7 @@ metadata:
   author: evos
   clawdbot:
     emoji: "📦"
+workloads: [domain]
 ---
 
 # Logistics Exception Management

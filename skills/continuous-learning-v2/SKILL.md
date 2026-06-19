@@ -3,6 +3,7 @@ name: continuous-learning-v2
 description: Instinct-based learning system that observes coding sessions via hooks, creates atomic instincts with confidence scoring, and evolves them into skills/commands/agents. v2.1 adds project-scoped instincts to prevent cross-project contamination.
 origin: harness
 version: 2.1.0
+workloads: [core]
 ---
 
 # Continuous Learning v2.1 - Instinct

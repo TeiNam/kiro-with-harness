@@ -2,6 +2,7 @@
 name: cost-aware-llm-pipeline
 description: Cost optimization patterns for LLM API usage — model routing by task complexity, budget tracking, retry logic, and prompt caching.
 origin: harness
+workloads: [ai]
 ---
 
 # Cost-Aware LLM Pipeline

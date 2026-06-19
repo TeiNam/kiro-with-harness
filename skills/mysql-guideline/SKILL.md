@@ -6,6 +6,7 @@ description: >
   index 설계, RANGE partition, MySQL migration, utf8mb4, InnoDB,
   트랜잭션 관리, UPSERT, Covering Index, 복합 인덱스 관련 작업.
 origin: custom
+workloads: [mysql]
 ---
 
 # MySQL Database Guideline

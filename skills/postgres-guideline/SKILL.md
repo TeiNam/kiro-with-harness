@@ -6,6 +6,7 @@ description: >
   EXPLAIN ANALYZE, GIN/BRIN/GiST 인덱스, RLS, PARTITION BY RANGE, pg_partman,
   LISTEN/NOTIFY, Advisory Lock, UPSERT ON CONFLICT, CTE, timestamptz 관련 작업.
 origin: custom
+workloads: [postgres]
 ---
 
 # PostgreSQL Database Guideline

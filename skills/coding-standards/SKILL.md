@@ -2,6 +2,7 @@
 name: coding-standards
 description: Universal coding standards and best practices for software development.
 origin: harness
+workloads: [core]
 ---
 
 # Coding Standards & Best Practices

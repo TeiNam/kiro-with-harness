@@ -1,0 +1,123 @@
+'use strict';
+
+// 티어 × 워크로드 설치기 테스트 (프로파일 모델 대체 후 신규 모델 검증).
+//   - 선택 엔진: 워크로드 필터 + review-backend 라우팅(리뷰만 kiro/claude, 프로그래밍은 항상 네이티브)
+//   - 계획 엔진: CLI=JSON에이전트+스킬+mcp(general), IDE=MD에이전트+steering+훅+mcp(general+docker)
+//   - e2e: 임시 타깃 실제 설치 → 파일/매니페스트, 멱등성(재설치 clean), dry-run(쓰기 없음)
+
+const test = require('node:test');
+const assert = require('node:assert');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
+const ROOT = path.join(__dirname, '..');
+const { selectAssets, selectMcpServers } = require(path.join(ROOT, 'scripts/lib/select-assets'));
+const tiers = require(path.join(ROOT, 'scripts/lib/tiers'));
+
+function names(arr) { return arr.map((a) => a.name); }
+function mkTmp() { return fs.mkdtempSync(path.join(os.tmpdir(), 'kh-test-')); }
+function runInstall(args) {
+  return spawnSync('node', [path.join(ROOT, 'install.js'), ...args], { cwd: ROOT, encoding: 'utf8', timeout: 60000 });
+}
+
+test('review-backend=claude: 네이티브 리뷰어 제외, peer-reviewer 포함', () => {
+  const sel = selectAssets({ root: ROOT, tier: 'ide', workloads: ['python'], reviewBackend: 'claude' });
+  const n = names(sel.agents);
+  assert.ok(n.includes('peer-reviewer'), 'peer-reviewer 포함되어야 함');
+  assert.ok(!n.includes('code-reviewer'), 'code-reviewer 제외');
+  assert.ok(!n.includes('python-reviewer'), 'python-reviewer 제외');
+  assert.ok(!n.includes('security-reviewer'), 'security-reviewer 제외');
+});
+
+test('review-backend=kiro: 네이티브 리뷰어 포함', () => {
+  const sel = selectAssets({ root: ROOT, tier: 'ide', workloads: ['python'], reviewBackend: 'kiro' });
+  const n = names(sel.agents);
+  assert.ok(n.includes('code-reviewer') && n.includes('python-reviewer'), '네이티브 리뷰어 포함');
+});
+
+test('프로그래밍/빌드 에이전트는 review-backend 무관하게 항상 설치', () => {
+  for (const rb of ['kiro', 'claude']) {
+    const sel = selectAssets({ root: ROOT, tier: 'cli', scope: 'workspace', workloads: ['rust'], reviewBackend: rb });
+    const n = names(sel.agents);
+    assert.ok(n.includes('rust-build-resolver'), `rust-build-resolver (${rb})`);
+    assert.ok(n.includes('e2e-runner'), `e2e-runner (${rb})`);
+  }
+});
+
+test('워크로드 필터: rust 선택 시 go 자산 미포함', () => {
+  const sel = selectAssets({ root: ROOT, tier: 'cli', scope: 'workspace', workloads: ['rust'], reviewBackend: 'kiro' });
+  const n = names(sel.agents);
+  assert.ok(!n.includes('go-reviewer') && !n.includes('go-build-resolver'), 'go 에이전트 미포함');
+});
+
+test('CLI 계획: 훅 파일 없음(에이전트 JSON 내부) + mcp.json general만', () => {
+  const sel = selectAssets({ root: ROOT, tier: 'cli', scope: 'global', workloads: ['cloud'], reviewBackend: 'claude' });
+  sel.mcp = selectMcpServers({ root: ROOT, activeGroups: sel.activeGroups });
+  const plan = tiers.plan('cli', sel, { root: ROOT });
+  assert.ok(!plan.ops.some((o) => o.destRel.startsWith('hooks/')), 'CLI는 .kiro.hook 미생성');
+  assert.ok(plan.ops.some((o) => o.destRel === 'settings/mcp.json'), 'mcp.json 생성');
+  assert.ok(plan.postInstall.includes('kiro-cli agent set-default kiro-cli'), 'orchestrator 기본 지정');
+});
+
+test('IDE 계획: 훅 + steering(always/fileMatch) + mcp.json(general+docker)', () => {
+  const sel = selectAssets({ root: ROOT, tier: 'ide', workloads: ['python', 'cloud'], reviewBackend: 'kiro' });
+  sel.mcp = selectMcpServers({ root: ROOT, activeGroups: sel.activeGroups });
+  const plan = tiers.plan('ide', sel, { root: ROOT });
+  assert.ok(plan.ops.some((o) => o.destRel.startsWith('hooks/')), 'IDE는 .kiro.hook 생성');
+  assert.ok(plan.ops.some((o) => o.destRel === 'steering/coding-style.md'), 'core steering');
+  assert.ok(plan.ops.some((o) => o.destRel === 'steering/python-rules.md'), 'python fileMatch steering');
+  const mcpOp = plan.ops.find((o) => o.destRel === 'settings/mcp.json');
+  assert.ok(mcpOp && mcpOp.content.includes('terraform'), 'cloud → docker MCP(terraform) 포함');
+});
+
+test('e2e: 기본 claude — python-reviewer 미설치, 멱등성, dry-run 무쓰기', () => {
+  const tmp = mkTmp();
+  try {
+    const r1 = runInstall(['ide', '--workload=python', `--target=${tmp}`]);
+    assert.strictEqual(r1.status, 0);
+    const kiro = path.join(tmp, '.kiro');
+    const m1 = JSON.parse(fs.readFileSync(path.join(kiro, '.harness-manifest.json'), 'utf8'));
+    assert.strictEqual(m1.tier, 'ide');
+    assert.strictEqual(m1.reviewBackend, 'claude');
+    assert.ok(!fs.existsSync(path.join(kiro, 'agents', 'python-reviewer.md')), 'claude 모드: python-reviewer 미설치');
+    assert.ok(fs.existsSync(path.join(kiro, 'agents', 'peer-reviewer.md')), 'claude 모드: peer-reviewer 설치');
+
+    // 멱등성: 재설치 후 파일 수 동일
+    const countFiles = (d) => fs.existsSync(d) ? fs.readdirSync(d, { recursive: true }).filter((f) => fs.statSync(path.join(d, f)).isFile()).length : 0;
+    const before = countFiles(kiro);
+    const r2 = runInstall(['ide', '--workload=python', `--target=${tmp}`]);
+    assert.strictEqual(r2.status, 0);
+    assert.ok(/Cleaned \d+ previously managed/.test(r2.stdout), '재설치 시 clean 수행');
+    assert.strictEqual(countFiles(kiro), before, '멱등: 파일 수 동일');
+
+    // dry-run: 별도 타깃에 쓰기 없어야 함
+    const tmp2 = mkTmp();
+    try {
+      const r3 = runInstall(['ide', '--workload=python', `--target=${tmp2}`, '--dry-run']);
+      assert.strictEqual(r3.status, 0);
+      assert.ok(!fs.existsSync(path.join(tmp2, '.kiro')), 'dry-run: 파일 미생성');
+    } finally {
+      fs.rmSync(tmp2, { recursive: true, force: true });
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('e2e: 워크스페이스 설치가 글로벌과 동일한 파일을 상속(dedup)한다', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kh-home-'));
+  const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'kh-ws-'));
+  try {
+    const env = { ...process.env, HOME: home };
+    const g = spawnSync('node', [path.join(ROOT, 'install.js'), 'cli', '--scope=global', '--workload=core'], { cwd: ROOT, encoding: 'utf8', timeout: 60000, env });
+    assert.strictEqual(g.status, 0, `global install exit 0 (${g.stderr})`);
+    const w = spawnSync('node', [path.join(ROOT, 'install.js'), 'cli', '--scope=workspace', '--workload=core', `--target=${ws}`], { cwd: ROOT, encoding: 'utf8', timeout: 60000, env });
+    assert.strictEqual(w.status, 0, `workspace install exit 0 (${w.stderr})`);
+    assert.match(w.stdout, /Inherited from global \(skipped\): \d+ file/, '글로벌과 동일한 파일은 상속(dedup)되어야 한다');
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+    fs.rmSync(ws, { recursive: true, force: true });
+  }
+});

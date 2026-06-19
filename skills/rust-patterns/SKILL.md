@@ -2,6 +2,7 @@
 name: rust-patterns
 description: Idiomatic Rust patterns, ownership, error handling, traits, concurrency, and best practices for building safe, performant applications.
 origin: harness
+workloads: [rust]
 ---
 
 # Rust Development Patterns
