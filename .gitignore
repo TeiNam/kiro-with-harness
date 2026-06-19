@@ -27,8 +27,10 @@ desktop.ini
 *.sublime-workspace
 .cursor/
 
-# === Global: Kiro IDE ===
+# === Global: AI agent tools (Kiro, Claude Code, Codex, etc.) ===
 .kiro/
+.claude/
+.codex/
 
 # === Global: Security ===
 .env
