@@ -195,3 +195,5 @@ Options:
 ## Acknowledgments
 
 This project was heavily inspired by [Everything Claude Code (ECC)](https://github.com/affaan-m/everything-claude-code). Many of the rules, agent patterns, and skill structures originated from ECC and were adapted for Kiro IDE's native format (steering, hooks, skills).
+
+The `ponytail` steering rule (lazy senior dev mode) is adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail); it is applied to reduce token usage by favoring minimal code over boilerplate (write less, delete more).

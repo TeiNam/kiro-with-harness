@@ -21,6 +21,15 @@
   ],
   "model": "claude-opus-4.8",
   "mcpServers": {},
+  "hooks": {
+    "preToolUse": [
+      {
+        "matcher": "fs_write",
+        "command": "bash ~/.kiro/hooks/pre-write-guard.sh",
+        "timeout_ms": 5000
+      }
+    ]
+  },
   "toolsSettings": {
     "subagent": {
       "availableAgents": [

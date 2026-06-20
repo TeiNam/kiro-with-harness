@@ -14,7 +14,7 @@
  *
  * 티어 차이:
  *   - CLI: JSON 에이전트(verbatim copy) + 스킬 디렉터리(skill:// progressive) +
- *          mcp.json(general). 훅/MCP 는 에이전트 JSON 내부에 이미 존재.
+ *          pre-write-guard 훅 스크립트. 글로벌 MCP 불필요(mcp.json 미생성; IDE 전용).
  *   - IDE: MD 에이전트 + 스킬→steering(manual) + 언어 rules(fileMatch) +
  *          core steering(always) + .kiro.hook(최적화 세트) + mcp.json(general+docker).
  */
@@ -67,7 +67,7 @@ const LANG_RULES = {
 };
 
 /** rules/common 의 always-on 베이스라인(IDE steering). */
-const CORE_RULES = ['coding-style.md', 'security.md', 'testing.md', 'git-workflow.md', 'product.md'];
+const CORE_RULES = ['coding-style.md', 'security.md', 'testing.md', 'git-workflow.md', 'product.md', 'ponytail.md'];
 
 /**
  * IDE 최적화 훅 세트 (.kiro.hook). 워크로드와 무관한 핵심만 — IDE 내장 기능과
@@ -131,17 +131,22 @@ function planCli(selection, { root = ROOT } = {}) {
     }
   }
 
-  // 3) mcp.json — general 서버만 (CLI 에이전트는 자체 mcpServers 보유)
-  if (selection.mcp) {
-    ops.push({ type: 'content', destRel: 'settings/mcp.json', content: mcpJsonContent({ general: selection.mcp.general }), label: 'mcp.json' });
-  }
+  // 3) CLI 글로벌은 MCP 불필요: 에이전트가 자체 mcpServers 를 갖고, 글로벌
+  //    ~/.kiro/settings/mcp.json 은 IDE 전용이다. CLI 티어가 이를 쓰면 IDE 설정을
+  //    덮어쓰므로 mcp.json 을 생성하지 않는다.
 
-  // 4) AGENTS.md (kiro_default 가 자동 로드하는 협업 규약) — 최소 글로벌 steering
+  // 4) 항상로딩 글로벌 steering: AGENTS.md(협업 규약) + ponytail(lazy senior dev 페르소나)
   const agentsMd = readSource(root, 'agents/AGENTS.md');
   if (agentsMd) ops.push({ type: 'content', destRel: 'steering/AGENTS.md', content: agentsMd, label: 'AGENTS.md' });
+  const ponytail = readSource(root, 'rules/common/ponytail.md');
+  if (ponytail) ops.push({ type: 'content', destRel: 'steering/ponytail.md', content: stripFrontmatter(ponytail) + '\n', label: 'ponytail' });
 
-  // 5) 오케스트레이터 선택 시 기본 에이전트 지정
+  // 5) 오케스트레이터(kiro-cli) 선택 시: pre-write-guard 훅 스크립트 설치 + 기본 에이전트 지정
   if (selection.agents.some((a) => a.name === 'kiro-cli')) {
+    const guardSrc = path.join(root, 'agents/cli/hooks/pre-write-guard.sh');
+    if (fs.existsSync(guardSrc)) {
+      ops.push({ type: 'copy', src: guardSrc, destRel: 'hooks/pre-write-guard.sh', label: 'hook pre-write-guard' });
+    }
     postInstall.push('kiro-cli agent set-default kiro-cli');
   }
 

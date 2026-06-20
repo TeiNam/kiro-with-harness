@@ -1,9 +1,11 @@
 {
   "mcpServers": {
+    "_comment": "비-docker MCP 서버. workloads 태그가 있으면 해당 워크로드(IDE 티어)에서만 포함(없으면 범용). CLI 티어는 mcp.json 을 생성하지 않으므로 IDE 전용이다.",
     "cloudflare-docs": {
       "type": "http",
       "url": "https://docs.mcp.cloudflare.com/mcp",
-      "description": "Cloudflare documentation search"
+      "description": "Cloudflare documentation search",
+      "workloads": ["cloud"]
     },
     "mcpydoc": {
       "command": "python",
@@ -11,12 +13,8 @@
       "env": {},
       "description": "Python package documentation and code analysis server (auto-detects venv). Install: pip install mcpydoc. Alt: use command='uvx', args=['mcpydoc'] for zero-install.",
       "autoApprove": ["search_symbols"],
-      "disabled": true
-    },
-    "token-optimizer": {
-      "command": "npx",
-      "args": ["-y", "token-optimizer-mcp"],
-      "description": "Token optimization for 95%+ context reduction via content deduplication and compression"
+      "disabled": true,
+      "workloads": ["python"]
     }
   },
   "mcpServersDocker": {

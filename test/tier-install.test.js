@@ -52,12 +52,14 @@ test('워크로드 필터: rust 선택 시 go 자산 미포함', () => {
   assert.ok(!n.includes('go-reviewer') && !n.includes('go-build-resolver'), 'go 에이전트 미포함');
 });
 
-test('CLI 계획: 훅 파일 없음(에이전트 JSON 내부) + mcp.json general만', () => {
+test('CLI 계획: .kiro.hook 없음 + pre-write-guard 스크립트 + mcp.json 미생성(글로벌 MCP 불필요)', () => {
   const sel = selectAssets({ root: ROOT, tier: 'cli', scope: 'global', workloads: ['cloud'], reviewBackend: 'claude' });
   sel.mcp = selectMcpServers({ root: ROOT, activeGroups: sel.activeGroups });
   const plan = tiers.plan('cli', sel, { root: ROOT });
-  assert.ok(!plan.ops.some((o) => o.destRel.startsWith('hooks/')), 'CLI는 .kiro.hook 미생성');
-  assert.ok(plan.ops.some((o) => o.destRel === 'settings/mcp.json'), 'mcp.json 생성');
+  assert.ok(!plan.ops.some((o) => o.destRel.endsWith('.kiro.hook')), 'CLI는 .kiro.hook 미생성(훅은 에이전트 JSON 내부)');
+  assert.ok(plan.ops.some((o) => o.destRel === 'hooks/pre-write-guard.sh'), 'pre-write-guard 훅 스크립트 설치');
+  assert.ok(!plan.ops.some((o) => o.destRel === 'settings/mcp.json'), 'CLI 글로벌은 mcp.json 미생성(IDE 전용)');
+  assert.ok(plan.ops.some((o) => o.destRel === 'steering/ponytail.md'), 'ponytail core 규칙 always-on 설치');
   assert.ok(plan.postInstall.includes('kiro-cli agent set-default kiro-cli'), 'orchestrator 기본 지정');
 });
 
@@ -67,9 +69,26 @@ test('IDE 계획: 훅 + steering(always/fileMatch) + mcp.json(general+docker)', 
   const plan = tiers.plan('ide', sel, { root: ROOT });
   assert.ok(plan.ops.some((o) => o.destRel.startsWith('hooks/')), 'IDE는 .kiro.hook 생성');
   assert.ok(plan.ops.some((o) => o.destRel === 'steering/coding-style.md'), 'core steering');
+  assert.ok(plan.ops.some((o) => o.destRel === 'steering/ponytail.md'), 'ponytail core steering');
   assert.ok(plan.ops.some((o) => o.destRel === 'steering/python-rules.md'), 'python fileMatch steering');
   const mcpOp = plan.ops.find((o) => o.destRel === 'settings/mcp.json');
   assert.ok(mcpOp && mcpOp.content.includes('terraform'), 'cloud → docker MCP(terraform) 포함');
+});
+
+test('MCP general 워크로드 스코핑: mcpydoc→python, cloudflare-docs→cloud, token-optimizer 제거', () => {
+  const core = selectMcpServers({ root: ROOT, activeGroups: ['core'] });
+  assert.deepStrictEqual(Object.keys(core.general), [], 'core 전용은 general MCP 없음');
+
+  const py = selectMcpServers({ root: ROOT, activeGroups: ['core', 'python'] });
+  assert.ok(py.general.mcpydoc, 'python → mcpydoc 포함');
+  assert.ok(!py.general['cloudflare-docs'], 'python → cloudflare-docs 미포함');
+
+  const cl = selectMcpServers({ root: ROOT, activeGroups: ['core', 'cloud'] });
+  assert.ok(cl.general['cloudflare-docs'], 'cloud → cloudflare-docs 포함');
+  assert.ok(!cl.general.mcpydoc, 'cloud → mcpydoc 미포함');
+  assert.ok(!('workloads' in cl.general['cloudflare-docs']), 'workloads 제어필드는 출력에서 제거');
+
+  for (const g of [core, py, cl]) assert.ok(!g.general['token-optimizer'], 'token-optimizer 카탈로그에서 제거됨');
 });
 
 test('e2e: 기본 claude — python-reviewer 미설치, 멱등성, dry-run 무쓰기', () => {

@@ -160,7 +160,8 @@ function loadMcpCatalog(root) {
 
 /**
  * 활성 워크로드에 맞는 카탈로그 MCP 서버 선택.
- *   - general: 항상 포함하는 비-docker 활성 서버(cloudflare-docs, token-optimizer 등)
+ *   - general: 비-docker 서버. `workloads` 태그가 없으면 범용 포함, 있으면 활성
+ *              워크로드와 교집합일 때만 포함(mcpydoc→python, cloudflare-docs→cloud).
  *   - docker:  워크로드 매칭 docker 서버 (cloud → category devops|finops 전체)
  * CLI 티어는 보통 에이전트(devops.json)가 자체 mcpServers 를 들고 가므로 docker 는
  * IDE 티어 mcp.json 구성에 주로 쓰인다.
@@ -171,7 +172,10 @@ function selectMcpServers({ root = ROOT, activeGroups = [] } = {}) {
   const general = {};
   for (const [name, def] of Object.entries(cat.mcpServers || {})) {
     if (name.startsWith('_')) continue;
-    general[name] = def;
+    // workloads 태그가 있으면 활성 워크로드와 교집합일 때만 포함(없으면 범용)
+    if (Array.isArray(def.workloads) && def.workloads.length && !def.workloads.some((w) => active.has(w))) continue;
+    const { workloads, ...serverDef } = def; // 제어 필드는 출력 mcp.json 에 싣지 않음
+    general[name] = serverDef;
   }
   const docker = {};
   for (const [name, def] of Object.entries(cat.mcpServersDocker || {})) {

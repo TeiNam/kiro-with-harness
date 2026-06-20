@@ -195,3 +195,5 @@ node install.js <tier> [options]
 ## 감사의 말
 
 이 프로젝트는 [Everything Claude Code (ECC)](https://github.com/affaan-m/everything-claude-code)에서 큰 영감을 받았습니다. 많은 규칙, 에이전트 패턴, 스킬 구조가 ECC에서 유래했으며 Kiro IDE의 네이티브 형식(스티어링, 훅, 스킬)에 맞게 조정되었습니다.
+
+`ponytail` 스티어링 규칙(lazy senior dev mode)은 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)에서 가져왔으며, 불필요한 보일러플레이트 대신 최소한의 코드를 지향해 **토큰 사용량을 줄이기 위해** 적용했습니다.
