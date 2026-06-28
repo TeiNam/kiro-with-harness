@@ -13,9 +13,12 @@
 
 ### Added
 - New skills ported from the Claude harness: `rdbms-naming` (`[mysql, postgres]`), `mongodb-patterns` (`[mongodb]`), `mle-workflow` (`[ai, python-data]`), `git-workflow` (`[core]`).
+- New skill `aws-sdk-patterns` (`[cloud]`) — boto3/aioboto3 + AWS SDK for JS v3 + AWS CLI v2 usage (credential chain, retries/adaptive mode, paginators/waiters, ClientError handling, async, JS v3 command/middleware, CLI `--query`/SSO/pager). Fills the SDK/CLI coding layer below `aws-cloud` (neither harness had it).
+- Ported `vite-patterns` (`[frontend]`, 12 files) — Vite 6/7 config, plugins, HMR, env vars, dev proxy, library mode, pre-bundling, build optimization, security.
 - `code-reviewer` (CLI JSON + IDE MD) gained a "Focused Review Lenses" section (silent failures / type design / comments), mirroring the Claude harness consolidation of the three micro-reviewers.
 - MCP catalog `_disabled`: `brave-search`, `sentry`, `time` as opt-in entries.
 - `rules/README.md`: documented workload tagging + the IDE `fileMatch` auto-load convention (Kiro equivalent of Claude's `paths:` frontmatter).
+- Skill count 119 → 125 (README updated).
 
 ## 2026-06-20
 
