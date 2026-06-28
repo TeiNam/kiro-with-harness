@@ -146,11 +146,12 @@ Agent model assignments are role-based. The `model` field in each agent definiti
 129 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
 - Core: context budget, strategic compact, agentic engineering, lessons learned
 - Infrastructure: Docker, deployment, database migrations, backend patterns
-- Databases: PostgreSQL, MySQL, MongoDB, DynamoDB
+- Databases: PostgreSQL, MySQL, MongoDB, DynamoDB (+ rdbms-naming, mongodb-patterns)
+- Cloud / Data: aws-cloud, aws-sdk-patterns (boto3/JS v3/CLI v2), aws-lakehouse (S3 Tables/Iceberg/Athena/Spark), aws-etl-cdc (DMS/Glue/Kinesis/MSK/Flink), log-data-offloading (RDBMS→S3/OpenSearch), infra-version-currency (EKS/MSK latest-version checks), terraform-deployment
 - Backend: Django, Spring Boot, Laravel, FastAPI
-- Frontend: Next.js, Nuxt4, Bun
+- Frontend: Next.js, Nuxt4, Vite, Bun
 - Mobile: Android, Compose, SwiftUI, Swift concurrency
-- AI/LLM: Claude API, cost-aware pipelines, PyTorch
+- AI/LLM: Claude API, cost-aware pipelines, PyTorch, mle-workflow
 - Architecture: API design, ADRs, blueprint, MCP patterns
 - Writing: articles, content, research, crossposting
 

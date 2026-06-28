@@ -146,11 +146,12 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 `skills/` 아래 129개 스킬 패키지는 워크로드로 태그됩니다. 설치는 활성 워크로드와 교집합인 스킬만 선택합니다.
 - 핵심: context budget, strategic compact, agentic engineering, lessons learned
 - 인프라: Docker, deployment, database migrations, backend patterns
-- 데이터베이스: PostgreSQL, MySQL, MongoDB, DynamoDB
+- 데이터베이스: PostgreSQL, MySQL, MongoDB, DynamoDB (+ rdbms-naming, mongodb-patterns)
+- 클라우드 / 데이터: aws-cloud, aws-sdk-patterns(boto3/JS v3/CLI v2), aws-lakehouse(S3 Tables/Iceberg/Athena/Spark), aws-etl-cdc(DMS/Glue/Kinesis/MSK/Flink), log-data-offloading(RDBMS→S3/OpenSearch), infra-version-currency(EKS/MSK 최신 버전 확인), terraform-deployment
 - 백엔드: Django, Spring Boot, Laravel, FastAPI
-- 프론트엔드: Next.js, Nuxt4, Bun
+- 프론트엔드: Next.js, Nuxt4, Vite, Bun
 - 모바일: Android, Compose, SwiftUI, Swift concurrency
-- AI/LLM: Claude API, cost-aware pipelines, PyTorch
+- AI/LLM: Claude API, cost-aware pipelines, PyTorch, mle-workflow
 - 아키텍처: API design, ADR, blueprint, MCP patterns
 - 작성: articles, content, research, crossposting
 
