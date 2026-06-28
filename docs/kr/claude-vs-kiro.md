@@ -243,7 +243,7 @@ Kiro는 **세션 영속화와 컨텍스트 압축을 자체적으로 관리**합
 | `scripts/hooks/pre-bash-git-push-reminder.js` | Claude Code Bash 매처 전용 |
 | `scripts/hooks/post-bash-*.js`, `post-edit-*.js` | Claude Code Bash/Edit 매처 전용 |
 | `scripts/lib/hook-flags.js` | `HOOK_PROFILE` 환경 변수 체계 전용 |
-| 원본 `hooks/hooks.json` (Claude Code) | Claude Code 스키마, Kiro 스키마와 비호환. 훅은 `install-modules.json`에 인라인 정의 |
+| 원본 `hooks/hooks.json` (Claude Code) | Claude Code 스키마, Kiro와 비호환. Kiro 훅은 티어 설치기가 IDE 1.0 v1 JSON(`.kiro/hooks/*.json`)으로 생성하거나 CLI 티어는 에이전트 JSON에 임베드 |
 | `skills/continuous-learning/`, `continuous-learning-v2/` | Claude Code 훅 체계 + homunculus 디렉토리 종속 (도메인 지식은 steering으로 부분 변환 가능) |
 | `skills/strategic-compact/` | Kiro에 수동 컴팩션 없음 (컨텍스트 관리 가이드라인은 steering으로 부분 변환 가능) |
 | `CLAUDE.md` | Claude Code 전용 |
@@ -269,12 +269,11 @@ Kiro는 **세션 영속화와 컨텍스트 압축을 자체적으로 관리**합
 │   ├── planning-template.md     (manual)    ← agents/planner.md
 │   ├── verification-loop.md     (manual)    ← skills/verification-loop/
 │   └── build-error-fixes.md     (manual)    ← agents/build-error-resolver.md
-├── hooks/                              ← install-modules.json에서 생성
-│   ├── pre-write-guard.kiro.hook       (preToolUse → askAgent: 크기+보안+문서위치)
-│   ├── diagnostics-on-save.kiro.hook   (fileEdited → askAgent: getDiagnostics)
-│   ├── post-write-review.kiro.hook     (postToolUse → askAgent: console.log + TODO)
-│   ├── test-after-task.kiro.hook       (postTaskExecution → askAgent: 테스트)
-│   └── review-on-stop.kiro.hook        (agentStop → askAgent: 코드 리뷰)
+├── hooks/                              ← v1 JSON, 티어 설치기가 생성
+│   ├── pre-write-guard.json            (PreToolUse/write → agent: 크기+보안+문서위치)
+│   ├── review-on-stop.json             (Stop → agent: 코드 리뷰)
+│   ├── capture-lessons.json            (Stop → agent: 반복 교훈 제안)
+│   └── changelog-on-commit.json        (PreToolUse/shell → agent: 날짜별 CHANGELOG)
 ├── specs/                       ← Kiro 고유 기능
 └── settings/
     └── mcp.json                 ← mcp-configs/mcp-servers.json 에서 선택
