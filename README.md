@@ -141,11 +141,11 @@ Agent model assignments are role-based. The `model` field in each agent definiti
 **IDE tier** (`.kiro/steering/`):
 - Always-on: coding style, security, testing, git workflow, patterns, performance
 - FileMatch: language-specific rules loaded per file type
-- Manual: skills loaded on demand (129 total; workload-tagged for selective inclusion)
+- Manual: skills loaded on demand (130 total; workload-tagged for selective inclusion)
 
 ### Skills
 
-129 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
+130 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
 - Core: context budget, strategic compact, agentic engineering, lessons learned
 - Infrastructure: Docker, deployment, database migrations, backend patterns
 - Databases: PostgreSQL, MySQL, MongoDB, DynamoDB (+ rdbms-naming, mongodb-patterns)
@@ -177,7 +177,7 @@ Curated MCP server catalog installed to `.kiro/settings/mcp.json` (or `~/.kiro/s
 │   ├── cli/                    # CLI agents (global + workspace)
 │   ├── ide/                    # IDE agents (Markdown)
 │   └── AGENTS.md               # Shared agent collaboration guide
-├── skills/                     # 129 skill packages (workload-tagged)
+├── skills/                     # 130 skill packages (workload-tagged)
 ├── mcp-configs/                # MCP server configurations
 ├── scripts/                    # Validation utilities (validate-agents.js, validate-models.js)
 ├── docs/                       # Guides (English + Korean)
