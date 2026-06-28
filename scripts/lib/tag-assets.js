@@ -4,7 +4,7 @@
 /**
  * tag-assets.js — skills/<dir>/SKILL.md 의 frontmatter 에 `workloads:` 를 태깅한다.
  *
- * frontmatter `workloads:` 가 워크로드 분류의 권위 소스다. 누락된 스킬은
+ * frontmatter `workloads:` 가 워크로드 분류의 기준(단일 출처)이다. 누락된 스킬은
  * workloads.js 의 classify() 휴리스틱으로 계산해 주입한다.
  *
  * 에이전트(CLI .json / IDE .md)는 역할 기반 파일명(rust-reviewer 등)이 명확해

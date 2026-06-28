@@ -11,7 +11,7 @@
  * javascript, typescript, node, kotlin, cpp, php, perl, swift). 각 언어 워크로드는
  * 그 언어 전용 스킬·에이전트(reviewer/build-resolver)·MCP를 함께 가져온다.
  *
- * 자산은 frontmatter `workloads:` 로 그룹을 선언하는 것이 1순위(권위 있는 소스),
+ * 자산은 frontmatter `workloads:` 로 그룹을 선언하는 것이 1순위(기준이 되는 출처),
  * 없으면 아래 RULES 휴리스틱으로 폴백 분류한다 (tag-assets.js / select-assets.js 공용).
  */
 
