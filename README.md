@@ -205,6 +205,24 @@ Options:
   --status                       Show installation status
 ```
 
+## Documentation
+
+Full guides live under `docs/` — English in `docs/en/`, Korean in `docs/kr/`.
+
+| Doc | Covers |
+|-----|--------|
+| [Workload guide](docs/en/profile-guide.md) | Tier × workload model, install flags, profile migration |
+| [Hook reference](docs/en/hook-reference.md) | IDE 1.0 v1 JSON hook format, triggers, the installed hook set |
+| [MCP reference](docs/en/mcp-reference.md) | Curated MCP catalog (built-in / general / DevOps / FinOps / opt-in) |
+| [Skill catalog](docs/en/skill-catalog.md) | The 130 skills by domain |
+| [Creating skills](docs/en/creating-skills.md) | Authoring + registering a skill via `workloads:` frontmatter |
+| [Claude vs Kiro](docs/en/claude-vs-kiro.md) | Conceptual mapping between the Claude harness and Kiro |
+| [Migration from Claude](docs/en/migration-from-claude.md) | Converting a Claude Code setup to Kiro |
+| [Eval harness](docs/en/eval-harness.md) | Eval-driven development workflow |
+| [Prompt templates](docs/en/prompt-templates.md) | Reusable prompt templates |
+
+Korean translations of each live in `docs/kr/`.
+
 ## Acknowledgments
 
 This project was heavily inspired by [Everything Claude Code (ECC)](https://github.com/affaan-m/everything-claude-code). Many of the rules, agent patterns, and skill structures originated from ECC and were adapted for Kiro IDE's native format (steering, hooks, skills).

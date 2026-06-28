@@ -205,6 +205,24 @@ node install.js <tier> [options]
   --status                       설치 상태 표시
 ```
 
+## 문서
+
+전체 가이드는 `docs/` 아래에 있습니다 — 영어는 `docs/en/`, 한국어는 `docs/kr/`.
+
+| 문서 | 내용 |
+|------|------|
+| [워크로드 가이드](docs/kr/profile-guide.md) | tier × workload 모델, 설치 플래그, 프로필 마이그레이션 |
+| [훅 레퍼런스](docs/kr/hook-reference.md) | IDE 1.0 v1 JSON 훅 포맷, 트리거, 설치되는 훅 세트 |
+| [MCP 레퍼런스](docs/kr/mcp-reference.md) | 큐레이션 MCP 카탈로그 (내장 / general / DevOps / FinOps / opt-in) |
+| [스킬 카탈로그](docs/kr/skill-catalog.md) | 130개 스킬 도메인별 정리 |
+| [스킬 만들기](docs/kr/creating-skills.md) | `workloads:` frontmatter로 스킬 작성·등록 |
+| [Claude vs Kiro](docs/kr/claude-vs-kiro.md) | Claude 하네스와 Kiro의 개념 매핑 |
+| [Claude에서 마이그레이션](docs/kr/migration-from-claude.md) | Claude Code 설정을 Kiro로 변환 |
+| [Eval 하네스](docs/kr/eval-harness.md) | 평가 기반 개발 워크플로 |
+| [프롬프트 템플릿](docs/kr/prompt-templates.md) | 재사용 가능한 프롬프트 템플릿 |
+
+각 문서의 영어판은 `docs/en/`에 있습니다.
+
 ## 감사의 말
 
 이 프로젝트는 [Everything Claude Code (ECC)](https://github.com/affaan-m/everything-claude-code)에서 큰 영감을 받았습니다. 많은 규칙, 에이전트 패턴, 스킬 구조가 ECC에서 유래했으며 Kiro IDE의 네이티브 형식(스티어링, 훅, 스킬)에 맞게 조정되었습니다.
