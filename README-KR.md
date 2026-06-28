@@ -76,12 +76,14 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 | 카테고리 | 워크로드 | 목적 |
 |----------|---------|------|
 | **언어** | python, rust, go, java, javascript, typescript, node, kotlin, cpp, csharp, php, perl, swift | 언어별 규칙, 리뷰어, 빌드 해결자 (필요한 언어만 선택) |
-| **전문** | ai-agent, ai, cloud, frontend, mobile, python-data | 에이전트/하네스 구축; LLM/ML 사용; DevOps/FinOps/Terraform/AWS/Docker/K8s; React/Next/Nuxt; Android/Swift/Compose; DuckDB/pandas/ClickHouse |
+| **전문** | ai-agent, ai, cloud, frontend, mobile, python-data | 에이전트/하네스 구축; LLM/ML 사용; **cloud = AWS DevOps/FinOps + 데이터 엔지니어링**(SDK boto3/JS v3/CLI v2, S3 Tables/Iceberg/Athena/Spark 레이크하우스, DMS/Glue/Kinesis/MSK/Flink ETL·CDC, RDBMS→S3/OpenSearch 로그 오프로딩, EKS/MSK 최신버전 확인, Terraform); React/Next/Nuxt/Vite; Android/Swift/Compose; DuckDB/pandas/ClickHouse |
 | **데이터베이스** | postgres, mysql, mongodb, dynamodb | DB 특화 규칙 및 리뷰어 |
 | **기타** | architecture, writing, domain, obsidian | API 설계/ADR; 기사/리서치; 비즈니스 도메인; Obsidian 통합 |
 | **특수** | lab | 숨김; `--workload lab`으로만 옵트인 |
 
-예: `--workload core,rust,postgres,cloud`는 Rust, PostgreSQL, 클라우드(DevOps/FinOps) 지원을 설치합니다.
+예시:
+- `--workload core,rust,postgres,cloud` — Rust, PostgreSQL, AWS 클라우드 + 데이터 엔지니어링 스킬군.
+- `--workload core,cloud,python-data` — 데이터 플랫폼 집중: AWS SDK/레이크하우스/ETL-CDC/로그 오프로딩 + DuckDB/pandas 분석.
 
 ## 리뷰 백엔드 토글
 

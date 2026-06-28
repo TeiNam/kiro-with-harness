@@ -76,12 +76,14 @@ All installs include **core** (universal rules, base agents). Select additional 
 | Category | Workload | Purpose |
 |----------|----------|---------|
 | **Languages** | python, rust, go, java, javascript, typescript, node, kotlin, cpp, csharp, php, perl, swift | Per-language rules, reviewers, build resolvers (select only needed languages) |
-| **Specialized** | ai-agent, ai, cloud, frontend, mobile, python-data | Agent/harness building; LLM/ML use; DevOps/FinOps/Terraform/AWS/Docker/K8s; React/Next/Nuxt; Android/Swift/Compose; DuckDB/pandas/ClickHouse |
+| **Specialized** | ai-agent, ai, cloud, frontend, mobile, python-data | Agent/harness building; LLM/ML use; **cloud = AWS DevOps/FinOps + data engineering** (SDK boto3/JS v3/CLI v2, S3 Tables/Iceberg/Athena/Spark lakehouse, DMS/Glue/Kinesis/MSK/Flink ETL & CDC, RDBMS→S3/OpenSearch log offloading, EKS/MSK version-currency checks, Terraform); React/Next/Nuxt/Vite; Android/Swift/Compose; DuckDB/pandas/ClickHouse |
 | **Databases** | postgres, mysql, mongodb, dynamodb | DB-specific rules and reviewers |
 | **Other** | architecture, writing, domain, obsidian | API design/ADRs; articles/research; business domains; Obsidian integration |
 | **Special** | lab | Hidden; opt-in via `--workload lab` |
 
-Example: `--workload core,rust,postgres,cloud` installs Rust, PostgreSQL, and cloud (DevOps/FinOps) support.
+Examples:
+- `--workload core,rust,postgres,cloud` — Rust, PostgreSQL, and the AWS cloud + data-engineering suite.
+- `--workload core,cloud,python-data` — data platform focus: AWS SDK/lakehouse/ETL-CDC/log-offloading + DuckDB/pandas analytics.
 
 ## Review Backend Toggle
 
