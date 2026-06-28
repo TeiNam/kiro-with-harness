@@ -88,11 +88,11 @@ The MCP server format is the same. Copy your server definitions and adjust paths
 Instead of manual conversion, use the harness installer:
 
 ```bash
-# Install a profile that matches your project type
-node install.js developer
+# Install for the relevant tier + workloads
+node install.js ide --workload typescript,frontend
 
-# Or pick specific modules
-node install.js --modules steering-core,hooks-core,mcp-catalog
+# Or CLI tier, global baseline
+node install.js cli --scope global --workload core
 ```
 
 ## Key Differences

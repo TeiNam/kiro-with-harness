@@ -88,11 +88,11 @@ MCP 서버 형식은 동일합니다. 서버 정의를 복사하고 필요시 �
 수동 변환 대신 하네스 설치 프로그램을 사용하세요:
 
 ```bash
-# 프로젝트 유형에 맞는 프로필 설치
-node install.js developer
+# 해당 티어 + 워크로드로 설치
+node install.js ide --workload typescript,frontend
 
-# 또는 특정 모듈 선택
-node install.js --modules steering-core,hooks-core,mcp-catalog
+# 또는 CLI 티어, 글로벌 베이스라인
+node install.js cli --scope global --workload core
 ```
 
 ## 주요 차이점

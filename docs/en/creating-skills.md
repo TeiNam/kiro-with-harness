@@ -42,33 +42,30 @@ Keep each file under 400 lines. For large skills, split into multiple files (see
 
 Most skills should be `manual` to avoid bloating context.
 
-## Registering in Manifests
+## Registering a Skill
 
-### 1. Add module to `manifests/install-modules.json`
+Skills are selected by their `workloads:` frontmatter — there is **no manifest to edit**. Add a frontmatter block at the top of `SKILL.md`:
 
-```json
-{
-  "id": "steering-my-skill",
-  "description": "My skill description",
-  "sources": [
-    { "from": "skills/my-skill/SKILL.md", "output": "my-skill.md", "inclusion": "manual" }
-  ],
-  "outputDir": ".kiro/steering",
-  "defaultInstall": false
-}
+```markdown
+---
+name: my-skill
+description: >
+  What the skill does, plus trigger keywords so the agent (and auto-inclusion) knows when to load it.
+origin: custom
+workloads: [cloud]      # one or more workload keys; [core] installs everywhere
+---
 ```
 
-For multi-file skills, add each file as a separate source entry.
+- The installer selects a skill when its `workloads:` intersects the active workloads (`--workload ...`). `core` is always installed.
+- Valid workload keys: see the README Workloads table (python, rust, …, cloud, frontend, mysql, postgres, writing, ai-agent, lab, …).
+- No frontmatter? `scripts/lib/tag-assets.js` heuristics fall back to a best-guess classification — but explicit tags are preferred. Bulk re-tag with `node scripts/lib/tag-assets.js` if needed.
+- **CLI tier** ships the skill directory as-is (loaded via `skill://`, progressive). **IDE tier** converts `SKILL.md` into a `inclusion: manual` steering file automatically.
 
-### 2. Add module to profiles in `manifests/install-profiles.json`
-
-Add `"steering-my-skill"` to the `modules` array of relevant profiles.
-
-### 3. Install and verify
+### Install and verify
 
 ```bash
-node install.js --modules steering-my-skill
-node install.js --status
+node install.js ide --workload cloud --dry-run   # preview which skills are selected
+node install.js ide --workload cloud             # install
 ```
 
 ## Best Practices

@@ -16,7 +16,7 @@
 | **Global Steering** | `rules/` (project-level only) | `~/.kiro/steering/` (global) + project `.kiro/steering/` |
 | **AGENTS.md Standard** | `CLAUDE.md` | `AGENTS.md` standard supported |
 | **Hook System** | `hooks.json` (PreToolUse / PostToolUse / Stop, etc.) | `.kiro/hooks/*.json` v1 (PostFileSave / PreToolUse / PostToolUse / Stop, etc.) |
-| **Hook Input** | Receives JSON via stdin, can block with exit code 2 | Event metadata only, delegates judgment via `preToolUse` + `askAgent` |
+| **Hook Input** | Receives JSON via stdin, can block with exit code 2 | `command` action gets JSON via stdin + blocks with exit 2 (PreToolUse); `agent` action injects a prompt into the model |
 | **Slash Commands** | `commands/*.md` (59 commands) | None — request the same tasks via conversation |
 | **Custom Agents** | `agents/*.md` (sub-agent delegation) | Supported — `.kiro/agents/*.md` custom agents; built-in subagents: context-gathering, general-purpose |
 | **Skills** | `skills/*/SKILL.md` (auto-detected) | Auto/conditional/manual detection supported via `.kiro/steering/*.md` |

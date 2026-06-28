@@ -15,8 +15,8 @@
 | **규칙/가이드라인** | `rules/` 디렉토리, `CLAUDE.md` | `.kiro/steering/*.md` (always / fileMatch / manual) |
 | **글로벌 스티어링** | `rules/` (프로젝트 단위만) | `~/.kiro/steering/` (글로벌) + 프로젝트 `.kiro/steering/` |
 | **AGENTS.md 표준** | `CLAUDE.md` | `AGENTS.md` 표준 지원 |
-| **훅 시스템** | `hooks.json` (PreToolUse / PostToolUse / Stop 등) | `.kiro/hooks/*.kiro.hook` (fileEdited / preToolUse / postToolUse 등) |
-| **훅 입력** | stdin으로 JSON 수신, exit code 2로 차단 가능 | 이벤트 메타데이터만, `preToolUse` + `askAgent`로 판단 위임 |
+| **훅 시스템** | `hooks.json` (PreToolUse / PostToolUse / Stop 등) | `.kiro/hooks/*.json` v1 (PostFileSave / PreToolUse / PostToolUse / Stop 등) |
+| **훅 입력** | stdin으로 JSON 수신, exit code 2로 차단 가능 | `command` 액션은 stdin으로 JSON 수신 + exit 2로 차단(PreToolUse); `agent` 액션은 모델에 프롬프트 주입 |
 | **슬래시 커맨드** | `commands/*.md` (59개) | 없음 — 대화로 동일 작업 요청 |
 | **커스텀 에이전트** | `agents/*.md` (서브에이전트 위임) | 지원 — `.kiro/agents/*.md` 커스텀 에이전트; 내장 서브에이전트: context-gathering, general-purpose |
 | **스킬** | `skills/*/SKILL.md` (자동 감지) | `.kiro/steering/*.md`에서 자동/조건부/수동 감지 지원 |
