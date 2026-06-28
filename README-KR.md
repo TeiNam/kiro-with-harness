@@ -163,6 +163,8 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 **클라우드 워크로드**에는 다음이 포함됩니다: terraform, aws-documentation, aws-core, cloudwatch, aws-ecs, aws-iam (DevOps); aws-pricing, aws-billing-cost-management (FinOps).
 
+전체 카탈로그(general / DevOps / FinOps / opt-in: brave-search·sentry·time 포함)와 설정 안내: `docs/kr/mcp-reference.md`.
+
 ## 프로젝트 구조
 
 ```

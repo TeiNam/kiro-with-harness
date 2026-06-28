@@ -1,6 +1,6 @@
 # 스킬(Skill) 카탈로그
 
-도메인별로 정리된 96개의 스킬. 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
+도메인별로 정리된 130개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
 
 ## 인프라(Infrastructure)
 
@@ -13,14 +13,32 @@
 | content-hash-cache-pattern | 콘텐츠 주소 지정 캐싱 전략 |
 | video-editing | 비디오 처리 및 편집 자동화 |
 
+## 클라우드 / 데이터 엔지니어링(Cloud / Data Engineering)
+
+| 스킬 | 설명 |
+|-------|-------------|
+| aws-cloud | AWS 서비스 사용, IAM 최소 권한, 서비스 선택, 비용 가드레일 |
+| aws-sdk-patterns | boto3/aioboto3, AWS SDK for JS v3, AWS CLI v2 (자격증명·재시도·페이지네이션·에러) |
+| aws-bedrock | Amazon Bedrock Converse/InvokeModel, 에이전트, 지식 베이스, 가드레일 |
+| aws-lakehouse | S3 Tables, Apache Iceberg, Athena, EMR/Glue Spark 레이크하우스 |
+| aws-etl-cdc | 전처리 타입별로 DMS/Glue/Kinesis/MSK/Flink/Zero-ETL 선택; CDC 패턴 |
+| log-data-offloading | RDBMS 로그/시계열 데이터를 S3·OpenSearch로 오프로드(파티셔닝·ISM·티어링) |
+| infra-version-currency | 프로비저닝 전 EKS/MSK/Terraform/이미지 최신 버전 확인·고정 |
+| terraform-deployment | 그린필드 Terraform 버전 고정·lock, fmt→validate→plan→apply 게이트 |
+| duckdb-patterns | DuckDB 분석, 클러스터 없이 Parquet/Iceberg 쿼리 |
+| python-data-analysis | pandas/polars/DuckDB 데이터 분석 워크플로 |
+| cost-tracking | 토큰/지출 추적 및 예산 리포트 |
+
 ## 데이터베이스(Databases)
 
 | 스킬 | 설명 |
 |-------|-------------|
 | postgres-guideline | PostgreSQL 모범 사례, 인덱싱, 쿼리 최적화 |
-| mysql-guideline | MySQL 모범 사례, InnoDB 튜닝, 복제 |
+| mysql-guideline | MySQL 모범 사례, InnoDB 튜닝, 복제, 개발 원칙, JDBC |
 | mongodb-guideline | MongoDB 스키마 설계, 집계, 샤딩 |
+| mongodb-patterns | MongoDB 런타임 — 집계, 쿼리/인덱스 사용, 트랜잭션, 비동기 풀 |
 | dynamodb-guideline | DynamoDB 단일 테이블 설계, GSI, 용량 계획 |
+| rdbms-naming | RDBMS 공통 네이밍·데이터 타입 규칙 (MySQL & PostgreSQL) |
 | clickhouse-io | ClickHouse 분석, MergeTree 엔진, 구체화된 뷰 |
 | jpa-patterns | JPA/Hibernate 패턴, N+1 방지, 엔티티 생명주기 |
 
@@ -48,6 +66,7 @@
 |-------|-------------|
 | nextjs-turbopack | Next.js + Turbopack, App Router, RSC 패턴 |
 | nuxt4-patterns | Nuxt 4 패턴, 컴포저블, 서버 라우트 |
+| vite-patterns | Vite 6/7 설정, 플러그인, HMR, 환경변수, 라이브러리 모드, 빌드 최적화 |
 | bun-runtime | Bun 런타임, 번들러, 테스트 러너, 패키지 매니저 |
 | frontend-patterns | 일반 프론트엔드 아키텍처, 상태 관리 |
 | flutter-dart-code-review | Flutter/Dart 코드 리뷰 체크리스트 |
@@ -79,6 +98,7 @@
 | pytorch-patterns | PyTorch 학습 루프, 데이터 로딩, 분산 처리 |
 | regex-vs-llm-structured-text | 텍스트 추출 시 정규식 vs LLM 선택 기준 |
 | ai-regression-testing | AI 출력 회귀 테스트, 골든 데이터셋 |
+| mle-workflow | 프로덕션 ML 엔지니어링 — 데이터 계약, 학습, 평가, 배포, 모니터링 |
 | agent-eval | 에이전트 평가 프레임워크, pass@k 메트릭 |
 
 ## 아키텍처(Architecture)
@@ -100,6 +120,7 @@
 | strategic-compact | 장시간 세션을 위한 컨텍스트 압축 전략 |
 | context-budget | 토큰 예산 관리, 컨텍스트 윈도우 최적화 |
 | agentic-engineering | 에이전틱 코딩 패턴, 도구 사용, 계획 수립 |
+| agentic-loops | Kiro `/goal`·리뷰 루프·DAG 위임을 위한 루프 엔지니어링; 증거 기반 완료 |
 | ai-first-engineering | AI 우선 개발 워크플로 |
 | enterprise-agent-ops | 엔터프라이즈 에이전트 운영, 거버넌스, 모니터링 |
 | documentation-lookup | 문서 검색 및 조회 패턴 |
@@ -109,6 +130,7 @@
 | 스킬 | 설명 |
 |-------|-------------|
 | verification-loop | 반복적 검증 및 유효성 확인 루프 |
+| git-workflow | 브랜칭 전략, 커밋 컨벤션, merge vs rebase, 충돌 해결 |
 | eval-harness | 평가 기반 개발, pass@k 메트릭 |
 | coding-standards | 코드 품질 강제, 린팅 규칙 |
 | iterative-retrieval | 다단계 정보 검색 패턴 |

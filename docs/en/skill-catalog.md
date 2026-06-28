@@ -1,6 +1,6 @@
 # Skill Catalog
 
-96 skills organized by domain. Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
+130 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
 
 ## Infrastructure
 
@@ -13,14 +13,32 @@
 | content-hash-cache-pattern | Content-addressable caching strategy |
 | video-editing | Video processing and editing automation |
 
+## Cloud / Data Engineering
+
+| Skill | Description |
+|-------|-------------|
+| aws-cloud | AWS service usage, IAM least-privilege, service selection, cost guardrails |
+| aws-sdk-patterns | boto3/aioboto3, AWS SDK for JS v3, AWS CLI v2 (creds, retries, pagination, errors) |
+| aws-bedrock | Amazon Bedrock Converse/InvokeModel, agents, knowledge bases, guardrails |
+| aws-lakehouse | S3 Tables, Apache Iceberg, Athena, Spark on EMR/Glue lakehouse |
+| aws-etl-cdc | Choose DMS/Glue/Kinesis/MSK/Flink/Zero-ETL by transform type; CDC patterns |
+| log-data-offloading | Move RDBMS log/time-series data to S3 or OpenSearch (partitioning, ISM, tiering) |
+| infra-version-currency | Resolve/pin latest EKS/MSK/Terraform/image versions before provisioning |
+| terraform-deployment | Greenfield Terraform version pinning, lock, fmt→validate→plan→apply gate |
+| duckdb-patterns | DuckDB analytics, Parquet/Iceberg querying without a cluster |
+| python-data-analysis | pandas/polars/DuckDB data analysis workflows |
+| cost-tracking | Token/spend tracking and budget reporting |
+
 ## Databases
 
 | Skill | Description |
 |-------|-------------|
 | postgres-guideline | PostgreSQL best practices, indexing, query optimization |
-| mysql-guideline | MySQL best practices, InnoDB tuning, replication |
+| mysql-guideline | MySQL best practices, InnoDB tuning, replication, dev practices, JDBC |
 | mongodb-guideline | MongoDB schema design, aggregation, sharding |
+| mongodb-patterns | MongoDB runtime — aggregation, query/index usage, transactions, async pools |
 | dynamodb-guideline | DynamoDB single-table design, GSI, capacity planning |
+| rdbms-naming | Common RDBMS naming + data-type conventions (MySQL & PostgreSQL) |
 | clickhouse-io | ClickHouse analytics, MergeTree engines, materialized views |
 | jpa-patterns | JPA/Hibernate patterns, N+1 prevention, entity lifecycle |
 
@@ -48,6 +66,7 @@
 |-------|-------------|
 | nextjs-turbopack | Next.js with Turbopack, App Router, RSC patterns |
 | nuxt4-patterns | Nuxt 4 patterns, composables, server routes |
+| vite-patterns | Vite 6/7 config, plugins, HMR, env vars, library mode, build optimization |
 | bun-runtime | Bun runtime, bundler, test runner, package manager |
 | frontend-patterns | General frontend architecture, state management |
 | flutter-dart-code-review | Flutter/Dart code review checklist |
@@ -79,6 +98,7 @@
 | pytorch-patterns | PyTorch training loops, data loading, distributed |
 | regex-vs-llm-structured-text | When to use regex vs LLM for text extraction |
 | ai-regression-testing | AI output regression testing, golden datasets |
+| mle-workflow | Production ML engineering — data contracts, training, eval, deploy, monitor |
 | agent-eval | Agent evaluation frameworks, pass@k metrics |
 
 ## Architecture
@@ -100,6 +120,7 @@
 | strategic-compact | Context compaction strategies for long sessions |
 | context-budget | Token budget management, context window optimization |
 | agentic-engineering | Agentic coding patterns, tool use, planning |
+| agentic-loops | Loop engineering for Kiro `/goal`, review loops, DAG delegation; evidence-based completion |
 | ai-first-engineering | AI-first development workflows |
 | enterprise-agent-ops | Enterprise agent operations, governance, monitoring |
 | documentation-lookup | Documentation search and retrieval patterns |
@@ -109,6 +130,7 @@
 | Skill | Description |
 |-------|-------------|
 | verification-loop | Iterative verification and validation loops |
+| git-workflow | Branching strategies, commit conventions, merge vs rebase, conflict resolution |
 | eval-harness | Eval-driven development, pass@k metrics |
 | coding-standards | Code quality enforcement, linting rules |
 | iterative-retrieval | Multi-step information retrieval patterns |

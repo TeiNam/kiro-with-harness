@@ -163,6 +163,8 @@ Curated MCP server catalog installed to `.kiro/settings/mcp.json` (or `~/.kiro/s
 
 **Cloud workload** includes: terraform, aws-documentation, aws-core, cloudwatch, aws-ecs, aws-iam (DevOps); aws-pricing, aws-billing-cost-management (FinOps).
 
+Full catalog (general / DevOps / FinOps / opt-in incl. brave-search, sentry, time) and config notes: `docs/en/mcp-reference.md`.
+
 ## Project Structure
 
 ```
