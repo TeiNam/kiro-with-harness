@@ -1,11 +1,11 @@
 ---
 name: mongodb-guideline
 description: >
-  MongoDB 7.0+ 스키마 설계, 컬렉션/인덱스 생성, 쿼리 최적화, 샤딩,
-  motor/비동기 커넥션 관리에 적용. 트리거: createCollection, createIndex,
-  aggregation, $lookup, $match, $group, TTL index, motor async,
-  embedded document, content schema, metadata, 도큐먼트 설계,
-  채팅/로그 저장, 사용자 설정, 컨텐츠/메타데이터 관련 작업.
+  MongoDB 7.0+ schema design, collection/index creation, query optimization, sharding,
+  and async connection management. Triggers: createCollection, createIndex,
+  aggregation, $lookup, $match, $group, TTL index, async client,
+  embedded document, content schema, metadata, document design,
+  chat/log storage, user settings, content/metadata operations.
 origin: custom
 workloads: [mongodb]
 ---
@@ -18,17 +18,17 @@ workloads: [mongodb]
 - Writing queries or aggregation pipelines
 - Creating indexes (single, compound, TTL, text)
 - Troubleshooting slow queries
-- Setting up async driver connection (motor / Node.js native driver)
+- Setting up async driver connection (PyMongo Async / Node.js native driver)
 - Implementing TTL-based data expiry
 
 ## MongoDB Version and Defaults
 - MongoDB 7.0+
-- Driver: ODM 없이 raw 비동기 드라이버 사용
-  - Python: `motor` 3.x (async) / `pymongo` 4.x (sync)
+- Driver: raw async driver without ODM
+  - Python: PyMongo Async `AsyncMongoClient` (async) / `pymongo` 4.x (sync). motor is deprecated as of 2026-05.
   - Node.js: `mongodb` 6.x (native driver)
 - Default write concern: `w: "majority"`
 - Default read preference: `primaryPreferred`
-- 스키마 검증은 드라이버가 아닌 애플리케이션 레이어에서 직접 수행 (Pydantic, Zod 등)
+- Schema validation performed in application layer, not driver (Pydantic, Zod, etc.)
 
 ## Naming Rules
 - Collections: snake_case, plural (e.g. `chat_histories`, `user_settings`, `contents`, `content_metadata`)
@@ -60,7 +60,10 @@ workloads: [mongodb]
 - Schema-less by habit: always define expected fields
 
 ## Reference Files
-- `document-design.md` — Embed vs Reference 전략, 컨텐츠 중심 설계, 글로벌 쿼리 회피
-- `index-strategy.md` — RDBMS와 다른 MongoDB 인덱스 전략, multikey/partial/TTL
-- `shard-key.md` — 샤드키 선정 원칙, 패턴별 가이드
-- `connection-and-features.md` — motor async, transactions, change streams
+- `document-design.md` — Embed vs Reference strategy, content-centric design, global query avoidance
+- `index-strategy.md` — MongoDB index strategies that differ from RDBMS, multikey/partial/TTL
+- `shard-key.md` — Shard key selection principles, pattern-specific guides
+- `connection-and-features.md` — Async connection (PyMongo Async `AsyncMongoClient`; motor deprecated as of 2026-05), transactions, change streams
+
+## Related
+- `mongodb-patterns` — Runtime query/aggregation/index/transaction/connection pool/diagnostic patterns (this guideline covers design conventions; patterns covers execution patterns).

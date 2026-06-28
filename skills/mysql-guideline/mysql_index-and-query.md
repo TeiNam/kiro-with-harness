@@ -23,8 +23,8 @@ CREATE UNIQUE INDEX uidx_user_email ON user (email);
 CREATE FULLTEXT INDEX ftx_small_talk_search
 ON small_talk (eng_sentence, kor_sentence) WITH PARSER ngram;
 
--- Covering index: WHERE(status) → ORDER BY(created_at) → SELECT 추가 컬럼(user_id, total_amount)
--- 조회 전용 컬럼은 뒤에 배치하여 index-only scan 유도
+-- Covering index: WHERE(status) → ORDER BY(created_at) → SELECT additional columns(user_id, total_amount)
+-- Place lookup-only columns at end to enable index-only scan
 CREATE INDEX idx_orders_status_covering ON orders (status, created_at, user_id, total_amount);
 ```
 
@@ -65,7 +65,7 @@ db.execute_raw_query("""
 ### EXPLAIN for Query Analysis
 
 ```sql
--- EXPLAIN 분석 시에는 SELECT * 허용 (실행 계획 확인 목적)
+-- SELECT * allowed for EXPLAIN analysis (execution plan verification purpose)
 EXPLAIN SELECT * FROM chat_history
 WHERE user_id = 1 AND created_at >= '2024-01-01' AND created_at < '2024-02-01';
 

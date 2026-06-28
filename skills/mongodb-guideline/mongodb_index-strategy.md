@@ -1,89 +1,89 @@
 # Index Strategy
 
-MongoDB 인덱스는 RDBMS와 개념은 같지만, **도큐먼트 구조와 쿼리 패턴**에 따라 전혀 다른 전략이 필요하다.
+MongoDB indexes share the same concept as RDBMS, but require completely different strategies based on **document structure and query patterns**.
 
 ---
 
-## RDBMS와 다른 핵심 차이
+## Key Differences from RDBMS
 
-| 항목 | RDBMS (MySQL/PostgreSQL) | MongoDB |
+| Item | RDBMS (MySQL/PostgreSQL) | MongoDB |
 |------|--------------------------|---------|
-| 인덱스 단위 | 컬럼 | 필드 (중첩 필드, 배열 요소 포함) |
-| 배열 인덱스 | 별도 테이블 필요 | Multikey index 자동 지원 |
-| 조건부 인덱스 | Partial index (PostgreSQL만) | `partialFilterExpression` |
-| 복합 인덱스 방향 | 단방향 (ASC/DESC 혼합 가능) | 정렬 방향이 인덱스 효율에 직접 영향 |
-| 커버링 인덱스 | INCLUDE 컬럼 | projection 필드를 인덱스에 포함 |
-| 카디널리티 | 높을수록 유리 | 동일, 단 Partial로 저카디널리티 보완 |
-| 자동 생성 | FK에 자동 생성 안 됨 | 없음 — 명시적 생성 필수 |
-| `_id` 인덱스 | PK 인덱스 자동 | `_id`에 unique index 자동 생성 |
+| Index unit | Column | Field (including nested fields, array elements) |
+| Array index | Requires separate table | Multikey index automatic support |
+| Conditional index | Partial index (PostgreSQL only) | `partialFilterExpression` |
+| Compound index direction | Unidirectional (ASC/DESC mix allowed) | Sort direction directly affects index efficiency |
+| Covering index | INCLUDE columns | Include projection fields in index |
+| Cardinality | Higher is better | Same, but Partial compensates low cardinality |
+| Auto-creation | Not auto-created on FK | None — explicit creation required |
+| `_id` index | PK index automatic | Unique index auto-created on `_id` |
 
 ---
 
 ## Index Types
 
-### 1. Single Field — 기본
+### 1. Single Field — Basic
 
 ```python
-# 단순 equality / range 쿼리
+# Simple equality / range queries
 await db.users.create_index("email", name="idx_users_email")
 
-# 중첩 필드도 인덱싱 가능 (RDBMS에서는 불가)
+# Nested fields also indexable (not possible in RDBMS)
 await db.users.create_index("profile.location", name="idx_users_location")
 await db.contents.create_index("author.user_id", name="idx_contents_author_id")
 ```
 
-### 2. Compound Index — ESR 규칙 필수
+### 2. Compound Index — ESR Rule Required
 
-RDBMS의 "equality first, range last"와 다르게 MongoDB는 **E → S → R** 순서를 따른다.
+Unlike RDBMS "equality first, range last", MongoDB follows **E → S → R** order.
 
 ```
-E (Equality)  : 정확히 일치하는 필드를 앞에
-S (Sort)      : 정렬 필드를 중간에
-R (Range)     : 범위 조건 필드를 마지막에
+E (Equality)  : Exact match fields first
+S (Sort)      : Sort fields in middle
+R (Range)     : Range condition fields last
 ```
 
 ```python
-# 쿼리: user_id = x AND status = "published" ORDER BY published_at DESC
-# ESR: user_id(E) → published_at(S) → status(R) 가 아니라
-#      user_id(E) → status(E) → published_at(S) 순서
+# Query: user_id = x AND status = "published" ORDER BY published_at DESC
+# ESR: Not user_id(E) → published_at(S) → status(R)
+# But user_id(E) → status(E) → published_at(S) order
 await db.contents.create_index(
     [("user_id", ASCENDING), ("status", ASCENDING), ("published_at", DESCENDING)],
     name="idx_contents_user_status_published"
 )
 
-# ❌ 잘못된 순서: Range를 Sort 앞에 두면 sort를 인덱스로 처리 못함
+# FAIL: Wrong order: Putting Range before Sort prevents index-based sort
 await db.contents.create_index(
     [("user_id", ASCENDING), ("created_at", ASCENDING), ("status", ASCENDING)]
-    # created_at이 range 조건이면 status sort를 인덱스로 처리 불가
+    # If created_at is range condition, status sort cannot use index
 )
 ```
 
-### 3. Multikey Index — 배열 필드 (RDBMS에 없는 개념)
+### 3. Multikey Index — Array Field (Concept Not in RDBMS)
 
-배열 필드에 인덱스를 걸면 **배열의 각 요소가 별도 인덱스 엔트리**로 저장된다.
+When indexing an array field, **each array element is stored as a separate index entry**.
 
 ```python
-# tags 배열의 각 요소를 인덱싱
+# Index each element of tags array
 await db.contents.create_index("tags", name="idx_contents_tags")
 
-# 쿼리: tags 배열에 "mongodb"가 포함된 도큐먼트
-await db.contents.find({"tags": "mongodb"})              # 단일 태그
-await db.contents.find({"tags": {"$all": ["mongodb", "database"]}})  # 모두 포함
+# Query: documents containing "mongodb" in tags array
+await db.contents.find({"tags": "mongodb"})              # Single tag
+await db.contents.find({"tags": {"$all": ["mongodb", "database"]}})  # Contains all
 
-# 중첩 배열 필드도 가능
+# Nested array fields also possible
 await db.users.create_index("addresses.city", name="idx_users_city")
 ```
 
-> ⚠️ Multikey index는 두 개 이상의 배열 필드를 포함하는 복합 인덱스 불가.
-> `[("tags", 1), ("categories", 1)]` → ERROR (두 배열 필드 동시 multikey 금지)
+> WARNING: Multikey index cannot include two or more array fields in compound index.
+> `[("tags", 1), ("categories", 1)]` → ERROR (simultaneous multikey on two array fields prohibited)
 
-### 4. Partial Index — 저카디널리티 필드의 해법
+### 4. Partial Index — Solution for Low-Cardinality Fields
 
-RDBMS에서는 `is_active`, `status` 같은 필드에 인덱스를 걸어도 효과가 없다.
-MongoDB의 Partial Index는 **조건에 맞는 도큐먼트만 인덱싱**해서 이 문제를 해결한다.
+In RDBMS, indexing fields like `is_active`, `status` has no effect.
+MongoDB's Partial Index solves this by **indexing only documents matching a condition**.
 
 ```python
-# is_active = true인 도큐먼트만 email 인덱싱 → 삭제된 유저 제외
+# Index email only for is_active = true documents → excludes deleted users
 await db.users.create_index(
     "email",
     partialFilterExpression={"is_active": {"$eq": True}},
@@ -91,82 +91,82 @@ await db.users.create_index(
     name="uidx_users_active_email"
 )
 
-# status = "published"인 컨텐츠만 인덱싱 → draft 제외
+# Index only status = "published" content → excludes drafts
 await db.contents.create_index(
     [("published_at", DESCENDING)],
     partialFilterExpression={"status": "published"},
     name="idx_contents_published_at"
 )
 
-# ⚠️ Partial index는 쿼리에 partialFilterExpression 조건이 반드시 포함되어야 활성화됨
-# 아래 쿼리는 idx_contents_published_at을 사용하지 않음 (status 조건 누락)
-await db.contents.find({"published_at": {"$gte": since}})  # ❌ COLLSCAN
-# 아래 쿼리는 사용함
-await db.contents.find({"status": "published", "published_at": {"$gte": since}})  # ✅
+# WARNING: Partial index activates only when query includes partialFilterExpression condition
+# Below query does not use idx_contents_published_at (status condition missing)
+await db.contents.find({"published_at": {"$gte": since}})  # FAIL: COLLSCAN
+# Below query uses it
+await db.contents.find({"status": "published", "published_at": {"$gte": since}})  # PASS:
 ```
 
-### 5. TTL Index — 자동 만료
+### 5. TTL Index — Auto-Expiration
 
 ```python
-# expired_at 시각에 도달하면 MongoDB가 백그라운드에서 자동 삭제
+# MongoDB auto-deletes in background when expired_at time is reached
 await db.sessions.create_index(
     "expired_at",
     expireAfterSeconds=0,
     name="idx_sessions_expired_at"
 )
 
-# 고정 TTL: created_at 기준으로 N초 후 삭제
+# Fixed TTL: delete N seconds after created_at
 await db.temp_tokens.create_index(
     "created_at",
-    expireAfterSeconds=60 * 60 * 24,  # 24시간 후 삭제
+    expireAfterSeconds=60 * 60 * 24,  # Delete after 24 hours
     name="idx_temp_tokens_created_at"
 )
 ```
 
-### 6. Text Index — 전문 검색
+### 6. Text Index — Full-Text Search
 
 ```python
 from pymongo import TEXT
 
-# 다중 필드 텍스트 인덱스 (가중치 설정 가능)
+# Multi-field text index (weights configurable)
 await db.contents.create_index(
     [("title", TEXT), ("body", TEXT), ("tags", TEXT)],
     weights={"title": 10, "tags": 5, "body": 1},
     name="idx_contents_text"
 )
 
-# 텍스트 검색 쿼리
+# Text search query
 await db.contents.find(
-    {"$text": {"$search": "MongoDB 인덱스"}},
-    {"score": {"$meta": "textScore"}}   # 관련도 점수
+    {"$text": {"$search": "MongoDB index"}},
+    {"score": {"$meta": "textScore"}}   # Relevance score
 ).sort([("score", {"$meta": "textScore"})])
 ```
 
-> ⚠️ 컬렉션당 Text index는 하나만 생성 가능. 여러 필드를 하나의 Text index에 묶어야 한다.
-> 한국어 형태소 분석이 필요하면 Atlas Search 사용 권장.
+> WARNING: Only one Text index per collection. Must combine multiple fields into one Text index.
+> For Korean morphological analysis, Atlas Search recommended.
 
 ---
 
 ## Covering Index (Index-Only Scan)
 
-쿼리에 필요한 모든 필드가 인덱스에 있으면 도큐먼트를 fetch하지 않는다.
-RDBMS보다 효과가 크다 — 도큐먼트가 크고 중첩이 많을수록 절감이 큼.
+If all fields needed by query are in the index, document is not fetched.
+More effective than RDBMS — savings increase with larger, more nested documents.
 
 ```python
-# 인덱스: (user_id, status, published_at) + projection에 필요한 title, thumbnail_url
-# → 목록 API를 도큐먼트 fetch 없이 인덱스만으로 처리
+# Index: (user_id, status, published_at) + title, thumbnail_url needed for projection
+# → List API processed with index only, no document fetch
 await db.contents.create_index(
     [
         ("user_id", ASCENDING),
         ("status", ASCENDING),
         ("published_at", DESCENDING),
-        ("title", ASCENDING),           # projection 필드
-        ("thumbnail_url", ASCENDING)    # projection 필드
+        ("title", ASCENDING),           # projection field
+        ("thumbnail_url", ASCENDING)    # projection field
     ],
     name="idx_contents_feed_covering"
 )
 
-# 이 쿼리 + projection은 인덱스만으로 처리 (FETCH 단계 없음)
+# This query + projection processed with index only (no FETCH stage)
 await db.contents.find(
     {"user_id": user_id, "status": "published"},
     {"title": 1, "thumbnail_url": 1, "published_at": 1, "_id": 0}
@@ -175,20 +175,20 @@ await db.contents.find(
 
 ---
 
-## Cursor Pagination (skip 금지)
+## Cursor Pagination (Prohibit skip)
 
 ```python
-# ❌ skip은 O(n): 페이지가 깊어질수록 앞부분을 모두 스캔
+# FAIL: skip is O(n): scans entire front portion as pages get deeper
 cursor = db.contents.find({"status": "published"}).skip(1000).limit(20)
 
-# ✅ _id 기반 cursor: ObjectId는 시간 순 정렬 내장
+# PASS: _id-based cursor: ObjectId has built-in time-ordered sorting
 async def get_contents(last_id: ObjectId = None, limit: int = 20):
     query = {"status": "published"}
     if last_id:
         query["_id"] = {"$lt": last_id}
     return await db.contents.find(query).sort("_id", DESCENDING).limit(limit).to_list(limit)
 
-# ✅ 복합 cursor: 정렬 기준이 published_at인 경우 (동일 시각 tie-breaking)
+# PASS: Compound cursor: when sort criterion is published_at (tie-breaking for same time)
 async def get_feed(last_published_at: datetime = None, last_id: ObjectId = None, limit: int = 20):
     query = {"status": "published"}
     if last_published_at and last_id:
@@ -203,7 +203,7 @@ async def get_feed(last_published_at: datetime = None, last_id: ObjectId = None,
 
 ---
 
-## EXPLAIN 분석
+## EXPLAIN Analysis
 
 ```python
 explanation = await db.contents.find(
@@ -211,18 +211,18 @@ explanation = await db.contents.find(
 ).explain()
 
 stage = explanation["queryPlanner"]["winningPlan"]["stage"]
-# COLLSCAN → 인덱스 없음, 위험
-# IXSCAN   → 인덱스 사용, 정상
-# FETCH    → 인덱스 후 도큐먼트 fetch (covering index 아님)
-# PROJECTION → projection 처리 (covering이면 FETCH 없이 바로 옴)
+# COLLSCAN → No index, dangerous
+# IXSCAN   → Index used, normal
+# FETCH    → Document fetch after index (not covering index)
+# PROJECTION → Projection processing (if covering, comes directly without FETCH)
 ```
 
 ## Index Checklist
-- [ ] ESR 순서 (Equality → Sort → Range) 준수
-- [ ] `is_active`, `status` 단독 인덱스 없음 → Partial index로 대체
-- [ ] 배열 필드 인덱스는 Multikey 특성 이해 후 설계 (두 배열 필드 복합 불가)
-- [ ] 자주 조회하는 목록 API는 Covering index 고려
-- [ ] `skip()` 없음 → cursor pagination 사용
-- [ ] `EXPLAIN` 으로 COLLSCAN 없음 확인
-- [ ] TTL 필요한 컬렉션은 `expired_at` + TTL index
-- [ ] Text index는 컬렉션당 하나, 다중 필드 통합
+- [ ] ESR order (Equality → Sort → Range) followed
+- [ ] No single index on `is_active`, `status` → replace with Partial index
+- [ ] Array field index designed after understanding Multikey characteristics (two array fields compound not allowed)
+- [ ] Covering index considered for frequently queried list APIs
+- [ ] No `skip()` → use cursor pagination
+- [ ] Confirmed no COLLSCAN with `EXPLAIN`
+- [ ] Collections needing TTL use `expired_at` + TTL index
+- [ ] One Text index per collection, multi-field integrated

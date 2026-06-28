@@ -1,31 +1,31 @@
 # Connection Management and DynamoDB Features
 
-## boto3 / aioboto3 클라이언트 설정
+## boto3 / aioboto3 Client Configuration
 
 ```python
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 
-# Sync (boto3) — 단순 스크립트, Lambda (동기)
+# Sync (boto3) — Simple scripts, Lambda (sync)
 dynamodb = boto3.resource(
     "dynamodb",
     region_name="ap-northeast-2"
 )
 table = dynamodb.Table("MyApp")
 
-# 환경별 설정 (환경 변수 기반)
+# Environment-specific configuration (based on environment variables)
 import os
 
 dynamodb = boto3.resource(
     "dynamodb",
     region_name=os.environ.get("AWS_REGION", "ap-northeast-2"),
-    # 로컬 개발: DynamoDB Local
+    # Local development: DynamoDB Local
     endpoint_url=os.environ.get("DYNAMODB_ENDPOINT")  # "http://localhost:8000"
 )
 ```
 
 ```python
-# Async (aioboto3) — FastAPI, async 서비스 권장
+# Async (aioboto3) — Recommended for FastAPI, async services
 import aioboto3
 from contextlib import asynccontextmanager
 
@@ -41,18 +41,18 @@ async def get_table(table_name: str = "MyApp"):
         table = await dynamodb.Table(table_name)
         yield table
 
-# FastAPI lifespan 패턴
+# FastAPI lifespan pattern
 from fastapi import FastAPI
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.dynamodb_session = aioboto3.Session()
     yield
-    # aioboto3 session은 별도 close 불필요
+    # aioboto3 session does not require explicit close
 
 app = FastAPI(lifespan=lifespan)
 
-# 사용 예
+# Usage example
 async def get_user(user_id: str) -> dict:
     async with get_table() as table:
         response = await table.get_item(
@@ -65,10 +65,10 @@ async def get_user(user_id: str) -> dict:
 
 ## TTL (Time To Live)
 
-DynamoDB의 자동 만료 기능. MongoDB TTL index와 동일한 개념.
+DynamoDB's automatic expiration feature. Same concept as MongoDB TTL index.
 
 ```python
-# 테이블에 TTL 활성화 (콘솔 또는 CLI로 1회 설정)
+# Enable TTL on table (one-time setup via console or CLI)
 dynamodb_client.update_time_to_live(
     TableName="MyApp",
     TimeToLiveSpecification={
@@ -77,11 +77,11 @@ dynamodb_client.update_time_to_live(
     }
 )
 
-# 도큐먼트에 ttl 필드 추가
+# Add ttl field to document
 from datetime import datetime, timedelta, timezone
 import time
 
-# 세션: 24시간 후 만료
+# Session: Expire after 24 hours
 session_item = {
     "pk": f"SESSION#{session_id}",
     "sk": "DATA",
@@ -89,23 +89,23 @@ session_item = {
     "userId": user_id,
     "token": token,
     "createdAt": datetime.now(timezone.utc).isoformat(),
-    "ttl": int(time.time()) + 60 * 60 * 24  # 24시간 후 epoch
+    "ttl": int(time.time()) + 60 * 60 * 24  # epoch after 24 hours
 }
 
-# 임시 인증 코드: 10분 후 만료
+# Temporary auth code: Expire after 10 minutes
 otp_item = {
     "pk": f"OTP#{email}",
     "sk": "VERIFY",
     "code": otp_code,
-    "ttl": int(time.time()) + 60 * 10  # 10분
+    "ttl": int(time.time()) + 60 * 10  # 10 minutes
 }
 ```
 
-> ⚠️ TTL 만료는 즉시가 아닌 만료 후 최대 48시간 이내 삭제.
-> 정확한 만료 시점이 중요하면 `ttl` 필드를 조회 시 직접 확인.
+> WARNING: TTL expiration deletes within up to 48 hours after expiration, not immediately.
+> If precise expiration timing matters, check `ttl` field directly on query.
 
 ```python
-# 만료 여부 직접 확인
+# Direct expiration check
 import time
 
 def is_expired(item: dict) -> bool:
@@ -117,10 +117,10 @@ def is_expired(item: dict) -> bool:
 
 ## DynamoDB Streams
 
-테이블 변경 이벤트를 실시간으로 처리. MongoDB Change Streams와 유사.
+Process table change events in real-time. Similar to MongoDB Change Streams.
 
 ```python
-# Streams 활성화 (테이블 설정)
+# Enable Streams (table configuration)
 dynamodb_client.update_table(
     TableName="MyApp",
     StreamSpecification={
@@ -131,7 +131,7 @@ dynamodb_client.update_table(
 ```
 
 ```python
-# Lambda로 Stream 처리 (가장 일반적인 패턴)
+# Process Stream with Lambda (most common pattern)
 def handler(event, context):
     for record in event["Records"]:
         event_name = record["eventName"]  # INSERT / MODIFY / REMOVE
@@ -139,7 +139,7 @@ def handler(event, context):
         new_image = record["dynamodb"].get("NewImage", {})
         old_image = record["dynamodb"].get("OldImage", {})
 
-        # DynamoDB type descriptor 언패킹
+        # Unpack DynamoDB type descriptor
         from boto3.dynamodb.types import TypeDeserializer
         deserializer = TypeDeserializer()
 
@@ -147,15 +147,15 @@ def handler(event, context):
         old_item = {k: deserializer.deserialize(v) for k, v in old_image.items()}
 
         if event_name == "INSERT" and new_item.get("type") == "message":
-            # 새 메시지 → 알림 발송
+            # New message → send notification
             send_notification(new_item)
 
         elif event_name == "MODIFY":
-            # 변경 감지 → 캐시 무효화, 검색 인덱스 업데이트 등
+            # Change detected → invalidate cache, update search index, etc.
             invalidate_cache(new_item["pk"])
 
         elif event_name == "REMOVE":
-            # 삭제 이벤트 (TTL 만료 포함)
+            # Delete event (includes TTL expiration)
             handle_deletion(old_item)
 ```
 
@@ -180,7 +180,7 @@ async def safe_put_item(table, item: dict, condition: str = None):
             raise ValueError("Condition check failed (duplicate or version mismatch)")
 
         elif code == "ProvisionedThroughputExceededException":
-            # PAY_PER_REQUEST에서는 드물지만, burst 시 발생 가능
+            # Rare in PAY_PER_REQUEST, but possible during burst
             raise RetryableError("Throughput exceeded, retry with backoff")
 
         elif code == "TransactionCanceledException":
@@ -195,7 +195,7 @@ async def safe_put_item(table, item: dict, condition: str = None):
 ```
 
 ```python
-# Exponential backoff 재시도 (RetryableError 처리)
+# Exponential backoff retry (RetryableError handling)
 import asyncio
 
 async def with_retry(func, max_attempts: int = 3):
@@ -210,7 +210,7 @@ async def with_retry(func, max_attempts: int = 3):
 
 ---
 
-## DynamoDB Local (로컬 개발)
+## DynamoDB Local (Local Development)
 
 ```yaml
 # docker-compose.yml
@@ -223,16 +223,16 @@ services:
 ```
 
 ```python
-# 로컬 연결
+# Local connection
 dynamodb = boto3.resource(
     "dynamodb",
     region_name="ap-northeast-2",
     endpoint_url="http://localhost:8000",
-    aws_access_key_id="dummy",      # 로컬은 dummy 값 사용
+    aws_access_key_id="dummy",      # Use dummy value for local
     aws_secret_access_key="dummy"
 )
 
-# 테이블 생성 스크립트 (로컬 초기화)
+# Table creation script (local initialization)
 def create_table():
     try:
         dynamodb.create_table(
@@ -265,10 +265,10 @@ def create_table():
 ```
 
 ## Performance Checklist
-- [ ] PAY_PER_REQUEST vs Provisioned 모드 선택 (트래픽 예측 가능하면 Provisioned)
-- [ ] TTL 활성화 여부 확인 (세션, 임시 데이터)
-- [ ] Streams 필요 여부 확인 (캐시 무효화, 검색 인덱스 동기화)
-- [ ] ClientError 코드별 분기 처리
-- [ ] RetryableError에 exponential backoff 적용
-- [ ] 로컬 개발 환경 DynamoDB Local 사용
-- [ ] ProjectionExpression으로 필요한 필드만 조회
+- [ ] PAY_PER_REQUEST vs Provisioned mode selected (Provisioned if traffic predictable)
+- [ ] TTL enabled where appropriate (sessions, temporary data)
+- [ ] Streams requirement confirmed (cache invalidation, search index sync)
+- [ ] ClientError code-specific branching
+- [ ] Exponential backoff applied to RetryableError
+- [ ] DynamoDB Local used for local development
+- [ ] ProjectionExpression to query only needed fields

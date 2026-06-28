@@ -162,6 +162,25 @@
       },
       "description": "Web search, research, and data ingestion via Exa API — prefer task-scoped use for broader research after primary docs"
     },
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@brave/brave-search-mcp-server", "--transport", "stdio"],
+      "env": {
+        "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY_HERE"
+      },
+      "description": "Independent web/local search (complements exa). Free tier 2,000 queries/mo: api.search.brave.com/app/keys"
+    },
+    "_category_observability": "===== Error Tracking / Time (에러 추적 / 시간) =====",
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp",
+      "description": "Sentry errors/issues via remote OAuth (no plaintext key). Approve on first session; OAuth flow via /mcp."
+    },
+    "time": {
+      "command": "uvx",
+      "args": ["mcp-server-time"],
+      "description": "Current time + IANA timezone conversion. Requires uv (brew install uv)."
+    },
     "_category_ai_media": "===== AI Media Generation (AI 미디어 생성) =====",
     "fal-ai": {
       "command": "npx",

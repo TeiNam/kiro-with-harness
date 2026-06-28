@@ -9,7 +9,7 @@
 node install.js <cli|ide> [--scope global|workspace] [--workload a,b|all] [--review-backend kiro|claude] [--dry-run]
 ```
 
-- **Tier** — `cli` (for `kiro-cli chat`: JSON agents, hooks embedded in agent JSON, `skill://` skills) or `ide` (for Kiro IDE: Markdown agents, `.kiro/hooks/*.kiro.hook`, steering).
+- **Tier** — `cli` (for `kiro-cli chat`: JSON agents, hooks embedded in agent JSON, `skill://` skills) or `ide` (for Kiro IDE: Markdown agents, `.kiro/hooks/*.json` v1 JSON hooks, steering).
 - **Scope** — `global` (`~/.kiro`, CLI default) or `workspace` (project `.kiro`, IDE default).
 - **Workload** — what you are working on today. `core` is always installed; add others as needed.
 

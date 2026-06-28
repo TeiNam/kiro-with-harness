@@ -15,7 +15,7 @@
 | **Rules/Guidelines** | `rules/` directory, `CLAUDE.md` | `.kiro/steering/*.md` (always / fileMatch / manual) |
 | **Global Steering** | `rules/` (project-level only) | `~/.kiro/steering/` (global) + project `.kiro/steering/` |
 | **AGENTS.md Standard** | `CLAUDE.md` | `AGENTS.md` standard supported |
-| **Hook System** | `hooks.json` (PreToolUse / PostToolUse / Stop, etc.) | `.kiro/hooks/*.kiro.hook` (fileEdited / preToolUse / postToolUse, etc.) |
+| **Hook System** | `hooks.json` (PreToolUse / PostToolUse / Stop, etc.) | `.kiro/hooks/*.json` v1 (PostFileSave / PreToolUse / PostToolUse / Stop, etc.) |
 | **Hook Input** | Receives JSON via stdin, can block with exit code 2 | Event metadata only, delegates judgment via `preToolUse` + `askAgent` |
 | **Slash Commands** | `commands/*.md` (59 commands) | None — request the same tasks via conversation |
 | **Custom Agents** | `agents/*.md` (sub-agent delegation) | Supported — `.kiro/agents/*.md` custom agents; built-in subagents: context-gathering, general-purpose |
@@ -76,42 +76,48 @@ Both platforms support event-driven automation, but the schema and behavior diff
 | Item | Claude Code | Kiro |
 |------|-------------|------|
 | Input | Receives JSON via stdin | Event metadata only |
-| Blocking Method | Return exit code 2 | Delegates judgment to agent via `preToolUse` + `askAgent` |
-| Async Execution | `async: true` option | None (runCommand is synchronous) |
-| Tool Filter | Regex matcher (`Bash\|Edit\|Write`) | `toolTypes` categories (`read`, `write`, `shell`, `web`) or regex |
-| Profile Control | `HOOK_PROFILE` environment variable | None — add/remove hook files directly |
+| Blocking Method | Return exit code 2 | `command` action returns exit code 2 (PreToolUse); `agent` action delegates judgment to the agent |
+| Async Execution | `async: true` option | None (command actions are synchronous) |
+| Tool Filter | Regex matcher (`Bash\|Edit\|Write`) | `matcher` regex on tool name; built-in categories `read`, `write`, `shell`, `web`, `spec` |
+| Profile Control | `HOOK_PROFILE` environment variable | None — add/remove hook files or set `enabled: false` |
 
-**Kiro Hook JSON Example**
+**Kiro Hook JSON Example** (IDE 1.0 v1 format — `.kiro/hooks/*.json`)
 
 ```json
 {
-  "name": "Lint after TS/JS file edit",
-  "version": "1.0.0",
-  "when": {
-    "type": "fileEdited",
-    "patterns": ["*.ts", "*.tsx", "*.js", "*.jsx"]
-  },
-  "then": {
-    "type": "askAgent",
-    "prompt": "A TS/JS file was edited. Use getDiagnostics to check for lint and type errors instead of running shell commands. Do NOT use executeBash or terminal for linting."
-  }
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Lint after TS/JS file edit",
+      "trigger": "PostFileSave",
+      "matcher": "\\.(ts|tsx|js|jsx)$",
+      "action": {
+        "type": "agent",
+        "prompt": "A TS/JS file was edited. Use getDiagnostics to check for lint and type errors instead of running shell commands. Do NOT use executeBash or terminal for linting."
+      },
+      "enabled": true
+    }
+  ]
 }
 ```
 
-> **Note**: Use `askAgent` + `getDiagnostics` instead of `runCommand` to prevent terminal blocking.
+> **Note**: Use an `agent` action + `getDiagnostics` instead of a `command` action to prevent terminal blocking.
 
 ```json
 {
-  "name": "Security review before write operation",
-  "version": "1.0.0",
-  "when": {
-    "type": "preToolUse",
-    "toolTypes": ["write"]
-  },
-  "then": {
-    "type": "askAgent",
-    "prompt": "Verify this write operation complies with security rules: no hardcoded secrets, user input validated, SQL injection prevented"
-  }
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Security review before write operation",
+      "trigger": "PreToolUse",
+      "matcher": "write",
+      "action": {
+        "type": "agent",
+        "prompt": "Verify this write operation complies with security rules: no hardcoded secrets, user input validated, SQL injection prevented"
+      },
+      "enabled": true
+    }
+  ]
 }
 ```
 

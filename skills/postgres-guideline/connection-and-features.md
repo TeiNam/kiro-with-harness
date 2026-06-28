@@ -48,43 +48,43 @@ async def get_user(user_id: int):
 ## Advisory Lock
 
 ```python
-# Session-level (pg_advisory_lock): 커넥션 반환 시 자동 해제
-# Transaction-level (pg_advisory_xact_lock): 트랜잭션 종료 시 자동 해제 → 권장
+# Session-level (pg_advisory_lock): automatically released on connection return
+# Transaction-level (pg_advisory_xact_lock): automatically released on transaction end → recommended
 
-# ✅ Transaction-level: with conn.transaction() 종료 시 lock 자동 해제, finally 불필요
+# PASS: Transaction-level: lock auto-released when with conn.transaction() ends, no finally needed
 async with async_pool.connection() as conn:
     async with conn.transaction():
         async with conn.cursor() as cur:
             await cur.execute("SELECT pg_advisory_xact_lock(%(id)s)", {"id": job_id})
             result = await cur.fetchone()
-            # lock 획득 실패 시 대기 (non-blocking 필요하면 pg_try_advisory_xact_lock 사용)
+            # Waits on lock acquisition failure (use pg_try_advisory_xact_lock for non-blocking)
             await cur.execute(
                 "UPDATE app.job SET status = 'processing' WHERE job_id = %(id)s",
                 {"id": job_id}
             )
-        # 트랜잭션 커밋 + lock 해제가 원자적으로 처리됨
+        # Transaction commit + lock release handled atomically
 
-# ✅ Non-blocking (lock 획득 실패 시 즉시 반환)
+# PASS: Non-blocking (returns immediately on lock acquisition failure)
 async with async_pool.connection() as conn:
     async with conn.transaction():
         async with conn.cursor() as cur:
             await cur.execute("SELECT pg_try_advisory_xact_lock(%(id)s)", {"id": job_id})
             result = await cur.fetchone()
             if not result["pg_try_advisory_xact_lock"]:
-                return  # 다른 프로세스가 처리 중
+                return  # Another process is handling
             await cur.execute(
                 "UPDATE app.job SET status = 'processing' WHERE job_id = %(id)s",
                 {"id": job_id}
             )
 
-# ❌ 잘못된 패턴: session-level lock + 수동 finally 해제
-# commit 후 크래시 발생 시 finally의 unlock이 실행되지 않아 lock leak 위험
+# FAIL: Incorrect pattern: session-level lock + manual finally unlock
+# Risk of lock leak if crash occurs after commit but before finally executes unlock
 # async with conn.cursor() as cur:
-#     await cur.execute("SELECT pg_try_advisory_lock(...)")
-#     try:
-#         await conn.commit()
-#     finally:
-#         await cur.execute("SELECT pg_advisory_unlock(...)")  # ← 위험
+# await cur.execute("SELECT pg_try_advisory_lock(...)")
+# try:
+# await conn.commit()
+# finally:
+# await cur.execute("SELECT pg_advisory_unlock(...)")  # ← Dangerous
 ```
 
 ## LISTEN/NOTIFY

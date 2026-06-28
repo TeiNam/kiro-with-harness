@@ -1,191 +1,293 @@
 ---
 name: drawio-diagram
-description: Draw.io 다이어그램을 격자 셀 좌표계 규칙으로 생성하고, 좌우/상하 밸런스·화살표/텍스트 겹침을 정렬하는 스킬.
+description: Generate draw.io (diagrams.net) diagrams using a grid cell coordinate system, catching left/right and top/bottom imbalance, arrow/text overlap via an MCP tool loop (create→export→verify→edit). Triggers — "draw draw.io", "make diagram", "drawio diagram", "architecture diagram", "draw flowchart/sequence", "mxGraph XML", "fix diagram alignment/overlap".
 origin: harness
+version: 1.0.0
 workloads: [architecture, writing]
 ---
 
 # draw.io Diagram Generator
 
-LLM이 좌표를 즉흥 계산하면 좌우/상하 밸런스가 어긋나고 화살표·텍스트가 겹친다.
-이 스킬은 그 문제를 두 축으로 잡는다:
+When LLMs improvise coordinates, left/right and top/bottom balance breaks, and arrows and text overlap.
+This skill addresses the problem on two axes:
 
-1. **격자 셀 좌표계** — 위치를 `row/col × 상수` 공식으로만 산출해 임의성을 없앤다.
-2. **검증 루프** — `create → export(PNG) → 좌표·이미지 이중 검증 → edit` 을 반복해 수렴시킨다.
+1. **Grid cell coordinate system** — Positions are computed only via `row/col × constant` formulas, eliminating guesswork.
+2. **MCP verification loop** — Iterate `create → export(PNG) → coordinate/image dual verification → edit` to converge on actual results.
 
 ## When to Activate
 
-- draw.io / diagrams.net 다이어그램 생성 요청
-- 아키텍처도, 플로우차트, 시퀀스, 조직도, ER, 네트워크 다이어그램
-- 기존 다이어그램의 정렬·겹침·밸런스 수정 요청
+- draw.io / diagrams.net diagram generation requests
+- Architecture diagrams, flowcharts, sequences, org charts, ER, network diagrams
+- Requests to fix alignment, overlap, or balance in existing diagrams
+- Direct mxGraphModel XML authoring requests
 
-## 핵심 원칙
+## Core Principle (Why these rules)
 
-> **계산을 없애고 규칙으로 좌표가 자동으로 떨어지게 만든다.**
+> **Eliminate calculation; let coordinates fall out of rules automatically.**
+> Qualitative instructions like "balance it" fail every time. Coordinates must be bound to arithmetic formulas to guarantee alignment.
 
-## 격자 셀 좌표계 (가장 중요)
+---
 
-### 셀 상수
+## 1. Grid Cell Coordinate System (Most Important)
+
+### Cell Constants
 
 ```
-CELL_W = 240   # 셀 가로 간격
-CELL_H = 160   # 셀 세로 간격
-NODE_W = 200   # 도형 기본 가로
-NODE_H = 80    # 도형 기본 세로
-MARGIN = 40    # 캔버스 좌상단 여백
+CELL_W = 240   # Cell horizontal spacing
+CELL_H = 160   # Cell vertical spacing
+NODE_W = 200   # Default shape width (except special shapes)
+NODE_H = 80    # Default shape height
+MARGIN = 40    # Canvas top-left margin
 ```
 
-### 좌표 공식 (이 공식 외 임의 좌표 금지)
+### Coordinate Formula (No arbitrary coordinates outside this formula)
 
 ```
 x = MARGIN + col * CELL_W
 y = MARGIN + row * CELL_H
 ```
 
-- 모든 노드는 `(row, col)` 정수 좌표만 갖는다.
-- 같은 레벨의 노드는 반드시 동일 공식값을 공유한다 → 자동 정렬.
+- All nodes have only `(row, col)` integer coordinates. Do not write pixels directly.
+- Nodes at the same level (same row or same col) must share identical formula values → automatic alignment.
 
-### 좌우 대칭 (밸런스)
+### Left/Right Symmetry (Balance)
 
-한 레벨에 노드가 N개일 때:
+When a level has N nodes, center them symmetrically based on the total canvas column count `MAX_COLS`:
 
 ```
 start_col = floor((MAX_COLS - N) / 2)
-각 노드 col = start_col + i   (i = 0..N-1)
+Each node col = start_col + i   (i = 0..N-1)
 ```
 
-## 연결점·라우팅 규칙 (화살표 겹침 방지)
+- Fix `MAX_COLS` as the maximum node count in any level across the entire diagram.
+- All levels center-align against the same `MAX_COLS`, so left/right balance is arithmetically correct.
 
-### 고정 연결점
+### Flow Direction
 
-**세로 흐름(top→bottom):**
+- Choose **only one** primary flow direction (top→bottom recommended, or left→right).
+- Use reverse-direction edges only as exceptions.
+
+---
+
+## 2. Connection Point and Routing Rules (Prevent Arrow Overlap)
+
+### Fixed Connection Points (Pin by direction)
+
+**Vertical flow (top→bottom):**
 ```
-출발: exitX=0.5  exitY=1   (하단 중앙)
-도착: entryX=0.5 entryY=0   (상단 중앙)
+Source shape: exitX=0.5  exitY=1   (bottom center)
+Target shape: entryX=0.5 entryY=0   (top center)
 ```
 
-### 다중 분기 — 연결점 분산
+**Horizontal flow (left→right):**
+```
+Source shape: exitX=1   exitY=0.5  (right center)
+Target shape: entryX=0  entryY=0.5  (left center)
+```
+
+### Multi-branch — Distribute Connection Points
+
+When multiple branches leave one shape, distribute exit points so lines do not overlap:
 
 ```
-2갈래: exitX = 0.33 / 0.67
-3갈래: exitX = 0.25 / 0.5 / 0.75
+2 branches: exitX = 0.33 / 0.67
+3 branches: exitX = 0.25 / 0.5 / 0.75
 ```
 
-### 엣지 스타일 (항상 적용)
+Distribute entryX on the target side identically. Never let two edges share the same path.
+
+### Edge Style (Always apply)
 
 ```
 edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;
 ```
 
-## 라벨 공간 사전 확보 (겹침 방지)
+- Orthogonal routing, 90-degree bends only, maximum 2 bends per edge.
+- Bidirectional (A<->B) use opposite connection points.
 
-- 엣지에 라벨이 있으면 연결된 두 도형 사이 세로 간격을 1.5칸으로 넓히기
-- 엣지 라벨 스타일에 `labelBackgroundColor=#FFFFFF` 필수
-- 라벨 폭이 NODE_W를 넘으면 두 줄로 줄바꿈
+---
 
-## 텍스트 컨테인먼트 (HARD CONSTRAINT)
+## 3. Reserve Label Space in Advance (Half of all overlap is here)
 
-- 모든 도형 스타일에 `whiteSpace=wrap;html=1;` 필수
-- 텍스트는 박스 안에 100% 포함 (사방 최소 8px 패딩)
-- 안 들어가면 박스를 키우기 — 절대 텍스트 클리핑 금지
-
-## 색상·구조 (의미 기반)
-
-- 색은 상태/타입에 따라 의미 있게만 쓰기 (임의 금지)
-- 색이 여러 의미를 가지면 작은 **범례(legend)** 배치
-- 관련 도형은 컨테이너/스윔레인으로 묶어 영역 구분
-
-## 실행 워크플로
+Half of all overlap happens because shape spacing does not account for label space.
 
 ```
-1. create_new_diagram(xml)
-   → §1~5 규칙으로 좌표를 공식 산출한 XML 생성
-
-2. export_diagram(path="./_drawio_check.png", format="png")
-
-3. [좌표 검증] — 산술로 1차 필터
-   모든 도형 쌍 (A,B)에 대해 겹침 점검:
-   overlap = (A.x < B.x+B.w) && (A.x+A.w > B.x)
-          && (A.y < B.y+B.h) && (A.y+A.h > B.y)
-   겹치면 §1 공식으로 재배치
-
-4. [이미지 검증] — PNG를 열어 육안 확인
-   · 화살표가 도형을 관통하는가
-   · 엣지끼리 경로가 겹치는가
-   · 라벨이 도형/선과 겹치는가
-   · 좌우/상하 밸런스가 맞는가
-   · 텍스트가 박스를 벗어나는가
-
-5. 문제 발견 시 get_diagram → edit_diagram(operations)으로 수정 → 2번부터 반복
-   종료 조건: 좌표 검증 통과 AND 이미지 검증에서 결함 0
+- If an edge has a label, widen the vertical spacing between the connected shapes to 1.5 cells
+  (row difference 1 → 1.5, i.e., +80px for that segment only).
+- Edge label style must include labelBackgroundColor=#FFFFFF (readability).
+- If label width exceeds NODE_W, wrap to two lines.
+- Treat icon+caption as a single bounding box. Edges bypass the caption area by ~20px.
+  If the bottom is used for connection, place the caption on an empty side (left/right).
 ```
 
-## 검증 체크리스트 (출력 전 필수)
+---
 
-1. 엣지가 도형을 관통하지 않음
-2. 엣지끼리 경로 공유/중복 없음
-3. 텍스트 컨테인먼트 — 모든 박스 텍스트가 8px 패딩 안에 100% 포함
-4. 라벨이 도형/선과 겹치지 않음
-5. 간격·정렬 균일, 모든 요소가 페이지 범위 내
-6. XML 유효, 모든 ID 유일
-7. AWS 아이콘이면 빈 사각형 없음
+## 4. Text Containment (HARD CONSTRAINT)
 
-## AWS 아키텍처 — 공식 아이콘 (mxgraph.aws4)
+```
+- All shape styles must include whiteSpace=wrap;html=1;
+- Text is 100% contained inside the box. Ensure minimum 8px padding on all sides.
+- If text does not fit, enlarge the box — never shrink padding or clip text.
+  · Horizontal overflow: Increase NODE_W to 240/280 and shift all subsequent columns by one cell.
+  · Vertical overflow: Increase NODE_H to 100/120.
+- Maintain consistent fontSize/color/style per category.
+```
 
-AWS 리소스는 일반 박스가 아니라 `mxgraph.aws4` 공식 아이콘 사용.
+---
 
-### resourceIcon 스타일 틀
+## 5. Color and Structure (Semantic-Based)
+
+- Use color meaningfully based on state/type only (no arbitrary use).
+- If colors carry 2+ meanings, place a small **legend** in the bottom-right corner.
+- Group related shapes with containers/swimlanes to distinguish areas.
+- Visual hierarchy: title > nodes > annotations (distinguish by size/weight).
+
+---
+
+## 6. Execution Workflow (MCP Loop)
+
+```
+1. start_session
+      → Open browser live preview.
+
+2. create_new_diagram(xml)
+      → Generate XML with coordinates computed via §1~5 rules.
+      [WARNING] When modifying an existing diagram, never use create → get_diagram then edit_diagram.
+
+3. export_diagram(path="./_drawio_check.png", format="png")
+
+4. [Coordinate Verification] — Arithmetic first filter
+      Check rectangle overlap for all shape pairs (A,B):
+        overlap = (A.x < B.x+B.w) && (A.x+A.w > B.x)
+               && (A.y < B.y+B.h) && (A.y+A.h > B.y)
+      If overlap, reposition via §1 formula.
+      Output verification table first: | Node | x | y | RightEdge | BottomEdge |
+
+5. [Image Verification] — Open PNG via Read for visual inspection
+      · Do arrows pierce shapes?
+      · Do edges share paths?
+      · Do labels overlap shapes/lines?
+      · Is left/right and top/bottom balance correct (no skew)?
+      · Does text overflow boxes?
+
+6. If issues found, get_diagram → edit_diagram(operations) to fix only that cell → repeat from step 3.
+      Termination condition: Coordinate verification passes AND image verification shows 0 defects.
+
+7. Clean up _drawio_check.png after completion (if unnecessary).
+```
+
+### Verification Checklist (Required before output)
+
+1. Edges do not pierce shapes — all anchored to defined connection points.
+2. No edge path sharing/duplication, minimize crossings.
+3. Text containment — all box text 100% inside with 8px padding.
+4. Labels do not overlap shapes/lines (background #FFFFFF).
+5. Edges/arrows do not touch icon captions.
+6. Uniform spacing/alignment, all elements within page bounds.
+7. Valid XML, all IDs unique (id=0,1 reserved, top-level parent=1).
+8. If AWS icons, no empty rectangles (color-only fill) — see §7.
+
+---
+
+## 7. AWS Architecture — Official Icons (mxgraph.aws4)
+
+AWS architecture diagrams use draw.io's built-in `mxgraph.aws4` official icons, not generic boxes.
+Only non-AWS resources (NGINX, app microservices) use boxes.
+
+### resourceIcon Style Template
 
 ```
 sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;
-fillColor={브랜드컬러};strokeColor=#ffffff;dashed=0;html=1;fontSize=12;aspect=fixed;
-shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.{아이콘이름};
+fillColor={brand color};strokeColor=#ffffff;dashed=0;html=1;fontSize=12;aspect=fixed;
+shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.{icon name};
 ```
 
-- 아이콘 크기는 78×78 (resourceIcon 표준)
-- 카테고리별 fillColor: Networking `#8C4FFF`, Storage `#7AA116`, Security `#DD344C`, Database `#C925D1`
+- Icon size is 78×78 (resourceIcon standard).
+- fillColor by category: Networking `#8C4FFF`, Storage `#7AA116`, Security `#DD344C`,
+  Containers `#ED7100`, Database `#C925D1`, Analytics/Streaming `#E7157B`.
 
-### 빈 아이콘(empty box) 함정 — 반드시 검증
+### Empty Icon (empty box) Trap — Always Verify
 
-`resIcon=` 의 이름이 설치된 aws4 라이브러리에 **없으면**, draw.io는 **색만 칠해진 빈 사각형**으로 렌더한다. 이미지 검증에서만 보인다.
+If the stencil name in `resIcon=` is **not in the installed aws4 library**, draw.io
+renders **a color-only empty rectangle** without error. Coordinate verification will never catch this;
+**only image verification (PNG)** reveals it.
 
-> 의심되면 후보 이름들을 한 다이어그램에 나열해 export → 어느 게 실제로 그려지는지 눈으로 확정한 뒤 본 다이어그램에 적용.
+> **Do not trust names from memory.** If in doubt, list candidate names in one diagram,
+> export → visually confirm which actually renders, then apply to the main diagram.
 
-## 미니 템플릿 (세로 흐름, 3노드 레벨)
+Verified correct names (often short abbreviations, not full names):
+
+| Resource | [O] Correct resIcon | [X] Produces empty box |
+|----------|--------------------|-----------------------|
+| S3 | `s3` | `simple_storage_service` |
+| EKS | `eks` | `elastic_kubernetes_service` |
+| MSK | `managed_streaming_for_kafka` | `managed_streaming_for_apache_kafka` |
+| ElastiCache | `elasticache` | — |
+| Aurora | `aurora` | — |
+| Route 53 | `route_53` | — |
+| CloudFront | `cloudfront` | — |
+| DynamoDB | `dynamodb` | — |
+| WAF | `waf` | — |
+| Users (crowd) | `shape=mxgraph.aws4.users` (not resIcon) | — |
+
+### Icon Caption vs Arrow (Apply §3 ICON LABELS)
+
+- Icon captions are separate labels and easily overlap arrows.
+- Spine icons with downward arrows → place caption on the side:
+  `verticalLabelPosition=middle;verticalAlign=middle;labelPosition=right;align=left;spacingLeft=8;`
+- If another edge exits from that icon's side (e.g., right), place caption on the **opposite side**:
+  `labelPosition=left;align=right;spacingRight=8;`
+- Leaf icons without downward arrows (S3, DB types) → caption below (standard):
+  `verticalLabelPosition=bottom;verticalAlign=top;align=center;`
+
+---
+
+## Mini Template (Vertical Flow, 3-Node Level)
 
 ```xml
 <mxGraphModel>
   <root>
     <mxCell id="0"/>
     <mxCell id="1" parent="0"/>
-    <!-- Level 0: 1노드 → col=1 -->
+    <!-- Level 0: 1 node, MAX_COLS=3 → start_col=floor((3-1)/2)=1 -->
     <mxCell id="n1" value="Client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"
             vertex="1" parent="1">
       <mxGeometry x="280" y="40" width="200" height="80" as="geometry"/>
     </mxCell>
-    <!-- Level 1: 3노드 → col 0,1,2 -->
-    <mxCell id="n2" value="Service A" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"
+    <!-- Level 1: 3 nodes → start_col=0 → col 0,1,2 -->
+    <mxCell id="n2" value="API Gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"
             vertex="1" parent="1">
       <mxGeometry x="40" y="200" width="200" height="80" as="geometry"/>
     </mxCell>
-    <!-- 분기: exitX 분산 -->
+    <mxCell id="n3" value="Auth Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"
+            vertex="1" parent="1">
+      <mxGeometry x="280" y="200" width="200" height="80" as="geometry"/>
+    </mxCell>
+    <mxCell id="n4" value="DB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;"
+            vertex="1" parent="1">
+      <mxGeometry x="520" y="200" width="200" height="80" as="geometry"/>
+    </mxCell>
+    <!-- Branch: exitX 0.25/0.5/0.75 distributed, entryY=0 top arrival -->
     <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;exitX=0.25;exitY=1;entryX=0.5;entryY=0;"
             edge="1" parent="1" source="n1" target="n2">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;exitX=0.5;exitY=1;entryX=0.5;entryY=0;"
+            edge="1" parent="1" source="n1" target="n3">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;exitX=0.75;exitY=1;entryX=0.5;entryY=0;"
+            edge="1" parent="1" source="n1" target="n4">
       <mxGeometry relative="1" as="geometry"/>
     </mxCell>
   </root>
 </mxGraphModel>
 ```
 
-## 안티패턴
+## Anti-Patterns
 
-- [X] 픽셀 좌표 즉흥 입력 — 공식 위반, 밸런스 깨짐
-- [X] exit/entry 생략 — 도형 관통
-- [X] 한 도형에서 나가는 다중 엣지의 exitX 동일 — 경로 겹침
-- [X] create_new_diagram 으로 기존 다이어그램 수정 — 전체 파괴
-- [X] 이미지 검증 생략 — 라벨 미세 겹침 못 잡음
-
-## 관련 스킬
-
-- hexagonal-architecture — 아키텍처 다이어그램의 도메인 패턴
-- tech-writer — 문서와 함께 다이어그램 작성
+- [X] Improvised pixel coordinates (`x=137 y=283`) → formula violation, balance broken.
+- [X] Omitting exit/entry → engine routes centrally, piercing shapes.
+- [X] Multiple edges from one shape with identical exitX → path overlap.
+- [X] Modifying existing diagram with create_new_diagram → total destruction. Must use edit_diagram.
+- [X] Skipping image verification and asserting "no overlap" → coordinates alone cannot catch subtle label overlap.

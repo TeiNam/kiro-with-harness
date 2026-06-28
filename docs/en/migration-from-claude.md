@@ -7,7 +7,7 @@ Step-by-step guide for converting a Claude Code harness setup to Kiro IDE native
 | Claude Code | Kiro IDE | Notes |
 |-------------|----------|-------|
 | `CLAUDE.md` | `.kiro/steering/*.md` | Split into focused files by topic |
-| `.claude/settings.json` | `.kiro/hooks/*.kiro.hook` | Event-driven hooks replace permission settings |
+| `.claude/settings.json` | `.kiro/hooks/*.json` | Event-driven hooks replace permission settings |
 | `.claude/commands/` | Kiro custom agents | Agent markdown files |
 | MCP config in Claude | `.kiro/settings/mcp.json` | Same MCP protocol, different config location |
 | Project memory | Steering (always inclusion) | Persistent context across sessions |
@@ -49,16 +49,19 @@ Example: Claude's "deny write to docs/" becomes a pre-write hook:
 
 ```json
 {
-  "name": "Pre-Write Guard",
-  "version": "1.0.0",
-  "when": {
-    "type": "preToolUse",
-    "toolTypes": ["write"]
-  },
-  "then": {
-    "type": "askAgent",
-    "prompt": "Check if this write follows project rules."
-  }
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Pre-Write Guard",
+      "trigger": "PreToolUse",
+      "matcher": "write",
+      "action": {
+        "type": "agent",
+        "prompt": "Check if this write follows project rules."
+      },
+      "enabled": true
+    }
+  ]
 }
 ```
 

@@ -1,160 +1,160 @@
 # Data Modeling
 
-DynamoDB 설계의 핵심 원칙: **Access Pattern을 먼저 정의하고, 테이블을 그에 맞게 설계한다.**
-MongoDB처럼 "나중에 인덱스 추가" 방식은 DynamoDB에서 매우 비싸고 위험하다.
-GSI 추가는 가능하지만, PK/SK 변경은 테이블 재생성을 의미한다.
+Core principle of DynamoDB design: **Define access patterns first, then design the table to match them.**
+Unlike MongoDB's "add indexes later" approach, this is very expensive and risky in DynamoDB.
+GSI addition is possible, but PK/SK changes mean recreating the table.
 
 ---
 
-## Step 1 — Access Pattern 목록 작성 (설계 전 필수)
+## Step 1 — List Access Patterns (Required Before Design)
 
-테이블 생성 전에 모든 읽기/쓰기 패턴을 열거한다.
+Enumerate all read/write patterns before creating the table.
 
 ```
-# 예시: 채팅 서비스 Access Pattern 목록
+# Example: Chat Service Access Pattern List
 
-[쓰기]
-AP-W1. 유저 생성
-AP-W2. 메시지 전송
-AP-W3. 대화 세션 생성
+[Write]
+AP-W1. Create user
+AP-W2. Send message
+AP-W3. Create conversation session
 
-[읽기]
-AP-R1. user_id로 유저 프로필 조회
-AP-R2. email로 유저 조회
-AP-R3. user_id로 전체 대화 목록 조회 (최신순)
-AP-R4. conversation_id로 메시지 목록 조회 (시간순, 페이지네이션)
-AP-R5. user_id + 날짜 범위로 메시지 검색
+[Read]
+AP-R1. Get user profile by user_id
+AP-R2. Get user by email
+AP-R3. List all conversations by user_id (newest first)
+AP-R4. List messages by conversation_id (time order, paginated)
+AP-R5. Search messages by user_id + date range
 ```
 
-→ 이 목록이 PK/SK/GSI 설계의 근거가 된다.
+This list becomes the basis for PK/SK/GSI design.
 
 ---
 
 ## Step 2 — Single Table Design vs Multi Table
 
-### Single Table Design (권장)
+### Single Table Design (Recommended)
 
-여러 엔티티를 **한 테이블**에 저장. `pk`, `sk`를 오버로드해서 엔티티 타입 구분.
+Store multiple entities in **one table**. Overload `pk` and `sk` to distinguish entity types.
 
-**장점:**
-- 여러 엔티티를 한 번의 Query로 가져올 수 있음 (1 round-trip)
-- 관련 데이터가 같은 파티션에 존재 → 지연 시간 최소화
-- 프로비저닝 비용 공유
+**Pros:**
+- Fetch multiple entities in one Query (1 round-trip)
+- Related data exists in the same partition → minimal latency
+- Shared provisioning costs
 
-**단점:**
-- 설계가 복잡하고 직관적이지 않음
-- 초기에 access pattern을 완전히 정의해야 함
-- 팀 내 DynamoDB 이해도가 낮으면 유지보수 어려움
+**Cons:**
+- Complex and non-intuitive design
+- Requires complete access pattern definition upfront
+- Hard to maintain if team DynamoDB understanding is low
 
-### Multi Table (단순한 서비스에 적합)
+### Multi Table (Suitable for Simple Services)
 
-엔티티마다 별도 테이블. RDBMS와 유사한 구조.
+Separate table per entity. Structure similar to RDBMS.
 
-**권장 케이스:**
-- Access pattern이 단순하고 엔티티 간 Join 쿼리가 없음
-- 팀 DynamoDB 숙련도가 낮음
-- 서비스 초기 단계
+**Recommended when:**
+- Access patterns are simple and no cross-entity joins needed
+- Team DynamoDB proficiency is low
+- Service is in early stages
 
 ---
 
-## Single Table Design 구현
+## Single Table Design Implementation
 
-### Entity Overloading — pk/sk에 타입 접두어 포함
+### Entity Overloading — Include type prefix in pk/sk
 
 ```python
-# pk, sk 값에 엔티티 타입을 접두어로 포함
-# → 같은 파티션에 여러 엔티티 타입 공존 가능
+# Include entity type as prefix in pk, sk values
+# → Multiple entity types can coexist in the same partition
 
-# User 엔티티
+# User entity
 {
     "pk": "USER#user123",       # Partition Key
     "sk": "PROFILE",            # Sort Key
     "type": "user",
     "email": "user@example.com",
-    "name": "김철수",
+    "name": "John Kim",
     "createdAt": "2024-01-01T00:00:00Z",
     "updatedAt": "2024-01-01T00:00:00Z",
     "isActive": True
 }
 
-# Conversation 엔티티 (같은 테이블)
+# Conversation entity (same table)
 {
-    "pk": "USER#user123",           # 동일 파티션 → 유저와 함께 Query 가능
-    "sk": "CONV#2024-01-15T10:00:00Z#conv456",  # 시간 정렬 + ID
+    "pk": "USER#user123",           # Same partition → can Query with user
+    "sk": "CONV#2024-01-15T10:00:00Z#conv456",  # Time sorted + ID
     "type": "conversation",
     "conversationId": "conv456",
-    "title": "제주도 여행 계획",
+    "title": "Travel planning",
     "messageCount": 0,
     "createdAt": "2024-01-15T10:00:00Z"
 }
 
-# Message 엔티티 (같은 테이블)
+# Message entity (same table)
 {
-    "pk": "CONV#conv456",           # 대화 파티션
+    "pk": "CONV#conv456",           # Conversation partition
     "sk": "MSG#2024-01-15T10:05:00Z#msg789",
     "type": "message",
     "conversationId": "conv456",
     "userId": "user123",
     "role": "user",
-    "text": "제주도 2박 3일 일정 짜줘",
+    "text": "Plan a 3-day trip",
     "createdAt": "2024-01-15T10:05:00Z"
 }
 ```
 
-### 한 번의 Query로 여러 엔티티 조회
+### Query Multiple Entities in One Request
 
 ```python
-# AP-R3: 유저의 모든 대화 목록 조회
+# AP-R3: List all conversations for user
 # pk = "USER#user123", sk begins_with "CONV#"
 response = table.query(
     KeyConditionExpression=Key("pk").eq("USER#user123") &
                            Key("sk").begins_with("CONV#"),
-    ScanIndexForward=False  # 최신순
+    ScanIndexForward=False  # Newest first
 )
 
-# AP-R1 + AP-R3 동시: 유저 프로필 + 최근 대화 한 번의 Query로
+# AP-R1 + AP-R3 together: User profile + recent conversations in one Query
 # pk = "USER#user123", sk between "CONV#" and "PROFILE"
-# → sk 정렬 순서에 따라 한 번의 요청으로 여러 타입 조회
+# → Fetch multiple types in one request based on sk sort order
 response = table.query(
     KeyConditionExpression=Key("pk").eq("USER#user123"),
-    # sk 알파벳 순: CONV# < PROFILE
-    # 필요한 범위만 KeyConditionExpression으로 좁히기
+    # sk alphabetical order: CONV# < PROFILE
+    # Narrow down range with KeyConditionExpression
 )
-# type 필드로 클라이언트에서 엔티티 분류
+# Client filters entities by type field
 users = [item for item in response["Items"] if item["type"] == "user"]
 convs = [item for item in response["Items"] if item["type"] == "conversation"]
 ```
 
 ---
 
-## Embed vs Reference (DynamoDB 관점)
+## Embed vs Reference (DynamoDB Perspective)
 
-MongoDB와 판단 기준은 유사하지만, DynamoDB는 **Item 크기 400KB 제한**과 **Query 단위**가 설계를 더 강하게 제약한다.
+Decision criteria are similar to MongoDB, but DynamoDB's **400KB Item limit** and **Query unit** constraints are stricter.
 
-### Embed — 항상 함께 읽히고, 크기가 작고, 독립 조회 없을 때
+### Embed — Always read together, small size, no independent queries
 
 ```python
-# ✅ Embed: 유저 주소 — 항상 프로필과 함께, 독립 조회 없음
+# PASS: Embed: User addresses — always with profile, no independent queries
 {
     "pk": "USER#user123",
     "sk": "PROFILE",
     "type": "user",
     "email": "user@example.com",
-    "addresses": [                  # Map의 List로 embed
+    "addresses": [                  # Embed as List of Maps
         {"type": "home", "city": "Seoul", "zip": "12345"},
         {"type": "work", "city": "Suwon", "zip": "67890"}
     ]
 }
 
-# ✅ Embed: 컨텐츠 메타 — 목록 카드에 필요한 작성자 스냅샷
+# PASS: Embed: Content metadata — author snapshot needed for list cards
 {
     "pk": "CONTENT#abc",
     "sk": "META",
     "type": "content",
-    "title": "MongoDB 설계 원칙",
-    "author": {                     # 작성 시점 스냅샷, join 불필요
+    "title": "MongoDB design principles",
+    "author": {                     # Snapshot at creation time, no join needed
         "userId": "user123",
-        "name": "김철수",
+        "name": "John Kim",
         "avatarUrl": "https://..."
     },
     "tags": ["mongodb", "database"],
@@ -162,64 +162,64 @@ MongoDB와 판단 기준은 유사하지만, DynamoDB는 **Item 크기 400KB 제
 }
 ```
 
-### Reference — 독립 조회, 무한 증가, 다중 공유
+### Reference — Independent queries, unbounded growth, shared across multiple
 
 ```python
-# ✅ Reference: 메시지는 무한 증가 → 별도 pk 파티션
-# conversations 파티션에서 메시지를 별도 Item으로 저장
+# PASS: Reference: Messages grow unbounded → separate pk partition
+# Store messages as separate Items in conversations partition
 {
     "pk": "CONV#conv456",
     "sk": "MSG#2024-01-15T10:05:00Z#msg789",
     "type": "message",
-    "conversationId": "conv456",    # 역참조
-    "userId": "user123"             # 역참조
+    "conversationId": "conv456",    # Back reference
+    "userId": "user123"             # Back reference
 }
 
-# ❌ 절대 안 됨: 메시지를 대화 Item의 List attribute에 embed
+# FAIL: Never do this: Embed messages in conversation Item's List attribute
 {
     "pk": "CONV#conv456",
     "sk": "META",
-    "messages": [...]  # 400KB 한도 초과, 무한 증가 불가
+    "messages": [...]  # Exceeds 400KB limit, unbounded growth impossible
 }
 ```
 
 ---
 
-## Hierarchical Sort Key 패턴
+## Hierarchical Sort Key Pattern
 
-sk를 계층 구조로 설계하면 begins_with / between으로 다양한 범위 쿼리 지원.
+Design sk hierarchically to support various range queries with begins_with / between.
 
 ```python
-# sk 구조: {타입}#{시간}#{ID}
-# → begins_with("MSG#")          : 모든 메시지
-# → begins_with("MSG#2024-01")   : 2024년 1월 메시지
-# → between("MSG#2024-01", "MSG#2024-02") : 1월 범위
+# sk structure: {type}#{time}#{ID}
+# → begins_with("MSG#")          : All messages
+# → begins_with("MSG#2024-01")   : January 2024 messages
+# → between("MSG#2024-01", "MSG#2024-02") : January range
 
-# 예시: 대화 파티션의 sk 구조
+# Example: Conversation partition sk structure
 "sk": "MSG#2024-01-15T10:05:00Z#msg789"
 
-# 예시: 유저 파티션의 sk 구조
-"sk": "PROFILE"                          # 프로필 (단일)
-"sk": "CONV#2024-01-15T10:00:00Z#conv1" # 대화 목록
-"sk": "FOLLOW#user456"                   # 팔로우 목록
-"sk": "SETTING#notification"            # 설정
+# Example: User partition sk structure
+"sk": "PROFILE"                          # Profile (single)
+"sk": "CONV#2024-01-15T10:00:00Z#conv1" # Conversation list
+"sk": "FOLLOW#user456"                   # Follow list
+"sk": "SETTING#notification"            # Settings
 ```
 
 ---
 
-## Denormalization (역정규화) 전략
+## Denormalization Strategy
 
-DynamoDB는 JOIN이 없으므로 역정규화가 필수. 업데이트 비용과 읽기 편의성의 트레이드오프.
+DynamoDB has no JOIN, so denormalization is essential. Trade-off between update cost and read convenience.
 
 ```python
-# 컨텐츠에 댓글 수 역정규화 → 조회 시 aggregate 불필요
+# Denormalize comment count in content → no aggregation needed on query
 async def add_comment(content_id: str, comment: dict):
     async with aioboto3_resource() as dynamodb:
         table = await dynamodb.Table("MyApp")
         async with table.meta.client.get_waiter("table_exists"):
             pass
 
-        # 댓글 Item 저장 + 컨텐츠 카운터 업데이트를 트랜잭션으로
+        # Save comment Item + update content counter atomically in transaction
         await table.meta.client.transact_write_items(
             TransactItems=[
                 {
@@ -228,7 +228,7 @@ async def add_comment(content_id: str, comment: dict):
                         "Item": {
                             "pk": f"CONTENT#{content_id}",
                             "sk": f"COMMENT#{comment['createdAt']}#{comment['id']}",
-                            **comment
+**comment
                         }
                     }
                 },
@@ -246,10 +246,10 @@ async def add_comment(content_id: str, comment: dict):
 ```
 
 ## Data Modeling Checklist
-- [ ] Access Pattern 목록을 테이블 생성 전에 작성했는가
-- [ ] 각 Access Pattern이 Query (또는 GetItem)으로 처리 가능한가 (Scan 없음)
-- [ ] pk/sk에 엔티티 타입 접두어 포함 (Single Table)
-- [ ] Unbounded List attribute 없음 (무한 증가 데이터는 별도 Item)
-- [ ] Item 크기 400KB 이내
-- [ ] 역정규화 필드는 트랜잭션으로 일관성 유지
-- [ ] `type` 필드로 엔티티 타입 식별 가능
+- [ ] Access Pattern list written before table creation
+- [ ] Each Access Pattern processable with Query (or GetItem), no Scan
+- [ ] pk/sk include entity type prefix (Single Table)
+- [ ] No Unbounded List attributes (unbounded data stored as separate Items)
+- [ ] Item size within 400KB
+- [ ] Denormalized fields maintained consistently with transactions
+- [ ] Entity types identifiable via `type` field

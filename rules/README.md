@@ -86,6 +86,8 @@ To add support for a new language (e.g., `rust/`):
    ```
 4. Reference existing skills if available, or create new ones under `skills/`.
 
+> **Workload tagging & IDE auto-load.** Tag each rule (or rely on the per-language folder) so the installer selects it for the right workload. In the **IDE tier**, language rule folders are bundled into a single steering file with `inclusion: fileMatch` and a `fileMatchPattern` glob (e.g. `**/*.rs`) — the glob is defined centrally in `scripts/lib/tiers.js` (`LANG_RULES`), not in each rule's frontmatter, so a Kiro IDE edit to a matching file auto-loads the rule. This is the Kiro equivalent of Claude's `paths:` frontmatter auto-load convention. To add a new language's auto-load, add an entry to `LANG_RULES` mapping the `rules/<lang>` folder to its `fileMatch` glob and output filename.
+
 ## Rule Priority
 
 When language-specific rules and common rules conflict, **language-specific rules take precedence** (specific overrides general). This follows the standard layered configuration pattern (similar to CSS specificity or `.gitignore` precedence).

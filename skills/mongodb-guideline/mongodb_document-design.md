@@ -1,23 +1,23 @@
 # Document Design
 
-MongoDB 스키마 설계의 핵심은 **"어떻게 데이터를 읽을 것인가"** 에서 출발한다.
-RDBMS처럼 정규화로 시작하지 말고, 애플리케이션의 읽기 패턴을 먼저 정의한 뒤 설계할 것.
+The core principle of MongoDB schema design starts with **"How will data be read?"**
+Do not start with normalization like RDBMS. Define the application's read patterns first, then design accordingly.
 
 ---
 
-## Embed vs Reference 결정 원칙
+## Embed vs Reference Decision Principles
 
-### Embed (내장) 조건 — 모두 해당할 때
+### Embed Conditions — When All Apply
 
-| 조건 | 판단 질문 |
-|------|----------|
-| 소유 관계 | 이 데이터가 부모 없이 독립적으로 존재하는가? → No면 embed |
-| 함께 조회 | 이 데이터를 항상 부모와 함께 읽는가? → Yes면 embed |
-| 크기 제한 | 배열이 무한히 증가하지 않는가? → 수십~수백 개 이하면 embed |
-| 공유 없음 | 다른 도큐먼트에서도 이 데이터를 참조하는가? → No면 embed |
+| Condition | Decision Question |
+|-----------|------------------|
+| Ownership | Does this data exist independently without a parent? → If No, embed |
+| Co-query | Is this data always read together with parent? → If Yes, embed |
+| Size limit | Does the array grow indefinitely? → If tens to hundreds only, embed |
+| No sharing | Is this data referenced by other documents? → If No, embed |
 
 ```python
-# ✅ Embed: 주소는 유저와 항상 함께 조회, 공유 없음, 크기 제한적
+# PASS: Embed: addresses are always queried with user, no sharing, size bounded
 {
     "_id": ObjectId(),
     "email": "user@example.com",
@@ -27,83 +27,83 @@ RDBMS처럼 정규화로 시작하지 말고, 애플리케이션의 읽기 패�
     ]
 }
 
-# ✅ Embed: 챗봇 대화의 최근 요약 — 항상 함께 읽히고, 크기 고정
+# PASS: Embed: recent chatbot conversation summary — always read together, fixed size
 {
     "_id": ObjectId(),
     "user_id": ObjectId("..."),
-    "summary": "사용자는 여행 계획 도움을 요청함",
-    "last_messages": [      # 최근 5개만 유지 ($slice로 제한)
-        {"role": "user", "text": "제주도 2박 3일 일정 짜줘"},
-        {"role": "bot",  "text": "제주도 2박 3일 추천 일정입니다..."}
+    "summary": "User requested travel planning help",
+    "last_messages": [      # Keep only recent 5 (limited by $slice)
+        {"role": "user", "text": "Plan a 2-night 3-day Jeju trip"},
+        {"role": "bot",  "text": "Here's a recommended 2-night 3-day Jeju itinerary..."}
     ],
     "created_at": datetime,
     "updated_at": datetime
 }
 ```
 
-### Reference (참조) 조건 — 하나라도 해당할 때
+### Reference Conditions — When Any One Applies
 
-| 조건 | 판단 질문 |
-|------|----------|
-| 무한 증가 | 이 배열이 계속 커지는가? → Yes면 separate collection |
-| 독립 조회 | 부모 없이 단독으로 조회/수정되는가? → Yes면 reference |
-| 다중 공유 | 여러 도큐먼트에서 이 데이터를 참조하는가? → Yes면 reference |
-| 대용량 | 이 데이터가 도큐먼트를 16MB에 가깝게 만드는가? → Yes면 reference |
+| Condition | Decision Question |
+|-----------|------------------|
+| Unbounded growth | Does this array keep growing? → If Yes, separate collection |
+| Independent query | Is it queried/updated without parent? → If Yes, reference |
+| Multi-sharing | Is this data referenced by multiple documents? → If Yes, reference |
+| Large size | Does this data push document close to 16MB? → If Yes, reference |
 
 ```python
-# ✅ Reference: 채팅 메시지는 무한 증가 → 별도 컬렉션
-# conversations 컬렉션
+# PASS: Reference: chat messages grow unbounded → separate collection
+# conversations collection
 {
     "_id": ObjectId("conv_1"),
     "user_id": ObjectId("user_1"),
-    "title": "제주도 여행 계획",
-    "message_count": 42,        # 역정규화: $lookup 없이 바로 표시
+    "title": "Jeju Travel Planning",
+    "message_count": 42,        # Denormalized: display directly without $lookup
     "last_message_at": datetime,
     "created_at": datetime
 }
 
-# messages 컬렉션 (별도)
+# messages collection (separate)
 {
     "_id": ObjectId(),
     "conversation_id": ObjectId("conv_1"),  # reference
     "role": "user",
-    "text": "제주도 2박 3일 일정 짜줘",
+    "text": "Plan a 2-night 3-day Jeju trip",
     "created_at": datetime
 }
 ```
 
 ---
 
-## 컨텐츠 중심 입출력 설계
+## Content-Centric Input/Output Design
 
-MongoDB를 가장 효과적으로 쓰는 패턴은 **한 화면 = 한 도큐먼트** 원칙이다.
-API 응답 구조를 먼저 정의하고, 그에 맞게 도큐먼트를 설계한다.
+The most effective MongoDB pattern follows the **one screen = one document** principle.
+Define the API response structure first, then design documents to match it.
 
-### 패턴 1 — 콘텐츠 피드 (카드형 목록)
+### Pattern 1 — Content Feed (Card List)
 
 ```python
-# 목록 API 응답에 필요한 모든 필드를 한 도큐먼트에 담음
-# → $lookup 없이 단일 find()로 해결
+# All fields needed for list API response in a single document
+# → Resolved with single find() without $lookup
 {
     "_id": ObjectId(),
-    "type": "article",          # 컨텐츠 타입 (article / video / podcast)
-    "title": "MongoDB 설계 원칙",
+    "type": "article",          # Content type (article / video / podcast)
+    "title": "MongoDB Design Principles",
     "slug": "mongodb-design-principles",
 
-    # 목록 카드에 표시할 메타 (author 컬렉션 join 불필요)
+    # Metadata to display on list cards (no join to author collection needed)
     "author": {
         "user_id": ObjectId("..."),
-        "name": "김철수",           # 역정규화: 작성 시점 스냅샷
+        "name": "Kim Chulsoo",           # Denormalized: snapshot at write time
         "avatar_url": "https://..."
     },
 
-    # 목록 렌더링에 필요한 요약 정보
+    # Summary information for list rendering
     "thumbnail_url": "https://...",
-    "summary": "MongoDB는 읽기 패턴 중심으로...",
+    "summary": "MongoDB centers around read patterns...",
     "read_time_minutes": 8,
     "tags": ["mongodb", "database", "nosql"],
 
-    # 집계 카운터 (역정규화)
+    # Aggregate counters (denormalized)
     "stats": {
         "view_count": 1240,
         "like_count": 87,
@@ -117,24 +117,24 @@ API 응답 구조를 먼저 정의하고, 그에 맞게 도큐먼트를 설계�
 }
 ```
 
-### 패턴 2 — 상세 페이지 (단일 도큐먼트 = 전체 페이지)
+### Pattern 2 — Detail Page (Single Document = Complete Page)
 
 ```python
-# 상세 API: 본문 포함, 단일 find_one()으로 완성
+# Detail API: includes body, complete with single find_one()
 {
     "_id": ObjectId(),
     "slug": "mongodb-design-principles",
-    "title": "MongoDB 설계 원칙",
-    "body": "## 서론\n\nMongoDB는 ...",    # 마크다운/HTML 본문
+    "title": "MongoDB Design Principles",
+    "body": "## Introduction\n\nMongoDB is ...",    # Markdown/HTML body
 
     "author": {
         "user_id": ObjectId("..."),
-        "name": "김철수",
-        "bio": "백엔드 개발자",
+        "name": "Kim Chulsoo",
+        "bio": "Backend developer",
         "avatar_url": "https://..."
     },
 
-    # 연관 컨텐츠 ID (목록 표시용 최소 정보만 embed)
+    # Related content IDs (only minimal info for list display embedded)
     "related_content_ids": [ObjectId("..."), ObjectId("...")],
 
     "tags": ["mongodb", "database"],
@@ -144,19 +144,19 @@ API 응답 구조를 먼저 정의하고, 그에 맞게 도큐먼트를 설계�
 }
 ```
 
-### 패턴 3 — 사용자 프로필 (설정 + 상태 통합)
+### Pattern 3 — User Profile (Settings + State Unified)
 
 ```python
-# 프로필 페이지: 설정, 통계, 최근 활동을 한 도큐먼트에
+# Profile page: settings, stats, recent activity in one document
 {
     "_id": ObjectId(),
-    "public_id": "user_abc123",     # URL용 외부 ID
+    "public_id": "user_abc123",     # External ID for URLs
     "email": "user@example.com",
     "is_active": True,
 
     "profile": {
-        "name": "김철수",
-        "bio": "백엔드 개발자",
+        "name": "Kim Chulsoo",
+        "bio": "Backend developer",
         "avatar_url": "https://...",
         "location": "Seoul, Korea"
     },
@@ -167,7 +167,7 @@ API 응답 구조를 먼저 정의하고, 그에 맞게 도큐먼트를 설계�
         "notifications": {"email": True, "push": False}
     },
 
-    # 역정규화: 프로필 페이지에서 바로 보여줄 집계값
+    # Denormalized: aggregate values to display directly on profile page
     "stats": {
         "post_count": 42,
         "follower_count": 128,
@@ -181,39 +181,39 @@ API 응답 구조를 먼저 정의하고, 그에 맞게 도큐먼트를 설계�
 
 ---
 
-## 글로벌 쿼리를 피하는 설계
+## Design to Avoid Global Queries
 
-**글로벌 쿼리**: 컬렉션 전체를 스캔하거나, 특정 사용자/컨텍스트로 격리되지 않는 쿼리.
-MongoDB에서 성능 문제의 대부분은 글로벌 쿼리에서 발생한다.
+**Global Query**: A query that scans the entire collection or is not isolated by a specific user/context.
+Most MongoDB performance issues originate from global queries.
 
-### 원칙 1 — 모든 쿼리의 첫 번째 필터는 소유자 ID
+### Principle 1 — First Filter in Every Query is Owner ID
 
 ```python
-# ❌ 글로벌 쿼리: 전체 컬렉션 스캔
-await db.messages.find({"text": {"$regex": "제주도"}})
+# FAIL: Global query: full collection scan
+await db.messages.find({"text": {"$regex": "Jeju"}})
 
-# ✅ 소유자 격리: user_id 먼저, 그 다음 조건
+# PASS: Owner isolation: user_id first, then other conditions
 await db.messages.find({
-    "user_id": user_id,             # 항상 첫 번째
-    "conversation_id": conv_id,     # 두 번째 격리 레벨
+    "user_id": user_id,             # Always first
+    "conversation_id": conv_id,     # Second isolation level
     "created_at": {"$gte": since}
 })
 ```
 
-### 원칙 2 — 타입/상태 필드 단독 인덱스 금지, 복합 인덱스로 설계
+### Principle 2 — Prohibit Single Index on Type/Status Field, Use Compound Index
 
 ```python
-# ❌ 카디널리티 낮은 필드 단독 인덱스 → 효과 없음
-await db.contents.create_index("status")        # "published" / "draft" 2가지뿐
-await db.contents.create_index("content_type")  # 5가지 타입뿐
+# FAIL: Low-cardinality field single index → ineffective
+await db.contents.create_index("status")        # Only 2 values: "published" / "draft"
+await db.contents.create_index("content_type")  # Only 5 types
 
-# ✅ 소유자 + 상태 복합 인덱스 → 글로벌 쿼리 차단
+# PASS: Owner + status compound index → blocks global queries
 await db.contents.create_index(
     [("author_id", ASCENDING), ("status", ASCENDING), ("published_at", DESCENDING)],
     name="idx_contents_author_status_published"
 )
 
-# ✅ Partial index: published 상태만 인덱싱 → 인덱스 크기 절감
+# PASS: Partial index: index only published status → reduces index size
 await db.contents.create_index(
     [("published_at", DESCENDING)],
     partialFilterExpression={"status": "published"},
@@ -221,13 +221,13 @@ await db.contents.create_index(
 )
 ```
 
-### 원칙 3 — 역정규화로 $lookup / 집계 쿼리 제거
+### Principle 3 — Eliminate $lookup / Aggregation Queries via Denormalization
 
 ```python
-# ❌ 댓글 수를 알기 위해 매번 집계 쿼리
+# FAIL: Aggregate query every time to get comment count
 count = await db.comments.count_documents({"content_id": content_id})
 
-# ✅ content 도큐먼트에 카운터 역정규화 → 단순 find_one()으로 해결
+# PASS: Denormalize counter in content document → resolve with simple find_one()
 await db.contents.update_one(
     {"_id": content_id},
     {
@@ -235,32 +235,32 @@ await db.contents.update_one(
         "$set": {"updated_at": datetime.utcnow()}
     }
 )
-# 조회 시
+# On query
 doc = await db.contents.find_one({"_id": content_id}, {"stats.comment_count": 1})
 ```
 
-### 원칙 4 — 시간 범위 쿼리는 반드시 소유자와 함께
+### Principle 4 — Time Range Queries Must Always Include Owner
 
 ```python
-# ❌ 시간 범위만으로 쿼리 → created_at 인덱스 있어도 범위가 넓으면 느림
+# FAIL: Time range only → slow even with created_at index if range is wide
 await db.events.find({"created_at": {"$gte": today_start}})
 
-# ✅ 소유자 + 시간 범위 복합 조건
+# PASS: Owner + time range compound condition
 await db.events.find({
     "user_id": user_id,
     "created_at": {"$gte": today_start, "$lt": today_end}
 })
 ```
 
-### 원칙 5 — 컬렉션 설계로 격리 (수평 분리)
+### Principle 5 — Isolate via Collection Design (Horizontal Separation)
 
 ```python
-# ❌ 하나의 events 컬렉션에 모든 이벤트 타입 혼재
+# FAIL: One events collection mixing all event types
 await db.events.find({"type": "chat_message", "user_id": user_id})
 await db.events.find({"type": "login",        "user_id": user_id})
 await db.events.find({"type": "purchase",     "user_id": user_id})
 
-# ✅ 타입별 컬렉션 분리 → 각 컬렉션이 작아지고 인덱스 효율 향상
+# PASS: Separate collection per type → smaller collections, better index efficiency
 await db.chat_messages.find({"user_id": user_id})
 await db.login_events.find({"user_id": user_id})
 await db.purchases.find({"user_id": user_id})
@@ -268,26 +268,26 @@ await db.purchases.find({"user_id": user_id})
 
 ---
 
-## Standard Fields (모든 컬렉션 공통)
+## Standard Fields (Common to All Collections)
 
 ```python
 {
-    "_id": ObjectId(),          # 자동 생성, 내부 참조용
-    "created_at": datetime,     # UTC, 필수, append-only 포함
-    "updated_at": datetime,     # UTC, 모든 update에 명시 갱신
-    "is_active": bool           # Soft delete 필요한 컬렉션만
+    "_id": ObjectId(),          # Auto-generated, for internal reference
+    "created_at": datetime,     # UTC, required, including append-only
+    "updated_at": datetime,     # UTC, explicitly updated in every update
+    "is_active": bool           # Only for collections needing soft delete
 }
 ```
 
-> ⚠️ MongoDB는 `updated_at` 자동 갱신 훅이 없음.
-> 모든 `update_one` / `update_many` 에 `"$set": {"updated_at": datetime.utcnow()}` 명시 필수.
+> WARNING: MongoDB has no auto-update hook for `updated_at`.
+> Must explicitly include `"$set": {"updated_at": datetime.utcnow()}` in all `update_one` / `update_many`.
 
 ## Collection Design Checklist
-- [ ] 읽기 패턴(API 응답 구조)을 먼저 정의하고 설계했는가
-- [ ] 한 화면에 필요한 데이터를 최소한의 쿼리로 가져올 수 있는가
-- [ ] Unbounded array 없음 (무한 증가 데이터는 별도 컬렉션)
-- [ ] 집계 카운터는 역정규화로 도큐먼트에 포함
-- [ ] 모든 쿼리의 첫 번째 필터가 소유자 ID (user_id 등)인가
-- [ ] 타입/상태 단독 인덱스 없이 복합 인덱스로 설계했는가
-- [ ] `created_at` / `updated_at` 포함, UTC datetime
-- [ ] 도큐먼트 최대 크기 16MB 고려
+- [ ] Read patterns (API response structure) defined before design
+- [ ] Data needed for one screen can be fetched with minimal queries
+- [ ] No unbounded arrays (data that grows indefinitely goes in separate collection)
+- [ ] Aggregate counters denormalized into document
+- [ ] First filter in every query is owner ID (user_id, etc.)
+- [ ] Designed with compound indexes instead of single type/status indexes
+- [ ] Includes `created_at` / `updated_at`, UTC datetime
+- [ ] Document maximum size of 16MB considered

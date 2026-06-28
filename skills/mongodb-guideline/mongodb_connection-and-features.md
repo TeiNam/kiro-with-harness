@@ -1,12 +1,16 @@
 # Connection Management and MongoDB Features
 
-## motor Async Connection Pool (Python)
+## Async Connection Pool (Python)
+
+> New code should use **PyMongo Async (`AsyncMongoClient`)**. motor is
+> deprecated as of 2026-05, with official recommendation to migrate to PyMongo Async. Pooling
+> semantics are identical (`maxPoolSize` default 100, `minPoolSize` default 0).
 
 ```python
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 
-# 앱 시작 시 한 번만 생성 (싱글턴)
-client = AsyncIOMotorClient(
+# Create once at app startup (singleton)
+client = AsyncMongoClient(
     "mongodb://app:password@localhost:27017/myapp",
     maxPoolSize=10,
     minPoolSize=4,
@@ -19,30 +23,34 @@ client = AsyncIOMotorClient(
 db = client["myapp"]
 ```
 
-> ⚠️ `AsyncIOMotorClient`는 프로세스당 하나만 생성할 것.
-> FastAPI의 경우 `lifespan` 이벤트에서 생성/종료 관리 권장.
+> WARNING: Create only one client per process (prohibit per-request creation → pool exhaustion).
+> For FastAPI, recommended to manage create/close in `lifespan` event.
 
 ```python
-# FastAPI lifespan 패턴
+# FastAPI lifespan pattern
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from pymongo import AsyncMongoClient
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.mongo = AsyncIOMotorClient("mongodb://localhost:27017")
+    app.state.mongo = AsyncMongoClient("mongodb://localhost:27017")
     app.state.db = app.state.mongo["myapp"]
     yield
-    app.state.mongo.close()
+    await app.state.mongo.close()
 
 app = FastAPI(lifespan=lifespan)
 ```
+
+> Legacy motor code (`from motor.motor_asyncio import AsyncIOMotorClient`) still
+> works but migrate to PyMongo Async for new code and migrations.
 
 ## Node.js Native Driver (Async)
 
 ```javascript
 import { MongoClient } from "mongodb";
 
-// 싱글턴 클라이언트
+// Singleton client
 const client = new MongoClient("mongodb://localhost:27017", {
   maxPoolSize: 10,
   minPoolSize: 4,
@@ -54,19 +62,19 @@ const client = new MongoClient("mongodb://localhost:27017", {
 await client.connect();
 const db = client.db("myapp");
 
-// 사용 예
+// Usage example
 const user = await db.collection("users").findOne(
   { _id: new ObjectId(userId), is_active: true },
   { projection: { email: 1, created_at: 1 } }
 );
 ```
 
-## 애플리케이션 레이어 스키마 검증
+## Application Layer Schema Validation
 
-ODM 없이 raw 드라이버를 쓰므로 스키마 검증은 앱에서 직접 수행.
+Using raw driver without ODM, so schema validation performed directly in app.
 
 ```python
-# Python: Pydantic으로 입력 검증
+# Python: Input validation with Pydantic
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from bson import ObjectId
@@ -87,7 +95,7 @@ def to_user_doc(data: UserCreate) -> dict:
 ```
 
 ```javascript
-// Node.js: Zod로 입력 검증
+// Node.js: Input validation with Zod
 import { z } from "zod";
 
 const UserCreateSchema = z.object({
@@ -104,7 +112,7 @@ function toUserDoc(data) {
 ## Transaction Management
 
 ```python
-# Multi-document transaction (replica set 또는 sharded cluster 필요)
+# Multi-document transaction (requires replica set or sharded cluster)
 async def transfer_credits(from_user_id: ObjectId, to_user_id: ObjectId, amount: int):
     async with await client.start_session() as session:
         async with session.start_transaction():
@@ -118,15 +126,15 @@ async def transfer_credits(from_user_id: ObjectId, to_user_id: ObjectId, amount:
                 {"$inc": {"credits": amount}, "$set": {"updated_at": datetime.utcnow()}},
                 session=session
             )
-            # with 블록 정상 종료 시 자동 commit, 예외 시 자동 rollback
+            # Auto commit on normal with block exit, auto rollback on exception
 ```
 
-> ⚠️ MongoDB 트랜잭션은 성능 비용이 큼. 단일 도큐먼트 원자적 연산(`$set`, `$inc` 등)으로 해결 가능하면 트랜잭션 사용 금지.
+> WARNING: MongoDB transactions have high performance cost. Prohibit transaction use if resolvable with single-document atomic operations (`$set`, `$inc`, etc.).
 
-## Change Streams (실시간 변경 감지)
+## Change Streams (Real-Time Change Detection)
 
 ```python
-# 컬렉션 변경 실시간 구독 (replica set 필요)
+# Real-time subscription to collection changes (requires replica set)
 async def watch_chat_histories(user_id: ObjectId):
     pipeline = [{"$match": {"fullDocument.user_id": user_id}}]
 
@@ -143,7 +151,7 @@ async def watch_chat_histories(user_id: ObjectId):
 ## Aggregation Pipeline Helpers
 
 ```python
-# 공통 pagination stage 재사용
+# Reuse common pagination stage
 def paginate(last_id: ObjectId = None, limit: int = 20) -> list:
     stages = []
     if last_id:
@@ -154,7 +162,7 @@ def paginate(last_id: ObjectId = None, limit: int = 20) -> list:
     ]
     return stages
 
-# 사용 예
+# Usage example
 pipeline = [
     {"$match": {"user_id": user_id, "is_active": True}},
     *paginate(last_id=last_id, limit=20)
@@ -166,24 +174,24 @@ pipeline = [
 ### Atomic Array Operations
 
 ```python
-# 배열에 요소 추가 (중복 방지)
+# Add element to array (prevent duplicates)
 await db.users.update_one(
     {"_id": user_id},
     {"$addToSet": {"tags": "premium"}}
 )
 
-# 배열에서 요소 제거
+# Remove element from array
 await db.users.update_one(
     {"_id": user_id},
     {"$pull": {"tags": "trial"}}
 )
 
-# 배열 마지막 N개만 유지 (로그 등)
+# Keep only last N elements of array (logs, etc.)
 await db.users.update_one(
     {"_id": user_id},
     {"$push": {"recent_logins": {
         "$each": [datetime.utcnow()],
-        "$slice": -10  # 최근 10개만 유지
+        "$slice": -10  # Keep only recent 10
     }}}
 )
 ```
@@ -191,7 +199,7 @@ await db.users.update_one(
 ### Conditional Update ($setOnInsert)
 
 ```python
-# upsert 시 created_at은 최초 1회만 세팅
+# On upsert, set created_at only on first insert
 await db.user_settings.update_one(
     {"user_id": user_id, "setting_key": key},
     {
@@ -205,13 +213,13 @@ await db.user_settings.update_one(
 ### JSONB-equivalent: Dot Notation Query
 
 ```python
-# 중첩 필드 조회
+# Query nested field
 await db.user_settings.find_one({
     "user_id": user_id,
     "setting_data.theme": "dark"
 })
 
-# 중첩 필드 업데이트
+# Update nested field
 await db.user_settings.update_one(
     {"user_id": user_id},
     {"$set": {"setting_data.theme": "light", "updated_at": datetime.utcnow()}}
@@ -219,10 +227,10 @@ await db.user_settings.update_one(
 ```
 
 ## Performance Checklist
-- [ ] Connection pool 설정 (`maxPoolSize`, `minPoolSize`)
-- [ ] Write concern `w: "majority"` 확인
-- [ ] 트랜잭션은 단일 도큐먼트 연산으로 대체 불가능할 때만 사용
-- [ ] `explain()` 으로 COLLSCAN 없음 확인
-- [ ] Aggregation pipeline의 `$match`, `$sort` 를 파이프라인 앞에 배치
-- [ ] `$lookup` 최소화 — 필요하면 `pipeline` 서브옵션으로 필드 제한
-- [ ] 인덱스 사용 통계 주기적 확인 (`$indexStats`)
+- [ ] Connection pool configured (`maxPoolSize`, `minPoolSize`)
+- [ ] Write concern `w: "majority"` verified
+- [ ] Transactions used only when single-document operations cannot replace
+- [ ] Confirmed no COLLSCAN with `explain()`
+- [ ] `$match`, `$sort` in aggregation pipeline placed at front
+- [ ] `$lookup` minimized — if needed, limit fields with `pipeline` sub-option
+- [ ] Index usage statistics periodically checked (`$indexStats`)

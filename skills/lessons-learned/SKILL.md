@@ -1,53 +1,65 @@
 ---
 name: lessons-learned
-description: Designated learning log for the harness self-evolution mechanism. Accumulates one-line lessons from repeated corrections — recurring review findings, build failure patterns, and user corrections — so the same mistake is not repeated across sessions.
+description: Lightweight learning log that accumulates one-line lessons extracted from repeated corrections in a single file. When the same review findings, build failure patterns, or user corrections repeat, this prevents making the same mistake twice across sessions. Lighter than /learn (pattern→skill extraction), more explicit than continuous-learning-v2's instinct (automatic observation).
 inclusion: manual
-origin: harness
 workloads: [core]
+origin: harness
 ---
 
-# Lessons Learned
+# Lessons Learned (Lightweight Lesson Log)
 
-A manual-inclusion learning log for the harness self-evolution mechanism (Kiro reinterpretation of `continuous-learning-v2`). It accumulates short, reusable lessons distilled from repeated corrections, so the same mistake is not made twice.
+One stage of the self-evolution mechanism. Extract short, reusable lessons one line at a time from repeated corrections — to avoid making the same mistake twice.
 
-Pull this steering in manually (or via the `capture-lessons` hook proposal flow) when starting a task that resembles past work, when reviewing, or when fixing a recurring failure.
+Pull in this steering manually (or via the `capture-lessons` hook suggestion flow) when starting work similar to past tasks, during review, or when fixing repeated failures.
 
-## How Entries Get Added
+## Boundaries with Other Learning Mechanisms in this Harness
 
-- The `capture-lessons` hook (`agentStop`) only **proposes** a one-line lesson; it never edits this file automatically.
-- Entries are written **only after user confirmation**, keeping changes to user assets traceable.
-- Keep each lesson to a single, actionable line. Promote a lesson into a permanent rule (steering) once it proves stable.
+| Mechanism | Weight | Output | When |
+|-----------|--------|--------|------|
+| **lessons-learned** (this skill) | Lightweight | One-line lessons (accumulated in one file) | When repeated corrections appear |
+| `/learn` | Medium | 1 skill file/pattern | When a non-obvious problem is solved |
+| `continuous-learning-v2` (instinct) | Automatic | instinct → `/promote`·`/evolve` | Continuous observation |
+
+When lessons repeat stably, **promote to steering rules** — that's the final stage.
+
+## How Items Are Added
+
+- The `capture-lessons` hook (Stop event) **only suggests** one-line lessons. It does not automatically edit this file.
+- Items are recorded **only after user confirmation**. This keeps user asset changes traceable.
+- Each lesson is kept as one actionable line.
+- Use the `/lessons` command to query the log, add manually, or promote to rules.
 
 ## Lesson Categories
 
-- **Review findings** — recurring code-review issues (missing error handling, mutation instead of immutable update, missing input validation).
-- **Build failure patterns** — repeated compile/lint/test failures and their root-cause fix.
-- **User corrections** — explicit direction the user had to give more than once.
+- **Review findings** — Repeated code review findings (missing error handling, mutable changes instead of immutable updates, missing input validation, etc.).
+- **Build failure patterns** — Repeated compile/lint/test failures and their root fixes.
+- **User corrections** — Instructions the user had to give explicitly two or more times.
 
-## Entry Format
+## Item Format
 
-Add one line per lesson under the matching category, using:
-
-```
-- [YYYY-MM-DD] (category) <trigger / context> -> <the lesson, stated as a rule>
-```
-
-Example:
+Add one line under the matching category:
 
 ```
-- [2026-06-03] (build) Vitest watch mode hangs CI -> always run tests with `vitest run` (single-shot).
+- [YYYY-MM-DD] (category) <trigger / context> -> <lesson stated as a rule>
+```
+
+Examples:
+
+```
+- [2026-06-04] (build) bun test hung in watch mode -> Always run `bun test` (single-shot).
+- [2026-06-04] (review) Repeated unhandled errors in async functions -> Wrap external calls in try/catch or Result.
 ```
 
 ## Lessons
 
 ### Review findings
 
-<!-- Add one-line review lessons here -->
+<!-- Add review lessons one line at a time here -->
 
 ### Build failure patterns
 
-<!-- Add one-line build lessons here -->
+<!-- Add build lessons one line at a time here -->
 
 ### User corrections
 
-<!-- Add one-line user-correction lessons here -->
+- [2026-06-20] (User corrections) Request for "hook that reacts when pushing via git push / GitKraken or other GUI" -> Claude hooks (PreToolUse/PostToolUse) only fire on Claude's own tool invocations. To cover user's direct git manipulation via terminal or GUI, use native git hooks (`core.hooksPath` + `post-commit`/`pre-push`).

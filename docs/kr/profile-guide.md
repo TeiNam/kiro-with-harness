@@ -9,7 +9,7 @@
 node install.js <cli|ide> [--scope global|workspace] [--workload a,b|all] [--review-backend kiro|claude] [--dry-run]
 ```
 
-- **티어(tier)** — `cli`(`kiro-cli chat`용: JSON 에이전트, 에이전트 JSON 내부 훅, `skill://` 스킬) 또는 `ide`(Kiro IDE용: Markdown 에이전트, `.kiro/hooks/*.kiro.hook`, 스티어링).
+- **티어(tier)** — `cli`(`kiro-cli chat`용: JSON 에이전트, 에이전트 JSON 내부 훅, `skill://` 스킬) 또는 `ide`(Kiro IDE용: Markdown 에이전트, `.kiro/hooks/*.json` v1 JSON 훅, 스티어링).
 - **스코프(scope)** — `global`(`~/.kiro`, CLI 기본) 또는 `workspace`(프로젝트 `.kiro`, IDE 기본).
 - **워크로드(workload)** — 오늘 무슨 작업을 하는가. `core`는 항상 설치되고, 필요한 것을 추가합니다.
 

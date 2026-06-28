@@ -32,23 +32,23 @@ Note: PK must include partition key (`created_at`) for MySQL partitioned tables.
 
 ## Partition Management
 
-> ⚠️ **주의:** `p_future (MAXVALUE)` 파티션이 존재하는 경우 `ADD PARTITION`은 에러 발생.
-> 반드시 `REORGANIZE PARTITION`으로 `p_future`를 분할해야 한다.
+> WARNING: When `p_future (MAXVALUE)` partition exists, `ADD PARTITION` will fail.
+> Must use `REORGANIZE PARTITION` to split `p_future`.
 
 ```sql
--- ✅ 올바른 방법: p_future를 새 월 파티션 + p_future로 재분할
+-- PASS: Correct method: split p_future into new month partition + p_future
 ALTER TABLE chat_history REORGANIZE PARTITION p_future INTO (
   PARTITION p202405 VALUES LESS THAN (202406),
   PARTITION p_future VALUES LESS THAN MAXVALUE
 );
 
--- ❌ 잘못된 방법: p_future가 있으면 아래 구문은 ERROR 발생
+-- FAIL: Wrong method: below statement produces ERROR if p_future exists
 -- ALTER TABLE chat_history ADD PARTITION (
 --   PARTITION p202405 VALUES LESS THAN (202406)
 -- );
 -- ERROR 1481: MAXVALUE can only be used in last partition definition
 
--- p_future 없이 운영하는 경우에만 ADD PARTITION 사용 가능
+-- ADD PARTITION usable only when operating without p_future
 -- ALTER TABLE chat_history ADD PARTITION (
 --   PARTITION p202405 VALUES LESS THAN (202406)
 -- );

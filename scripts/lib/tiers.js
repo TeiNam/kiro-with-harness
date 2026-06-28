@@ -16,7 +16,7 @@
  *   - CLI: JSON 에이전트(verbatim copy) + 스킬 디렉터리(skill:// progressive) +
  *          pre-write-guard 훅 스크립트. 글로벌 MCP 불필요(mcp.json 미생성; IDE 전용).
  *   - IDE: MD 에이전트 + 스킬→steering(manual) + 언어 rules(fileMatch) +
- *          core steering(always) + .kiro.hook(최적화 세트) + mcp.json(general+docker).
+ *          core steering(always) + hooks(v1 JSON, IDE 1.0 포맷) + mcp.json(general+docker).
  */
 
 const fs = require('fs');
@@ -70,12 +70,14 @@ const LANG_RULES = {
 const CORE_RULES = ['coding-style.md', 'security.md', 'testing.md', 'git-workflow.md', 'product.md', 'ponytail.md'];
 
 /**
- * IDE 최적화 훅 세트 (.kiro.hook). 워크로드와 무관한 핵심만 — IDE 내장 기능과
+ * IDE 최적화 훅 세트 (IDE 1.0 v1 JSON). 워크로드와 무관한 핵심만 — IDE 내장 기능과
  * 겹치지 않는 가드/리뷰 위주. 과도한 훅은 제외(사용자 요청: 훅 최적화).
+ * event 는 레거시 표기로 두고 hookJson() 이 v1 trigger 로 매핑한다.
+ * matcher 는 PreToolUse 한정 도구 카테고리(write/shell/read/web/spec) regex.
  */
 const IDE_HOOKS = [
   {
-    id: 'pre-write-guard', name: 'Pre-Write Guard', event: 'preToolUse', toolTypes: ['write'], action: 'askAgent',
+    id: 'pre-write-guard', name: 'Pre-Write Guard', event: 'preToolUse', matcher: 'write', action: 'askAgent',
     prompt: 'Before this write, check ALL in one pass: 1) SIZE — if content exceeds 800 lines, BLOCK and split into modules under 400 lines. 2) SECRETS — no hardcoded API keys/tokens/passwords/connection strings; use env vars. 3) DOC LOCATION — a .md/.txt outside docs/, .kiro/, README/CONTRIBUTING/CHANGELOG/LICENSE should warn to put docs in docs/. Only report issues; if all pass, proceed silently.',
   },
   {
@@ -87,18 +89,36 @@ const IDE_HOOKS = [
     prompt: '이번 작업에서 반복 가능한 교정 사항(동일 유형의 리뷰 지적, 빌드 실패 패턴, 사용자 정정)이 있었는지 식별하라. 있다면 .kiro/steering/lessons-learned.md에 추가할 한 줄 교훈을 제안하라. 사용자 자산 수정 전 반드시 사용자 확인을 받아라. 교훈이 없으면 조용히 종료하라.',
   },
   {
-    id: 'changelog-on-commit', name: 'Update CHANGELOG (date-organized) on commit', event: 'preToolUse', toolTypes: ['shell', '.*commit.*'], action: 'askAgent',
+    id: 'changelog-on-commit', name: 'Update CHANGELOG (date-organized) on commit', event: 'preToolUse', matcher: 'shell', action: 'askAgent',
     prompt: '이 도구 실행이 `git commit`인지 먼저 판별하라. 커밋이 아니면 아무 작업도 하지 말고 즉시 진행하라(보고 생략).\n\n커밋이 맞다면, 커밋이 실행되기 전에:\n1. 스테이징 범위를 파악한다: `git diff --cached --stat`. 이번 커밋이 CHANGELOG/문서만 바꾸는 커밋이면 아무 것도 하지 말고 진행한다(루프 방지).\n2. 저장소 루트에 CHANGELOG.md가 없으면 아무 것도 하지 말고 진행한다(자동 생성하지 않음).\n3. CHANGELOG.md가 있으면 **날짜별로** 유지한다: `date +%F`로 오늘 날짜를 구해 최상단에 `## YYYY-MM-DD` 섹션이 없으면 추가하고 그 아래 이번 스테이징된 변경을 Added/Changed/Fixed/Removed로 분류해 한 줄로 기록한다. 같은 날짜 섹션이 있으면 항목만 덧붙인다(섹션 중복 생성 금지).\n4. README.md(있으면 README-KR.md도)는 이번 변경으로 부정확해진 부분만 갱신한다.\n5. 변경한 CHANGELOG/README를 `git add`로 스테이징해 이번 커밋에 포함시킨다. 별도 커밋이나 --amend는 하지 말 것.\n6. 이미 최신이면 변경 없이 진행한다.',
   },
 ];
 
+/** 레거시 이벤트명 → IDE 1.0 v1 trigger 매핑. */
+const HOOK_TRIGGER = {
+  preToolUse: 'PreToolUse',
+  postToolUse: 'PostToolUse',
+  agentStop: 'Stop',
+  promptSubmit: 'UserPromptSubmit',
+  fileCreated: 'PostFileCreate',
+  fileEdited: 'PostFileSave',
+  fileDeleted: 'PostFileDelete',
+  preTaskExecution: 'PreTaskExec',
+  postTaskExecution: 'PostTaskExec',
+};
+
 function hookJson(h) {
-  const hook = { name: h.name, version: '1.0.0', description: h.name, when: { type: h.event }, then: { type: h.action } };
-  if (h.patterns) hook.when.patterns = h.patterns;
-  if (h.toolTypes) hook.when.toolTypes = h.toolTypes;
-  if (h.action === 'askAgent') hook.then.prompt = h.prompt;
-  if (h.action === 'runCommand') hook.then.command = h.command;
-  return JSON.stringify(hook, null, 2) + '\n';
+  const hook = {
+    name: h.name,
+    description: h.description || h.name,
+    trigger: HOOK_TRIGGER[h.event] || h.event,
+  };
+  if (h.matcher) hook.matcher = h.matcher;
+  hook.action = h.action === 'runCommand'
+    ? { type: 'command', command: h.command }
+    : { type: 'agent', prompt: h.prompt };
+  hook.enabled = true;
+  return JSON.stringify({ version: 'v1', hooks: [hook] }, null, 2) + '\n';
 }
 
 function mcpJsonContent({ general, docker }) {
@@ -193,9 +213,9 @@ function planIde(selection, { root = ROOT } = {}) {
     ops.push({ type: 'content', destRel: `steering/${s.name}.md`, content: fm + stripFrontmatter(c) + '\n', label: `skill ${s.name}` });
   }
 
-  // 5) 최적화 훅 세트
+  // 5) 최적화 훅 세트 (IDE 1.0 v1 JSON: .kiro/hooks/*.json)
   for (const h of IDE_HOOKS) {
-    ops.push({ type: 'content', destRel: `hooks/${h.id}.kiro.hook`, content: hookJson(h), label: `hook ${h.id}` });
+    ops.push({ type: 'content', destRel: `hooks/${h.id}.json`, content: hookJson(h), label: `hook ${h.id}` });
   }
 
   // 6) mcp.json — general + docker(워크로드 매칭). IDE 에이전트는 MCP 미보유.

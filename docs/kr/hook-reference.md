@@ -1,89 +1,88 @@
 # 훅(Hook) 레퍼런스
 
-Kiro 훅(Hook)은 `.kiro/hooks/`에 정의된 이벤트 기반 자동화입니다. IDE 이벤트에 의해 트리거되며 에이전트 프롬프트 또는 셸 명령을 실행합니다.
+Kiro IDE 훅은 `.kiro/hooks/*.json`에 정의되는 **v1 JSON** 이벤트 기반 자동화입니다. IDE 이벤트에 트리거되어 에이전트 프롬프트 또는 셸 명령을 실행합니다.
 
-> **참조 출처**: 훅 이벤트 타입과 스키마는 Kiro 공식 문서([kiro.dev/docs/hooks/types](https://kiro.dev/docs/hooks/types/))를 기준으로 확인했습니다. 확인 일자: 2026-06-03.
+> **참조 출처**: 훅 스키마와 트리거 이름은 Kiro IDE 공식 문서([kiro.dev/docs/hooks](https://kiro.dev/docs/hooks/), [What's new in IDE 1.0](https://kiro.dev/docs/whats-new-1-0/))를 기준으로 확인했습니다. 확인 일자: 2026-06-29.
+>
+> **IDE 1.0 포맷 변경**: v1 JSON 포맷(`.kiro/hooks/*.json`)이 레거시 `.kiro.hook` / `.hook` 포맷을 대체합니다. 레거시 훅은 Agent Hooks 패널에 업그레이드 배지로 표시되며 **마이그레이션 전까지 실행되지 않습니다**. 하네스 설치기는 v1 JSON을 직접 생성합니다.
 
-## 훅 이벤트 타입
+## v1 JSON 스키마
 
-Kiro는 다음 훅 이벤트(트리거) 타입을 지원합니다. 각 훅 정의는 정확히 하나의 `event`를 선언합니다. 아래에 문서화된 하네스 훅은 이 중 일부를 사용합니다.
+각 파일은 `{ "version": "v1", "hooks": [ ... ] }` 래퍼입니다. 하네스는 파일당 훅 하나를 배치합니다.
 
-| 이벤트 타입 | 트리거 시점 |
-|------------|------------|
-| `promptSubmit` | 사용자가 프롬프트를 제출할 때 |
-| `agentStop` | 에이전트가 턴을 완료하고 응답을 마칠 때 |
-| `preToolUse` | 에이전트가 도구를 호출하기 직전 |
-| `postToolUse` | 에이전트가 도구를 호출한 후 |
-| `fileCreated` | 설정된 패턴과 일치하는 파일이 생성될 때 |
-| `fileEdited` | 설정된 패턴과 일치하는 파일이 저장될 때 |
-| `fileDeleted` | 설정된 패턴과 일치하는 파일이 삭제될 때 |
-| `preTaskExecution` | 스펙(Spec) 작업이 시작되기 직전(상태가 in_progress로 변경) |
-| `postTaskExecution` | 스펙(Spec) 작업이 완료될 때(상태가 completed로 변경) |
-| `userTriggered` | 훅을 수동으로 실행할 때 |
+```json
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Pre-Write Guard",
+      "description": "Pre-write check: file size, secrets, doc location",
+      "trigger": "PreToolUse",
+      "matcher": "write",
+      "action": { "type": "agent", "prompt": "..." },
+      "enabled": true
+    }
+  ]
+}
+```
 
-`preToolUse`와 `postToolUse`의 경우 대상 도구를 이름으로 선택합니다. 내장 카테고리로 `read`, `write`, `shell`, `web`, `spec`, `*`(모든 도구)가 있으며, 소스 접두사 `@mcp`, `@powers`, `@builtin`은 정규식으로 매칭됩니다.
+| 필드 | 필수 | 설명 |
+|------|------|------|
+| `name` | 예 | Agent Hooks 패널/텔레메트리에 표시되는 식별자 |
+| `description` | 아니오 | 문서용 |
+| `trigger` | 예 | 훅이 발화하는 시점(아래 트리거 표) |
+| `matcher` | 아니오 | 도구 이름(PreToolUse/PostToolUse) 또는 파일 경로(파일 이벤트) 정규식. 생략 시 항상 매칭 |
+| `action` | 예 | `{ "type": "agent", "prompt": "..." }` 또는 `{ "type": "command", "command": "..." }` |
+| `timeout` | 아니오 | 초. 기본 60. `0`이면 비활성. agent 액션에서는 무시 |
+| `enabled` | 아니오 | 기본 `true`. `false`면 삭제 없이 건너뜀 |
 
-## 사용 가능한 훅
+## 트리거
 
-### pre-write-guard (hooks-core)
+| 트리거 | 발화 시점 | 매처 | 차단 가능? |
+|--------|-----------|------|-----------|
+| `SessionStart` | 세션 시작 | — | 아니오 |
+| `Stop` | 에이전트가 턴을 완료 | — | 아니오 |
+| `PreToolUse` | 도구 실행 직전 | 도구 이름(정규식) | **예** (exit 2) |
+| `PostToolUse` | 도구 실행 직후 | 도구 이름(정규식) | 아니오 |
+| `PreTaskExec` | 스펙 작업 시작 직전 | — | **예** |
+| `PostTaskExec` | 스펙 작업 완료 후 | — | 아니오 |
+| `UserPromptSubmit` | 사용자가 프롬프트 제출 | — | **예** |
+| `PostFileCreate` | 에이전트가 파일 생성 후 | 파일 경로(정규식) | 아니오 |
+| `PostFileSave` | 에이전트가 파일 저장 후 | 파일 경로(정규식) | 아니오 |
+| `PostFileDelete` | 에이전트가 파일 삭제 후 | 파일 경로(정규식) | 아니오 |
 
-- 이벤트: `preToolUse` (쓰기 도구)
-- 액션: `askAgent`
-- 검사 항목:
-  1. SIZE — 800줄을 초과하는 쓰기를 차단합니다. 400줄 이하의 모듈로 분할할 것을 제안합니다.
-  2. SECRETS — 하드코딩된 API 키, 토큰, 비밀번호 또는 연결 문자열을 감지합니다.
-  3. DOC LOCATION — `docs/`, `.kiro/`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LICENSE` 외부에 `.md` 또는 `.txt` 파일이 생성되면 경고합니다.
-- 동작: 발견된 문제만 보고합니다. 모든 검사를 통과하면 조용히 진행합니다.
-- 참고: 이 훅은 모든 쓰기 작업을 가로챕니다. 에이전트는 검사를 확인하고 쓰기를 재시도해야 합니다.
+`PreToolUse`/`PostToolUse`에서 매처로 쓸 수 있는 내장 도구 카테고리: `read`, `write`, `shell`, `web`, `spec`, `*`. 소스 접두사 `@mcp`, `@builtin`은 정규식으로 매칭됩니다.
 
-### review-on-stop (hooks-quality)
+> **수동 훅 제거됨**: 레거시 `Manual` / `userTriggered` 트리거는 더 이상 존재하지 않습니다. 수동 호출은 이제 **수동 steering 파일**(`.kiro/steering/<name>.md`, `inclusion: manual`)로 대체되어 `/<filename>` 슬래시 커맨드로 호출합니다.
 
-- 이벤트: `agentStop`
-- 액션: `askAgent`
-- 검사 항목:
-  1. 보안 문제
-  2. 적절한 에러 처리
-  3. 남아있는 `console.log` 문
-  4. 변경 사항에 필요한 테스트
-- 동작: 문제가 있을 때만 보고합니다. 모든 것이 정상이면 출력 없음.
+## 설치되는 훅 (IDE 티어)
 
-### diagnostics-on-save (hooks-quality)
+IDE 티어는 `scripts/lib/tiers.js`(`IDE_HOOKS`)에 정의된 최적화 세트를 설치합니다. 모두 워크로드 독립적이며 agent 액션을 사용합니다.
 
-- 이벤트: `fileEdited` (`*.ts`, `*.tsx`, `*.js`, `*.jsx`)
-- 액션: `askAgent`
-- 동작: 편집된 TS/JS 파일에 대해 `getDiagnostics`를 실행합니다. 린트 에러와 타입 에러를 보고합니다. 터미널을 사용하지 않습니다.
+### pre-write-guard
+- 트리거: `PreToolUse`, 매처 `write`
+- 액션: agent
+- 검사(한 번에): (1) SIZE — 800줄 초과 쓰기 차단, 400줄 이하로 분할 제안; (2) SECRETS — 하드코딩된 키/토큰/비밀번호/연결 문자열 감지; (3) DOC LOCATION — `docs/`, `.kiro/`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LICENSE` 외부에 `.md`/`.txt` 생성 시 경고.
+- 문제만 보고, 통과 시 조용히 진행.
 
-### test-after-task (hooks-quality)
+### review-on-stop
+- 트리거: `Stop`
+- 액션: agent
+- 작업 완료 후 간단 리뷰: 보안 문제, 에러 처리, 남은 `console.log`, 필요한 테스트. 문제만 보고.
 
-- 이벤트: `postTaskExecution`
-- 액션: `askAgent`
-- 동작: 스펙(Spec) 작업 완료 후 사용자에게 수동으로 테스트를 실행하도록 알립니다. 테스트를 직접 실행하지 않습니다.
+### capture-lessons
+- 트리거: `Stop`
+- 액션: agent
+- 반복 가능한 교정(반복되는 리뷰 지적, 빌드 실패 패턴, 사용자 정정)을 감지해 `.kiro/steering/lessons-learned.md`에 추가할 한 줄 교훈을 제안. 사용자 자산 수정 전 확인 필수, 없으면 조용히 종료. 자기 진화 루프의 일부.
 
-### post-write-review (hooks-guardrails)
+### changelog-on-commit
+- 트리거: `PreToolUse`, 매처 `shell`
+- 액션: agent
+- 셸 도구 호출이 `git commit`인지 판별해, 맞으면 날짜별 `CHANGELOG.md`(`## YYYY-MM-DD`)를 유지하고 이번 커밋으로 부정확해진 README만 갱신해 같은 커밋에 스테이징. 커밋이 아니거나 문서 전용 커밋이면 무동작(루프 가드).
 
-- 이벤트: `postToolUse` (쓰기 도구)
-- 액션: `askAgent`
-- 검사 항목:
-  1. `console.log` 문 (제거 권고; `console.error`/`console.warn`은 무시)
-  2. 새로운 `TODO`/`FIXME`/`HACK` 주석 (추적 이슈 생성 제안)
-- 동작: 문제가 발견된 경우에만 보고합니다.
+## 훅 추가/비활성화
 
-## 훅 모듈
+- **비활성화**: 훅 파일에서 `"enabled": false` 설정, `.kiro/hooks/`의 `.json` 파일 삭제, 또는 설치 명령에서 해당 워크로드 제외.
+- **커스텀 훅 추가**: 위 v1 스키마에 따라 `.kiro/hooks/<name>.json`을 생성하거나, 명령 팔레트 → "Kiro: Open Kiro Hook UI" → 자연어로 설명.
 
-| 모듈 | 포함된 훅 | 설치되는 프로필 |
-|--------|---------------|----------------------|
-| hooks-global | pre-write-guard, review-on-stop | `global` |
-| hooks-core | pre-write-guard | `core`, `developer`, `full`, `writer`, `mobile`, `ai`, `backend`, `frontend`, `architect` |
-| hooks-quality | diagnostics-on-save, review-on-stop, test-after-task | `developer`, `full`, `mobile`, `ai`, `backend`, `frontend` |
-| hooks-guardrails | post-write-review | `developer`, `full`, `backend`, `frontend` |
-
-## 문제 해결
-
-**"왜 쓰기가 차단되나요?"**
-`pre-write-guard` 훅이 모든 쓰기 도구 호출을 가로챕니다. 가로채기 메시지가 표시되면 에이전트가 검사 통과를 확인하고 재시도해야 합니다. 이것은 정상적인 동작입니다.
-
-**"훅을 비활성화하려면 어떻게 하나요?"**
-`.kiro/hooks/`에서 `.kiro.hook` 파일을 삭제하거나, 설치 명령에서 해당 훅 모듈을 제거하세요.
-
-**"커스텀 훅을 추가할 수 있나요?"**
-네. 훅 스키마에 따라 `.kiro/hooks/`에 `.kiro.hook` JSON 파일을 생성하거나, Kiro 명령 팔레트 → "Open Kiro Hook UI"를 사용하세요.
+> **CLI 티어 참고**: CLI 티어(`kiro-cli chat`)는 이 파일들을 쓰지 않습니다. 훅을 에이전트 JSON(`hooks` 필드)에 임베드하고, `kiro-cli.json`이 참조하는 결정적 `pre-write-guard.sh`(exit 2)를 함께 배치합니다.

@@ -1,89 +1,88 @@
 # Hook Reference
 
-Kiro hooks are event-driven automations defined in `.kiro/hooks/`. They trigger on IDE events and run agent prompts or shell commands.
+Kiro IDE hooks are event-driven automations defined as **v1 JSON files** in `.kiro/hooks/*.json`. They trigger on IDE events and run an agent prompt or a shell command.
 
-> **Reference source**: Hook event types and schema verified against the official Kiro documentation ([kiro.dev/docs/hooks/types](https://kiro.dev/docs/hooks/types/)). Verification date: 2026-06-03.
+> **Reference source**: Hook schema and trigger names verified against the official Kiro IDE documentation ([kiro.dev/docs/hooks](https://kiro.dev/docs/hooks/), [What's new in IDE 1.0](https://kiro.dev/docs/whats-new-1-0/)). Verification date: 2026-06-29.
+>
+> **IDE 1.0 format change**: The v1 JSON format (`.kiro/hooks/*.json`) replaces the legacy `.kiro.hook` / `.hook` format. Legacy hooks show an upgrade badge in the Agent Hooks panel and **do not execute until migrated**. The harness installer emits v1 JSON directly.
 
-## Hook Event Types
+## v1 JSON Schema
 
-Kiro supports the following hook event (trigger) types. Each hook definition declares exactly one `event`. The harness hooks documented below use a subset of these.
+Each file is a `{ "version": "v1", "hooks": [ ... ] }` wrapper. The harness ships one hook per file.
 
-| Event Type | Triggers When |
-|------------|---------------|
-| `promptSubmit` | The user submits a prompt |
-| `agentStop` | The agent completes its turn and finishes responding |
-| `preToolUse` | The agent is about to invoke a tool |
-| `postToolUse` | The agent has invoked a tool |
-| `fileCreated` | A file matching the configured patterns is created |
-| `fileEdited` | A file matching the configured patterns is saved |
-| `fileDeleted` | A file matching the configured patterns is deleted |
-| `preTaskExecution` | A spec task is about to start (status changes to in_progress) |
-| `postTaskExecution` | A spec task completes (status changes to completed) |
-| `userTriggered` | The hook is run manually on demand |
+```json
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Pre-Write Guard",
+      "description": "Pre-write check: file size, secrets, doc location",
+      "trigger": "PreToolUse",
+      "matcher": "write",
+      "action": { "type": "agent", "prompt": "..." },
+      "enabled": true
+    }
+  ]
+}
+```
 
-For `preToolUse` and `postToolUse`, target tools are selected by name. Built-in categories include `read`, `write`, `shell`, `web`, `spec`, and `*` (all tools). Source prefixes `@mcp`, `@powers`, and `@builtin` are matched by regex.
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Identifier shown in the Agent Hooks panel / telemetry |
+| `description` | No | Documentation only |
+| `trigger` | Yes | When the hook fires (see triggers below) |
+| `matcher` | No | Regex on tool name (PreToolUse/PostToolUse) or file path (file events). Omit to always match |
+| `action` | Yes | `{ "type": "agent", "prompt": "..." }` or `{ "type": "command", "command": "..." }` |
+| `timeout` | No | Seconds. Default 60. `0` disables. Ignored for agent actions |
+| `enabled` | No | Default `true`. Set `false` to skip without deleting |
 
-## Available Hooks
+## Triggers
 
-### pre-write-guard (hooks-core)
+| Trigger | Fires when | Matcher | Can block? |
+|---------|-----------|---------|-----------|
+| `SessionStart` | Session begins | — | No |
+| `Stop` | Agent completes its turn | — | No |
+| `PreToolUse` | Before a tool executes | tool name (regex) | **Yes** (exit 2) |
+| `PostToolUse` | After a tool executes | tool name (regex) | No |
+| `PreTaskExec` | Before a spec task starts | — | **Yes** |
+| `PostTaskExec` | After a spec task finishes | — | No |
+| `UserPromptSubmit` | User submits a prompt | — | **Yes** |
+| `PostFileCreate` | After the agent creates a file | file path (regex) | No |
+| `PostFileSave` | After the agent saves a file | file path (regex) | No |
+| `PostFileDelete` | After the agent deletes a file | file path (regex) | No |
 
-- Event: `preToolUse` (write tools)
-- Action: `askAgent`
-- Checks:
-  1. SIZE — Blocks writes exceeding 800 lines. Suggests splitting into modules under 400 lines.
-  2. SECRETS — Flags hardcoded API keys, tokens, passwords, or connection strings.
-  3. DOC LOCATION — Warns if `.md` or `.txt` files are created outside `docs/`, `.kiro/`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, or `LICENSE`.
-- Behavior: Only reports issues found. Passes silently if all checks clear.
-- Note: This hook intercepts every write operation. The agent must acknowledge the check and retry the write.
+For `PreToolUse`/`PostToolUse`, built-in tool categories usable as a matcher include `read`, `write`, `shell`, `web`, `spec`, and `*`. Source prefixes `@mcp`, `@builtin` are matched by regex.
 
-### review-on-stop (hooks-quality)
+> **Manual hooks removed**: the legacy `Manual` / `userTriggered` trigger no longer exists. Manual invocation is now a **manual steering file** (`.kiro/steering/<name>.md` with `inclusion: manual`), invoked as a `/<filename>` slash command.
 
-- Event: `agentStop`
-- Action: `askAgent`
-- Checks:
-  1. Security issues
-  2. Proper error handling
-  3. Leftover `console.log` statements
-  4. Tests needed for changes
-- Behavior: Reports issues only. No output if everything looks good.
+## Installed Hooks (IDE tier)
 
-### diagnostics-on-save (hooks-quality)
+The IDE tier installs an optimized set defined in `scripts/lib/tiers.js` (`IDE_HOOKS`). All are workload-independent and use agent actions.
 
-- Event: `fileEdited` (`*.ts`, `*.tsx`, `*.js`, `*.jsx`)
-- Action: `askAgent`
-- Behavior: Runs `getDiagnostics` on edited TS/JS files. Reports lint errors and type errors. Does not use terminal.
+### pre-write-guard
+- Trigger: `PreToolUse`, matcher `write`
+- Action: agent
+- Checks (one pass): (1) SIZE — block writes over 800 lines, suggest splitting under 400; (2) SECRETS — flag hardcoded keys/tokens/passwords/connection strings; (3) DOC LOCATION — warn when a `.md`/`.txt` is created outside `docs/`, `.kiro/`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LICENSE`.
+- Reports issues only; passes silently otherwise.
 
-### test-after-task (hooks-quality)
+### review-on-stop
+- Trigger: `Stop`
+- Action: agent
+- Brief post-task review: security issues, error handling, leftover `console.log`, tests needed. Reports issues only.
 
-- Event: `postTaskExecution`
-- Action: `askAgent`
-- Behavior: Reminds user to run tests manually after a spec task completes. Does not execute tests directly.
+### capture-lessons
+- Trigger: `Stop`
+- Action: agent
+- Detects repeatable corrections (recurring review findings, build-failure patterns, user corrections) and proposes a one-line lesson for `.kiro/steering/lessons-learned.md`. Requires user confirmation before editing user assets; otherwise exits silently. Part of the self-evolution loop.
 
-### post-write-review (hooks-guardrails)
+### changelog-on-commit
+- Trigger: `PreToolUse`, matcher `shell`
+- Action: agent
+- Detects whether the shell tool call is `git commit`; if so, maintains a date-organized `CHANGELOG.md` (`## YYYY-MM-DD`) and updates README only where the commit made it inaccurate, staging the docs into the same commit. No-ops for non-commits and doc-only commits (loop guard).
 
-- Event: `postToolUse` (write tools)
-- Action: `askAgent`
-- Checks:
-  1. `console.log` statements (flags for removal; ignores `console.error`/`console.warn`)
-  2. New `TODO`/`FIXME`/`HACK` comments (suggests creating tracked issues)
-- Behavior: Only reports if issues found.
+## Adding or Disabling Hooks
 
-## Hook Modules
+- **Disable**: set `"enabled": false` in the hook file, delete the `.json` file from `.kiro/hooks/`, or drop the relevant workload from your install command.
+- **Add a custom hook**: create a `.kiro/hooks/<name>.json` file following the v1 schema above, or use the Command Palette → "Kiro: Open Kiro Hook UI" → describe in natural language.
 
-| Module | Hooks included | Installed by profiles |
-|--------|---------------|----------------------|
-| hooks-global | pre-write-guard, review-on-stop | `global` |
-| hooks-core | pre-write-guard | `core`, `developer`, `full`, `writer`, `mobile`, `ai`, `backend`, `frontend`, `architect` |
-| hooks-quality | diagnostics-on-save, review-on-stop, test-after-task | `developer`, `full`, `mobile`, `ai`, `backend`, `frontend` |
-| hooks-guardrails | post-write-review | `developer`, `full`, `backend`, `frontend` |
-
-## Troubleshooting
-
-**"Why is my write being blocked?"**
-The `pre-write-guard` hook intercepts all write tool calls. If you see an interception message, the agent needs to verify the checks pass and retry. This is normal behavior.
-
-**"How do I disable a hook?"**
-Delete the `.kiro.hook` file from `.kiro/hooks/`, or remove the hook module from your install command.
-
-**"Can I add custom hooks?"**
-Yes. Create a `.kiro.hook` JSON file in `.kiro/hooks/` following the hook schema, or use the Kiro command palette → "Open Kiro Hook UI".
+> **CLI tier note**: the CLI tier (`kiro-cli chat`) does not use these files. It embeds hooks inside the agent JSON (`hooks` field) and ships a deterministic `pre-write-guard.sh` (exit 2) referenced by `kiro-cli.json`.

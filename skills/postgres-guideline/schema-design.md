@@ -10,7 +10,7 @@ CREATE TABLE app.user (
   email varchar(255) NOT NULL,
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),  -- 트리거 없이 애플리케이션에서 직접 갱신
+  updated_at timestamptz NOT NULL DEFAULT now(),  -- updated by application, not triggers
   CONSTRAINT user_pk_user_id PRIMARY KEY (user_id)
 );
 
@@ -68,23 +68,23 @@ async def create_chat_history(user_id: int, conversation_id: str, message: str, 
 
 ## Soft Delete Pattern
 
-논리 삭제가 필요한 테이블은 `is_active` 컬럼으로 표준화한다.
+Tables requiring logical deletion standardize on the `is_active` column.
 
 ```sql
 `is_active` boolean NOT NULL DEFAULT true
 ```
 
-- 물리 DELETE 금지 (감사 추적, 복구 가능성 확보)
-- 조회 시 항상 `WHERE is_active = true` 포함
-- Partial Index로 활성 레코드만 인덱싱 → 인덱스 크기 절감
+- Physical DELETE prohibited (ensures audit trail and recovery capability)
+- Always include `WHERE is_active = true` in queries
+- Use Partial Index to index only active records → reduces index size
 
 ```sql
--- Partial index: 활성 유저만 인덱싱 (삭제된 유저 제외)
+-- Partial index: index only active users (excludes deleted users)
 CREATE INDEX idx_user_active_email ON app.user (email) WHERE is_active = true;
 ```
 
-> ⚠️ `is_active` 단독 B-tree 인덱스는 카디널리티가 낮아 효과 없음.
-> PostgreSQL의 Partial Index 또는 복합 인덱스로 사용할 것.
+> WARNING: Standalone B-tree index on `is_active` is ineffective due to low cardinality.
+> Use PostgreSQL's Partial Index or composite indexes.
 
 ## Row Level Security (RLS)
 
@@ -92,7 +92,7 @@ CREATE INDEX idx_user_active_email ON app.user (email) WHERE is_active = true;
 ALTER TABLE app.orders ENABLE ROW LEVEL SECURITY;
 
 -- Optimized RLS policy (wrap auth call in SELECT to avoid per-row evaluation)
--- ※ auth.uid()는 프로젝트 고유 함수 — Supabase 등 플랫폼에 맞게 교체 필요
+-- Note: auth.uid() is project-specific — replace with platform-appropriate function (Supabase, etc.)
 CREATE POLICY user_orders ON app.orders
   USING (
     (SELECT auth.uid()) = user_id
@@ -132,8 +132,8 @@ SELECT * FROM app.user_setting WHERE setting_data ? 'theme';
 - [ ] No physical FK constraints (logical only, documented with COMMENT)
 - [ ] `timestamptz` used (never `timestamp`)
 - [ ] `boolean` type used (never 'Y'/'N' strings)
-- [ ] `created_at` 포함 (모든 테이블 필수)
-- [ ] `updated_at` 포함 (append-only 로그 테이블 제외) — 트리거 없이 애플리케이션에서 갱신
-- [ ] Soft Delete 테이블은 `is_active boolean DEFAULT true` + Partial Index 적용
+- [ ] `created_at` included (required for all tables)
+- [ ] `updated_at` included (except append-only log tables) — updated by application, not triggers
+- [ ] Soft Delete tables use `is_active boolean DEFAULT true` + Partial Index
 - [ ] No procedures/triggers/rules
 - [ ] Schema separated by purpose (`app`, `log`, `ref`)

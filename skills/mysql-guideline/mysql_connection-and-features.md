@@ -2,15 +2,15 @@
 
 ## MySQLConnector Pattern
 
-> ⚠️ **사용 환경 전제조건:** 이 패턴은 **단일 스레드 / 단일 프로세스** 환경에서만 안전하다.
-> - FastAPI, Django async view, Celery 등 멀티스레드/비동기 환경에서는 커넥션/트랜잭션 상태가 스레드 간 공유되어 데이터 오염 위험이 있다.
-> - 비동기 환경: 하단의 `aiomysql` 풀 방식 사용
-> - 멀티스레드 동기 환경: `ConnectionPool` 방식 사용
+> WARNING: **Environment prerequisite:** This pattern is safe only in **single-thread / single-process** environments.
+> - In multi-threaded/async environments like FastAPI, Django async views, Celery, connection/transaction state is shared across threads, risking data corruption.
+> - Async environments: use `aiomysql` pool pattern below
+> - Multi-threaded sync environments: use `ConnectionPool` pattern
 
 ```python
 class MySQLConnector:
     """Singleton connection manager for MySQL
-    
+
     WARNING: Single-thread / single-process only.
     For multi-threaded or async environments, use ConnectionPool or aiomysql instead.
     """
@@ -18,7 +18,7 @@ class MySQLConnector:
     def __init__(self):
         self._connection = None
         self.config = MYSQL_CONFIG
-        self.is_transaction_active = False  # 스레드 공유 시 race condition 위험
+        self.is_transaction_active = False  # race condition risk when shared across threads
 
     def get_connection(self):
         """Create connection if not exists"""

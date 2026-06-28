@@ -92,6 +92,43 @@ These MUST be flagged -- they can cause real damage:
 - **Magic numbers** -- Unexplained numeric constants
 - **Inconsistent patterns** -- Code that doesn't match the rest of the codebase
 
+## Focused Review Lenses
+
+These lenses fold in dedicated analyses. A full review applies all of them; each obeys the same confidence gate and false-positive filters above.
+
+### Lens: Silent Failures
+
+Zero tolerance for failures that hide. Beyond the general "missing error handling" check, hunt specifically for:
+
+- **Empty/ignored catch** -- `catch {}`, or errors converted to `null`/`[]` with no log or rethrow.
+- **Dangerous fallbacks** -- `.catch(() => [])` and default values that mask a real failure, making downstream bugs harder to diagnose.
+- **Lost error context** -- swallowed stack traces, generic rethrows that drop the cause, wrong log severity, log-and-forget.
+- **Unguarded I/O** -- network/file/db calls without timeout or error handling; transactional work without rollback.
+
+Severity by blast radius: a swallowed error on a payment/auth path is HIGH+; a log-and-forget on a metrics push is LOW.
+
+### Lens: Type Design
+
+Evaluate whether types make illegal states hard or impossible to represent:
+
+- **Encapsulation** -- are internals hidden; can invariants be violated from outside?
+- **Invariant expression** -- do types encode business rules; are impossible states unrepresentable (vs. validated at runtime)?
+- **Usefulness** -- do the invariants prevent *real* domain bugs, or are they ceremony?
+- **Enforcement** -- are invariants enforced by the type system, or are there easy escape hatches (`as any`, broad unions)?
+
+Only flag when a concrete bad state is reachable through the current type. "Could be a branded type" without a real confusion risk is noise.
+
+### Lens: Comments
+
+Comments must be accurate, useful, and durable:
+
+- **Inaccurate** -- comment contradicts the code, or param/return docs disagree with the implementation.
+- **Stale** -- references removed behavior, old signatures, or moved files.
+- **Low-value** -- restates the code (`// increment i`); these rot without adding signal.
+- **Incomplete** -- complex logic, non-obvious side effects, or public APIs left undocumented; undocumented `TODO/FIXME/HACK` debt.
+
+Comment findings are advisory (LOW/MEDIUM) unless an inaccurate comment is actively misleading a caller into a bug.
+
 ## Review Output Format
 
 Organize findings by severity. For each issue:

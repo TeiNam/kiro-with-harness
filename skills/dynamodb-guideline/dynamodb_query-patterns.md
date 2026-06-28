@@ -2,64 +2,64 @@
 
 ---
 
-## Query vs Scan — Scan은 항상 금지
+## Query vs Scan — Scan is Always Forbidden
 
-| 항목 | Query | Scan |
+| Item | Query | Scan |
 |------|-------|------|
-| 동작 | PK 지정 후 SK 범위 조회 | 테이블 전체 읽기 |
-| 비용 | 읽은 Item 수만큼 | 테이블 전체 RCU 소비 |
-| 성능 | O(결과 크기) | O(테이블 크기) |
-| 사용 | 항상 사용 | **금지** |
+| Operation | Query SK range after specifying PK | Read entire table |
+| Cost | RCU for items read | RCU for entire table |
+| Performance | O(result size) | O(table size) |
+| Usage | Always use | **Forbidden** |
 
 ```python
 from boto3.dynamodb.conditions import Key, Attr
 
-# ✅ Query: PK 지정 필수
+# PASS: Query: PK must be specified
 response = table.query(
     KeyConditionExpression=Key("pk").eq("USER#user123")
 )
 
-# ✅ Query + SK 범위
+# PASS: Query + SK range
 response = table.query(
     KeyConditionExpression=
         Key("pk").eq("CONV#conv456") &
         Key("sk").begins_with("MSG#2024-01")
 )
 
-# ✅ Query on GSI
+# PASS: Query on GSI
 response = table.query(
     IndexName="GSI1",
     KeyConditionExpression=Key("gsi1pk").eq("EMAIL#user@example.com")
 )
 
-# ❌ Scan: 절대 금지
+# FAIL: Scan: Absolutely forbidden
 response = table.scan(
     FilterExpression=Attr("email").eq("user@example.com")
 )
-# → 테이블 전체를 읽고 나서 필터링 → 비용 동일, 성능 최악
+# → Reads entire table then filters → same cost, worst performance
 ```
 
-> ⚠️ `FilterExpression`은 Query에서도 주의. Key 조건으로 먼저 좁힌 후 적용되지만,
-> Key 조건으로 좁히지 않으면 Scan과 동일한 비용이 발생한다.
+> WARNING: Be cautious with `FilterExpression` even in Query. It applies after narrowing by Key condition,
+> but without Key condition narrowing, it incurs the same cost as Scan.
 
 ---
 
-## GetItem / BatchGetItem — 단일/다중 조회
+## GetItem / BatchGetItem — Single/Batch Retrieval
 
 ```python
-# GetItem: pk + sk가 모두 알려진 경우 (가장 빠르고 저렴)
+# GetItem: When both pk + sk are known (fastest and cheapest)
 response = table.get_item(
     Key={"pk": "USER#user123", "sk": "PROFILE"}
 )
 user = response.get("Item")
 
-# Strongly consistent read (최신 데이터 보장, 비용 2배)
+# Strongly consistent read (guarantees latest data, 2x cost)
 response = table.get_item(
     Key={"pk": "USER#user123", "sk": "PROFILE"},
     ConsistentRead=True
 )
 
-# BatchGetItem: 여러 Item을 한 번에 (최대 100개, 16MB)
+# BatchGetItem: Retrieve multiple Items at once (max 100, 16MB)
 response = dynamodb.batch_get_item(
     RequestItems={
         "MyApp": {
@@ -75,7 +75,7 @@ response = dynamodb.batch_get_item(
 )
 items = response["Responses"]["MyApp"]
 
-# ⚠️ BatchGetItem은 순서 보장 안 됨, UnprocessedKeys 재시도 필요
+# WARNING: BatchGetItem does not guarantee order, must retry UnprocessedKeys
 unprocessed = response.get("UnprocessedKeys", {})
 while unprocessed:
     response = dynamodb.batch_get_item(RequestItems=unprocessed)
@@ -87,7 +87,7 @@ while unprocessed:
 
 ## Cursor Pagination
 
-DynamoDB의 페이지네이션은 `LastEvaluatedKey` 기반이다. `offset` 개념이 없다.
+DynamoDB pagination is based on `LastEvaluatedKey`. There is no `offset` concept.
 
 ```python
 async def get_messages(
@@ -99,7 +99,7 @@ async def get_messages(
         "KeyConditionExpression":
             Key("pk").eq(f"CONV#{conversation_id}") &
             Key("sk").begins_with("MSG#"),
-        "ScanIndexForward": False,  # 최신순
+        "ScanIndexForward": False,  # Newest first
         "Limit": limit
     }
     if last_evaluated_key:
@@ -108,11 +108,11 @@ async def get_messages(
     response = table.query(**kwargs)
     return {
         "items": response["Items"],
-        "next_cursor": response.get("LastEvaluatedKey")  # None이면 마지막 페이지
+        "next_cursor": response.get("LastEvaluatedKey")  # None if last page
     }
 
-# 클라이언트에서 next_cursor를 다음 요청에 전달
-# → URL-safe하게 base64 인코딩 권장
+# Client passes next_cursor to next request
+# → Recommend URL-safe base64 encoding
 import base64, json
 
 def encode_cursor(last_evaluated_key: dict) -> str:
@@ -128,12 +128,12 @@ def decode_cursor(cursor: str) -> dict:
 
 ## Write Patterns
 
-### PutItem — 전체 Item 저장 (덮어쓰기)
+### PutItem — Store Entire Item (Overwrite)
 
 ```python
 from datetime import datetime, timezone
 
-# 신규 생성: condition으로 중복 방지
+# New creation: prevent duplicates with condition
 try:
     table.put_item(
         Item={
@@ -141,33 +141,33 @@ try:
             "sk": "PROFILE",
             "type": "user",
             "email": "user@example.com",
-            "name": "김철수",
+            "name": "Hong Gildong",
             "isActive": True,
             "createdAt": datetime.now(timezone.utc).isoformat(),
             "updatedAt": datetime.now(timezone.utc).isoformat()
         },
-        ConditionExpression="attribute_not_exists(pk)"  # 중복 방지
+        ConditionExpression="attribute_not_exists(pk)"  # Prevent duplicates
     )
 except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
     raise ValueError("User already exists")
 ```
 
-### UpdateItem — 부분 업데이트 (권장)
+### UpdateItem — Partial Update (Recommended)
 
 ```python
-# ✅ UpdateItem: 지정 필드만 변경 (PutItem보다 안전)
+# PASS: UpdateItem: Change only specified fields (safer than PutItem)
 table.update_item(
     Key={"pk": "USER#user123", "sk": "PROFILE"},
     UpdateExpression="SET #name = :name, updatedAt = :updatedAt",
-    ExpressionAttributeNames={"#name": "name"},  # 예약어 회피
+    ExpressionAttributeNames={"#name": "name"},  # Avoid reserved words
     ExpressionAttributeValues={
-        ":name": "김영희",
+        ":name": "Kim Younghee",
         ":updatedAt": datetime.now(timezone.utc).isoformat()
     },
-    ConditionExpression="attribute_exists(pk)"  # 존재 확인
+    ConditionExpression="attribute_exists(pk)"  # Verify exists
 )
 
-# 카운터 증가 (원자적)
+# Counter increment (atomic)
 table.update_item(
     Key={"pk": f"CONTENT#{content_id}", "sk": "META"},
     UpdateExpression="ADD #stats.viewCount :inc SET updatedAt = :now",
@@ -176,16 +176,16 @@ table.update_item(
 )
 ```
 
-### UPSERT 패턴
+### UPSERT Pattern
 
 ```python
-# attribute_not_exists 조건 없이 PutItem → upsert
-# UpdateItem + SET → 없으면 생성, 있으면 업데이트
+# PutItem without attribute_not_exists condition → upsert
+# UpdateItem + SET → create if missing, update if exists
 table.update_item(
     Key={"pk": f"USER#{user_id}", "sk": f"SETTING#{key}"},
     UpdateExpression=
         "SET settingValue = :val, updatedAt = :now "
-        "ADD #v :inc",  # version 증가
+        "ADD #v :inc",  # Increment version
     ExpressionAttributeNames={"#v": "version"},
     ExpressionAttributeValues={
         ":val": value,
@@ -199,13 +199,13 @@ table.update_item(
 
 ## Transaction (TransactWrite / TransactGet)
 
-최대 100개 Item, 4MB 제한. 성능 비용이 크므로 꼭 필요한 경우만 사용.
+Max 100 Items, 4MB limit. High performance cost, use only when necessary.
 
 ```python
-# TransactWrite: 여러 테이블/Item의 원자적 쓰기
+# TransactWrite: Atomic write across multiple tables/Items
 dynamodb_client.transact_write_items(
     TransactItems=[
-        # 1. 메시지 저장
+        # 1. Save message
         {
             "Put": {
                 "TableName": "MyApp",
@@ -218,7 +218,7 @@ dynamodb_client.transact_write_items(
                 }
             }
         },
-        # 2. 대화 메시지 카운터 업데이트 (역정규화 일관성 유지)
+        # 2. Update conversation message counter (maintain denormalization consistency)
         {
             "Update": {
                 "TableName": "MyApp",
@@ -234,20 +234,20 @@ dynamodb_client.transact_write_items(
 
 ---
 
-## BatchWrite — 대량 쓰기
+## BatchWrite — Bulk Write
 
 ```python
-# BatchWriteItem: 최대 25개 Item, 16MB
+# BatchWriteItem: Max 25 Items, 16MB
 with table.batch_writer() as batch:
     for record in records:
         batch.put_item(Item={
             "pk": f"MSG#{record['id']}",
             "sk": "DATA",
-            **record
+**record
         })
-# boto3 batch_writer가 자동으로 25개씩 묶어 전송 + UnprocessedItems 재시도
+# boto3 batch_writer automatically batches 25 Items + retries UnprocessedItems
 
-# 삭제도 동일
+# Same for deletion
 with table.batch_writer() as batch:
     for key in keys_to_delete:
         batch.delete_item(Key={"pk": key["pk"], "sk": key["sk"]})
@@ -255,21 +255,21 @@ with table.batch_writer() as batch:
 
 ---
 
-## Condition Expression 패턴
+## Condition Expression Patterns
 
 ```python
 from boto3.dynamodb.conditions import Attr
 
-# 존재 여부
+# Existence check
 "attribute_exists(pk)"
 "attribute_not_exists(pk)"
 
-# 값 비교
+# Value comparison
 Attr("version").eq(expected_version)          # Optimistic locking
 Attr("isActive").eq(True)
-Attr("stock").gt(0)                           # 재고 있을 때만 차감
+Attr("stock").gt(0)                           # Deduct only when stock available
 
-# Optimistic Locking 패턴
+# Optimistic Locking pattern
 try:
     table.update_item(
         Key={"pk": pk, "sk": sk},
@@ -283,10 +283,10 @@ except ConditionalCheckFailedException:
 ```
 
 ## Query Checklist
-- [ ] Scan 없음 — 모든 조회가 Query 또는 GetItem
-- [ ] FilterExpression 사용 시 KeyCondition으로 충분히 좁혔는가
-- [ ] Pagination은 LastEvaluatedKey 기반
-- [ ] BatchGetItem의 UnprocessedKeys 재시도 처리
-- [ ] batch_writer() 사용으로 BatchWrite 자동 묶음 처리
-- [ ] Transaction은 꼭 필요한 원자성 보장에만 사용
-- [ ] 예약어 충돌 시 ExpressionAttributeNames 처리
+- [ ] No Scan — all queries use Query or GetItem
+- [ ] FilterExpression usage sufficiently narrowed by KeyCondition
+- [ ] Pagination based on LastEvaluatedKey
+- [ ] BatchGetItem UnprocessedKeys retry handling
+- [ ] BatchWrite automatic batching via batch_writer()
+- [ ] Transactions only for essential atomicity guarantees
+- [ ] ExpressionAttributeNames for reserved word conflicts

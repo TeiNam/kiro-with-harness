@@ -7,7 +7,7 @@ Claude Code 하네스 설정을 Kiro IDE 네이티브 형식으로 변환하는 
 | Claude Code | Kiro IDE | 비고 |
 |-------------|----------|------|
 | `CLAUDE.md` | `.kiro/steering/*.md` | 주제별로 분리된 파일로 분할 |
-| `.claude/settings.json` | `.kiro/hooks/*.kiro.hook` | 이벤트 기반 훅이 권한 설정을 대체 |
+| `.claude/settings.json` | `.kiro/hooks/*.json` | 이벤트 기반 훅이 권한 설정을 대체 |
 | `.claude/commands/` | Kiro 커스텀 에이전트 | 에이전트 마크다운 파일 |
 | Claude의 MCP 설정 | `.kiro/settings/mcp.json` | 동일한 MCP 프로토콜, 다른 설정 위치 |
 | 프로젝트 메모리 | 스티어링(항상 포함) | 세션 간 지속되는 컨텍스트 |
@@ -49,16 +49,19 @@ Claude Code는 도구 권한에 `settings.json`을 사용합니다. Kiro는 사�
 
 ```json
 {
-  "name": "Pre-Write Guard",
-  "version": "1.0.0",
-  "when": {
-    "type": "preToolUse",
-    "toolTypes": ["write"]
-  },
-  "then": {
-    "type": "askAgent",
-    "prompt": "Check if this write follows project rules."
-  }
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Pre-Write Guard",
+      "trigger": "PreToolUse",
+      "matcher": "write",
+      "action": {
+        "type": "agent",
+        "prompt": "Check if this write follows project rules."
+      },
+      "enabled": true
+    }
+  ]
 }
 ```
 

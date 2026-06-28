@@ -94,7 +94,7 @@ Build agents (build-error-resolver, language build-resolvers, e2e-runner, kiro-c
 
 ## Models
 
-Agent model assignments are role-based. The `model` field in each agent definition is the single source of truth.
+Agent model assignments are role-based. The `model` field in each agent definition is the single source of truth. The harness is **tuned for three Kiro models** — **`claude-opus-4.8` (default)**, `claude-sonnet-4.6`, and `claude-haiku-4.5`. The `kiro-cli` orchestrator (set as the default agent on install) and all reasoning agents are pinned to `claude-opus-4.8`; cost-sensitive roles use `claude-haiku-4.5`. (Kiro offers other models too; these three are what the harness is optimized around.)
 
 | Role | Model | Agents |
 |------|-------|--------|
@@ -103,6 +103,14 @@ Agent model assignments are role-based. The `model` field in each agent definiti
 | General | inherited | Agents without explicit `model` inherit the model selected in chat |
 
 > **Opus 4.8 availability:** `claude-opus-4.8` is **experimental** and available only in **us-east-1** and **eu-central-1**. It requires **Kiro CLI v2.5.0+**. Agents pinned to `claude-opus-4.8` will fail on older CLI versions or unsupported regions — upgrade Kiro CLI to avoid silent failures.
+
+> **Model ID format:** Kiro validates `model` against the IDs its model service returns; an unknown ID silently falls back to the default model with a warning. Confirm the exact identifier with `/model` in an active chat session before pinning.
+
+## Kiro Version Compatibility (CLI 2.10 / IDE 1.0)
+
+- **IDE hooks use the v1 JSON format** (`.kiro/hooks/*.json`), introduced in IDE 1.0 and replacing the legacy `.kiro.hook` format. Legacy hooks do not execute until migrated. The installer emits v1 JSON directly. See `docs/en/hook-reference.md`.
+- **Default resource inheritance (CLI 2.7+):** custom agents automatically inherit global steering, skills, and `AGENTS.md` in addition to their own `resources`. To keep installs strictly workload-scoped (no global pull-in), disable it: `kiro-cli settings chat.disableInheritingDefaultResources true` (add `--workspace` to scope per project). Built-in agents always inherit regardless.
+- **Hot-reload (CLI 2.10+):** edits to `~/.kiro/agents/*` and `mcp.json` apply at the next idle boundary without restarting the session — reinstalling the harness takes effect without losing chat context.
 
 ## What Gets Installed
 

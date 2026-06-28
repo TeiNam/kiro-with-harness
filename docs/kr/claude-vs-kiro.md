@@ -76,42 +76,48 @@ fileMatchPattern: "**/*.ts,**/*.tsx"
 | 항목 | Claude Code | Kiro |
 |------|-------------|------|
 | 입력 | stdin으로 JSON 수신 | 이벤트 메타데이터만 |
-| 차단 방법 | exit code 2 반환 | `preToolUse` + `askAgent`로 에이전트에게 판단 위임 |
-| 비동기 실행 | `async: true` 옵션 | 없음 (runCommand는 동기) |
-| 도구 필터 | 정규식 매처 (`Bash\|Edit\|Write`) | `toolTypes` 카테고리 (`read`, `write`, `shell`, `web`) 또는 정규식 |
-| 프로파일 제어 | `HOOK_PROFILE` 환경 변수 | 없음 — 훅 파일 자체를 추가/제거 |
+| 차단 방법 | exit code 2 반환 | `command` 액션이 exit code 2 반환(PreToolUse); `agent` 액션은 에이전트에게 판단 위임 |
+| 비동기 실행 | `async: true` 옵션 | 없음 (command 액션은 동기) |
+| 도구 필터 | 정규식 매처 (`Bash\|Edit\|Write`) | 도구 이름 `matcher` 정규식; 내장 카테고리 `read`, `write`, `shell`, `web`, `spec` |
+| 프로파일 제어 | `HOOK_PROFILE` 환경 변수 | 없음 — 훅 파일 추가/제거 또는 `enabled: false` |
 
-**Kiro 훅 JSON 예시**
+**Kiro 훅 JSON 예시** (IDE 1.0 v1 포맷 — `.kiro/hooks/*.json`)
 
 ```json
 {
-  "name": "TS/JS 파일 편집 후 린트",
-  "version": "1.0.0",
-  "when": {
-    "type": "fileEdited",
-    "patterns": ["*.ts", "*.tsx", "*.js", "*.jsx"]
-  },
-  "then": {
-    "type": "askAgent",
-    "prompt": "A TS/JS file was edited. Use getDiagnostics to check for lint and type errors instead of running shell commands. Do NOT use executeBash or terminal for linting."
-  }
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "TS/JS 파일 편집 후 린트",
+      "trigger": "PostFileSave",
+      "matcher": "\\.(ts|tsx|js|jsx)$",
+      "action": {
+        "type": "agent",
+        "prompt": "A TS/JS file was edited. Use getDiagnostics to check for lint and type errors instead of running shell commands. Do NOT use executeBash or terminal for linting."
+      },
+      "enabled": true
+    }
+  ]
 }
 ```
 
-> **참고**: 터미널 블로킹 방지를 위해 `runCommand` 대신 `askAgent` + `getDiagnostics`를 사용합니다.
+> **참고**: 터미널 블로킹 방지를 위해 `command` 액션 대신 `agent` 액션 + `getDiagnostics`를 사용합니다.
 
 ```json
 {
-  "name": "쓰기 작업 전 보안 검토",
-  "version": "1.0.0",
-  "when": {
-    "type": "preToolUse",
-    "toolTypes": ["write"]
-  },
-  "then": {
-    "type": "askAgent",
-    "prompt": "이 쓰기 작업이 보안 규칙을 준수하는지 확인하세요: 하드코딩된 시크릿 없음, 사용자 입력 검증됨, SQL 인젝션 방지됨"
-  }
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "쓰기 작업 전 보안 검토",
+      "trigger": "PreToolUse",
+      "matcher": "write",
+      "action": {
+        "type": "agent",
+        "prompt": "이 쓰기 작업이 보안 규칙을 준수하는지 확인하세요: 하드코딩된 시크릿 없음, 사용자 입력 검증됨, SQL 인젝션 방지됨"
+      },
+      "enabled": true
+    }
+  ]
 }
 ```
 

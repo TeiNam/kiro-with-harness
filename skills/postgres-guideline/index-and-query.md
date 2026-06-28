@@ -9,7 +9,7 @@
 | `WHERE a = x AND b > y` | Composite | `CREATE INDEX idx ON t (a, b)` |
 | `WHERE jsonb @> '{}'` | GIN | `CREATE INDEX idx ON t USING gin (col)` |
 | `WHERE tsv @@ query` | GIN | `CREATE INDEX idx ON t USING gin (col)` |
-| Time-series ranges | BRIN | `CREATE INDEX idx ON t USING brin (col)` ※ 물리적 삽입 순서와 값이 상관관계가 높을 때만 효과적 (append-only 로그). 삽입 순서가 섞이면 B-tree보다 느릴 수 있음 |
+| Time-series ranges | BRIN | `CREATE INDEX idx ON t USING brin (col)` Note: Effective only when physical insertion order correlates with values (append-only logs). Can be slower than B-tree if insertion order is mixed |
 | Range/geo data | GiST | `CREATE INDEX idx ON t USING gist (col)` |
 
 ## Key Index Patterns
@@ -34,25 +34,25 @@ CREATE UNIQUE INDEX uidx_user_email ON app.user (email);
 ### Cursor Pagination (O(1) vs OFFSET O(n))
 
 ```sql
--- 단순 PK cursor (id 단일 정렬)
+-- Simple PK cursor (single id sort)
 SELECT * FROM products WHERE id > %(last_id)s ORDER BY id LIMIT 20;
 
--- 복합 cursor (created_at + id tie-breaking)
--- created_at이 동일한 레코드가 있을 때 id로 순서 보장
+-- Composite cursor (created_at + id tie-breaking)
+-- Guarantees order by id when created_at values are identical
 SELECT * FROM products
 WHERE (created_at, id) > (%(last_created_at)s::timestamptz, %(last_id)s)
 ORDER BY created_at ASC, id ASC
 LIMIT 20;
 
--- 역방향 (이전 페이지)
+-- Reverse (previous page)
 SELECT * FROM products
 WHERE (created_at, id) < (%(last_created_at)s::timestamptz, %(last_id)s)
 ORDER BY created_at DESC, id DESC
 LIMIT 20;
 ```
 
-> ※ 복합 cursor 비교 `(a, b) > (x, y)` 는 PostgreSQL row comparison으로 인덱스 활용 가능.
-> 커버링 인덱스 `(created_at, id)` 생성 권장.
+> Note: Composite cursor comparison `(a, b) > (x, y)` uses PostgreSQL row comparison and can leverage indexes.
+> Recommend creating covering index `(created_at, id)`.
 
 ### Queue Processing (SKIP LOCKED)
 

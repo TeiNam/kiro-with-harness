@@ -54,22 +54,22 @@ async def create_chat_history(user_id: int, conversation_id: str, message: str, 
 
 ## Soft Delete Pattern
 
-논리 삭제가 필요한 테이블은 `is_active` 컬럼으로 표준화한다.
+Standardize tables requiring soft delete with the `is_active` column.
 
 ```sql
-`is_active` tinyint(1) NOT NULL DEFAULT 1  -- 1: 활성, 0: 삭제
+`is_active` tinyint(1) NOT NULL DEFAULT 1  -- 1: active, 0: deleted
 ```
 
-- 물리 DELETE 금지 (감사 추적, 복구 가능성 확보)
-- 조회 시 항상 `WHERE is_active = 1` 포함
-- 조회 빈도가 높으면 복합 인덱스 앞쪽에 배치
+- Physical DELETE prohibited (audit trail, recovery capability)
+- Always include `WHERE is_active = 1` in queries
+- Place at front of composite index if queried frequently
 
 ```sql
--- is_active가 선택성이 낮아도, 쿼리 패턴이 항상 포함할 경우 복합 인덱스에 추가
+-- Even with low selectivity, add to composite index if query pattern always includes it
 CREATE INDEX idx_user_active_email ON user (is_active, email);
 ```
 
-> ⚠️ `is_active` 단독 인덱스는 카디널리티가 낮아 효과 없음. 반드시 복합 인덱스로 사용.
+> WARNING: Standalone `is_active` index is ineffective due to low cardinality. Always use in composite index.
 
 
 - [ ] No physical FK constraints (logical only, documented with COMMENT)
@@ -78,6 +78,6 @@ CREATE INDEX idx_user_active_email ON user (is_active, email);
 - [ ] Appropriate indexes created
 - [ ] Engine: InnoDB, Charset: utf8mb4
 - [ ] No procedures/triggers/events
-- [ ] `created_at` 포함 (모든 테이블 필수)
-- [ ] `updated_at` 포함 (불변 로그/이력 테이블 제외)
-      ※ `chat_history`, `audit_log`, `access_log` 등 append-only 테이블은 생략 가능, COMMENT로 명시 권장
+- [ ] `created_at` included (mandatory for all tables)
+- [ ] `updated_at` included (except immutable log/history tables)
+      Note: append-only tables like `chat_history`, `audit_log`, `access_log` may omit, recommend documenting in COMMENT

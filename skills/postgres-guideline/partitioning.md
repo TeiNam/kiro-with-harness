@@ -20,7 +20,7 @@ CREATE TABLE log.chat_history_2024_02 PARTITION OF log.chat_history
 -- Default partition (catches out-of-range data)
 CREATE TABLE log.chat_history_default PARTITION OF log.chat_history DEFAULT;
 
--- Indexes auto-inherited by partitions
+-- Indexes automatically inherited by partitions
 CREATE INDEX idx_chat_history_user_id ON log.chat_history (user_id);
 CREATE INDEX idx_chat_history_created_at ON log.chat_history (created_at);
 ```
@@ -50,23 +50,23 @@ SELECT partman.run_maintenance();
 
 ## Partition Management
 
-> ⚠️ **주의:** `DEFAULT` 파티션이 존재할 때 새 파티션을 직접 추가하면 에러 발생.
-> Default 파티션에 해당 범위 데이터가 이미 존재하면 constraint 위반으로 실패한다.
-> 반드시 아래 순서로 진행할 것.
+> WARNING: Adding a new partition directly when a `DEFAULT` partition exists will cause an error.
+> If the default partition already contains data in that range, constraint violation occurs.
+> Always follow the sequence below.
 
 ```sql
--- ✅ 올바른 순서: DEFAULT 파티션이 있는 경우
--- 1. default 파티션 detach
+-- PASS: Correct sequence when DEFAULT partition exists
+-- 1. Detach default partition
 ALTER TABLE log.chat_history DETACH PARTITION log.chat_history_default;
 
--- 2. 새 월 파티션 생성
+-- 2. Create new monthly partition
 CREATE TABLE log.chat_history_2024_05 PARTITION OF log.chat_history
   FOR VALUES FROM ('2024-05-01') TO ('2024-06-01');
 
--- 3. default 파티션 re-attach
+-- 3. Re-attach default partition
 ALTER TABLE log.chat_history ATTACH PARTITION log.chat_history_default DEFAULT;
 
--- ❌ 잘못된 방법: default 파티션에 2024-05 데이터가 있으면 아래 구문은 에러
+-- FAIL: Incorrect approach: errors if default partition contains 2024-05 data
 -- CREATE TABLE log.chat_history_2024_05 PARTITION OF log.chat_history
 --   FOR VALUES FROM ('2024-05-01') TO ('2024-06-01');
 -- ERROR: updated partition constraint for default partition "chat_history_default" would be violated
@@ -81,7 +81,7 @@ DROP TABLE log.chat_history_2024_01;
 ALTER TABLE log.chat_history_2024_01 SET SCHEMA archive;
 ```
 
-> ※ pg_partman 사용 시 위 과정이 자동화됨 — 수동 운영 시에만 해당.
+> Note: This process is automated when using pg_partman — manual operations only when needed.
 
 ## Partition Info Query
 
