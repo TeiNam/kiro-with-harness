@@ -139,11 +139,11 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 **IDE 계층** (`.kiro/steering/`):
 - Always-on: 코딩 스타일, 보안, 테스팅, Git 워크플로우, 패턴, 성능
 - FileMatch: 파일 타입별로 로드되는 언어 특화 규칙
-- Manual: 필요 시 로드되는 스킬 (125개 총; 워크로드로 선택적 포함 태그됨)
+- Manual: 필요 시 로드되는 스킬 (126개 총; 워크로드로 선택적 포함 태그됨)
 
 ### 스킬
 
-`skills/` 아래 125개 스킬 패키지는 워크로드로 태그됩니다. 설치는 활성 워크로드와 교집합인 스킬만 선택합니다.
+`skills/` 아래 126개 스킬 패키지는 워크로드로 태그됩니다. 설치는 활성 워크로드와 교집합인 스킬만 선택합니다.
 - 핵심: context budget, strategic compact, agentic engineering, lessons learned
 - 인프라: Docker, deployment, database migrations, backend patterns
 - 데이터베이스: PostgreSQL, MySQL, MongoDB, DynamoDB
@@ -174,7 +174,7 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 │   ├── cli/                    # CLI 에이전트 (글로벌 + 워크스페이스)
 │   ├── ide/                    # IDE 에이전트 (Markdown)
 │   └── AGENTS.md               # 공유 에이전트 협업 가이드
-├── skills/                     # 125개 스킬 패키지 (워크로드 태그됨)
+├── skills/                     # 126개 스킬 패키지 (워크로드 태그됨)
 ├── mcp-configs/                # MCP 서버 설정
 ├── scripts/                    # 검증 유틸리티 (validate-agents.js, validate-models.js)
 ├── docs/                       # 가이드 (영어 + 한국어)
