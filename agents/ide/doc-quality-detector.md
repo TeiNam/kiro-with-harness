@@ -1,7 +1,7 @@
 ---
 name: doc-quality-detector
 description: 입력된 IT 기술 문서에서 품질 결함을 스캔하여 구간(span) 단위로 식별하고 JSON 리포트로 출력하는 전문가. 번역투·hype 제거 결함과 정확성·실행가능성·구조·전제 보강 결함을 함께 탐지한다. 한국어·영어 양방향.
-model: claude-opus-4.8
+model: claude-sonnet-5
 tools: ["read", "write"]
 ---
 

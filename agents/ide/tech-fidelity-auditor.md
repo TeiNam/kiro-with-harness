@@ -1,7 +1,7 @@
 ---
 name: tech-fidelity-auditor
 description: 원문/노트와 결과 문서를 대조하여 \"기술적 사실이 보존·정확한가\"를 검증하는 감사관. 코드·명령·수치·식별자·버전·API 시그니처가 훼손·날조되지 않았는지 검증하고 롤백 지시를 내린다. 한국어·영어 양방향.
-model: claude-opus-4.8
+model: claude-sonnet-5
 tools: ["read", "write"]
 ---
 

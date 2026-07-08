@@ -24,6 +24,15 @@ const {
   evaluateVerdict,
 } = require('./lib/model-detect.js');
 
+// 3-티어 라우팅 정책의 단일 출처(SSOT). 분류·기대 식별자는 여기서 파생한다.
+const {
+  classifyRole,
+  tierIdentifier,
+  identifierForRole,
+  TIER_IDS,
+  DEFAULT_PROVIDER,
+} = require('./lib/model-policy.js');
+
 // 저장소 루트(이 스크립트는 scripts/ 하위에 있다).
 const ROOT = path.join(__dirname, '..');
 
@@ -53,46 +62,36 @@ const PEER_AGENT_CANDIDATES = [
   path.join(WORKSPACE_DIR, 'peer-reviewer.json'),
 ];
 
-// R6 분류 인코딩(설계 C2b 확정 정책):
-// - 비용 최적화(cost-optimized): 번역·문서·글쓰기 역할 → claude-haiku-4.5 명시.
-// - 그 외 워크스페이스/IDE 에이전트(언어별 reviewer/build-resolver 등) → 추론 중심(reasoning) = claude-opus-4.8 명시.
-// - 범용(general): 현재 해당 없음(상속 = model 필드 부재). 향후 추가 시 GENERAL_ROLES에 등록.
-const COST_OPTIMIZED_ROLES = new Set([
-  'translator-docs',
-  'article-writer',
-  'content-creator',
-]);
-const GENERAL_ROLES = new Set();
+// R6 분류 인코딩 — 3-티어 정책(scripts/lib/model-policy.js 가 단일 출처):
+// - deep-reasoning : 오케스트레이션·아키텍처·보안·리서치·데이터 모델링 → claude-opus-4.8
+// - balanced       : 코드/언어 리뷰·빌드 리졸버·리팩터·e2e·문서 → claude-sonnet-5
+// - cost-optimized : 번역·글쓰기·콘텐츠 → claude-haiku-4.5
+// 모든 티어는 model 필드를 명시한다(현재 정책에 상속=general 역할은 없음).
 
 // ---------------------------------------------------------------------------
-// 분류·기대값 헬퍼
+// 분류·기대값 헬퍼 (model-policy.js 위임)
 // ---------------------------------------------------------------------------
 
 /**
- * 역할 이름(파일명 기반)을 R6 분류로 매핑한다.
+ * 역할 이름(파일명 기반)을 티어로 매핑한다(SSOT 위임).
  * @param {string} role 에이전트 이름.
- * @returns {'reasoning'|'cost-optimized'|'general'}
+ * @returns {string} 티어 식별자('deep-reasoning'|'balanced'|'cost-optimized').
  */
 function classify(role) {
-  if (GENERAL_ROLES.has(role)) return 'general';
-  if (COST_OPTIMIZED_ROLES.has(role)) return 'cost-optimized';
-  return 'reasoning';
+  return classifyRole(role);
 }
 
 /**
- * 분류에 따른 정책 기대값(필드 존재 여부 + 기대 식별자)을 산출한다.
- * @param {'reasoning'|'cost-optimized'|'general'} classification
+ * 티어에 따른 정책 기대값(필드 존재 + 기대 식별자)을 산출한다.
+ * 3-티어 정책에서는 모든 역할이 model 필드를 명시하므로 expectModelField 는 항상 true.
+ * @param {string} classification 티어 식별자.
  * @returns {{ expectModelField: boolean, expectedIdentifier: (string|null) }}
  */
 function expectationFor(classification) {
-  if (classification === 'reasoning') {
-    return { expectModelField: true, expectedIdentifier: MODEL_POLICY.Target_Model_Identifier };
-  }
-  if (classification === 'cost-optimized') {
-    return { expectModelField: true, expectedIdentifier: MODEL_POLICY.Cost_Optimized_Model_Identifier };
-  }
-  // general → 상속(필드 부재가 기대값).
-  return { expectModelField: false, expectedIdentifier: null };
+  return {
+    expectModelField: true,
+    expectedIdentifier: tierIdentifier(classification, DEFAULT_PROVIDER),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -450,18 +449,19 @@ function checkPeerAgent() {
   for (const filePath of PEER_AGENT_CANDIDATES) {
     if (!fs.existsSync(filePath)) continue;
     const info = readJsonAgentModel(filePath);
+    const peerExpected = identifierForRole('peer-reviewer', DEFAULT_PROVIDER);
     const expectation = {
       filePath: toRel(filePath),
       line: info.line,
       expectModelField: true,
-      expectedIdentifier: MODEL_POLICY.Target_Model_Identifier,
+      expectedIdentifier: peerExpected,
     };
 
     if (info.parseError) {
       const mismatch = {
         filePath: toRel(filePath),
         line: 0,
-        expected: MODEL_POLICY.Target_Model_Identifier,
+        expected: peerExpected,
         actual: `parse-error: ${info.parseError}`,
       };
       return { present: true, row: { status: 'parse-error', ...mismatch }, mismatch };
@@ -485,10 +485,12 @@ function checkPeerAgent() {
 // ---------------------------------------------------------------------------
 
 function printHumanReport(report) {
-  const p = MODEL_POLICY;
   console.log('=== Model Identifier Consistency ===');
   console.log(
-    `  Policy: Target=${p.Target_Model_Identifier}, CostOptimized=${p.Cost_Optimized_Model_Identifier}`
+    `  Policy (provider=${DEFAULT_PROVIDER}): ` +
+      `deep-reasoning=${tierIdentifier('deep-reasoning', DEFAULT_PROVIDER)}, ` +
+      `balanced=${tierIdentifier('balanced', DEFAULT_PROVIDER)}, ` +
+      `cost-optimized=${tierIdentifier('cost-optimized', DEFAULT_PROVIDER)}`
   );
 
   // [Global CLI Agents]
@@ -561,13 +563,14 @@ function printHumanReport(report) {
 
 /** 워크스페이스/IDE 정책-필드 점검 요약 + 불일치 목록 출력. */
 function printWsIdeSummary(wsIde) {
-  const byClass = { reasoning: [], 'cost-optimized': [], general: [] };
+  // 버킷은 SSOT(TIER_IDS)에서 파생한다 — 티어가 추가돼도 요약에서 누락되지 않는다.
+  const byClass = Object.fromEntries(TIER_IDS.map((t) => [t, []]));
   for (const row of wsIde.rows) {
     if (byClass[row.classification]) byClass[row.classification].push(row);
   }
 
   const summarize = (label, expectedDesc, rows) => {
-    if (rows.length === 0) return; // 해당 분류 에이전트가 없으면 출력 생략.
+    if (rows.length === 0) return; // 해당 티어 에이전트가 없으면 출력 생략.
     const bad = rows.filter((r) => r.status !== 'ok');
     if (bad.length === 0) {
       console.log(`    ✅ ${label} → ${expectedDesc}`);
@@ -576,13 +579,21 @@ function printWsIdeSummary(wsIde) {
     }
   };
 
-  summarize('reasoning agents', `model=${MODEL_POLICY.Target_Model_Identifier}`, byClass.reasoning);
+  summarize(
+    'deep-reasoning agents',
+    `model=${tierIdentifier('deep-reasoning', DEFAULT_PROVIDER)}`,
+    byClass['deep-reasoning']
+  );
+  summarize(
+    'balanced agents (reviewers/build-resolvers/e2e/docs)',
+    `model=${tierIdentifier('balanced', DEFAULT_PROVIDER)}`,
+    byClass.balanced
+  );
   summarize(
     'cost-optimized agents (translator-docs/article-writer/content-creator)',
-    `model=${MODEL_POLICY.Cost_Optimized_Model_Identifier}`,
+    `model=${tierIdentifier('cost-optimized', DEFAULT_PROVIDER)}`,
     byClass['cost-optimized']
   );
-  summarize('general agents', 'no model field', byClass.general);
 
   // 개별 불일치 상세.
   for (const m of wsIde.mismatches) {

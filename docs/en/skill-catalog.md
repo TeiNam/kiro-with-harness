@@ -1,6 +1,6 @@
 # Skill Catalog
 
-130 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
+137 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
 
 ## Infrastructure
 
@@ -109,6 +109,7 @@
 | architecture-decision-records | ADR templates, decision logging |
 | blueprint | System blueprint, component diagrams, data flow |
 | mcp-server-patterns | MCP server implementation patterns |
+| mcp-builder | Scaffold and harden MCP servers — transport, tools/resources/prompts, input validation, Kiro registration |
 | codebase-onboarding | Codebase exploration, dependency mapping |
 | agent-harness-construction | Agent harness design, steering, hooks, skills |
 
@@ -144,6 +145,7 @@
 | Skill | Description |
 |-------|-------------|
 | article-writing | Technical article structure, drafting, editing |
+| humanize-writing | Cut AI tells and raise real quality in web/long-form writing (English/general companion to humanize-korean) |
 | content-engine | Content pipeline, scheduling, multi-platform |
 | deep-research | Deep research methodology, source evaluation |
 | search-first | Search-first approach, information gathering |
@@ -151,6 +153,16 @@
 | crosspost | Cross-platform content distribution |
 | investor-materials | Pitch decks, financial models, one-pagers |
 | investor-outreach | Investor communication, follow-up sequences |
+
+## Documents & Deliverables
+
+| Skill | Description |
+|-------|-------------|
+| pdf-generation | Create/fill/extract PDFs — reportlab (data), WeasyPrint (HTML/CSS), pandoc+Typst (Markdown), pypdf/pdfplumber (read/forms) |
+| pptx-generation | Native PowerPoint .pptx via python-pptx (or pptxgenjs); overflow + visual-QA gotchas encoded |
+| docx-generation | Native Word .docx via python-docx / pandoc; DXA table widths, US Letter, styles |
+| xlsx-generation | Excel .xlsx via openpyxl / XlsxWriter / pandas; live formulas, LibreOffice recalc, zero-error delivery |
+| brand-guidelines | Apply brand colors, fonts, logo, and voice consistently across docs, decks, and web artifacts |
 
 ## Language-Specific Testing
 

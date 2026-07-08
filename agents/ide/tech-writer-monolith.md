@@ -1,7 +1,7 @@
 ---
 name: tech-writer-monolith
 description: Tech Writer Fast Path 단일 호출 에이전트. 한 호출 안에서 작성(write) 또는 탐지+윤문(polish)·자체검증을 일괄 수행하여 IT 기술 문서를 2~3분 안에 처리한다. 한국어·영어 양방향.
-model: claude-opus-4.8
+model: claude-sonnet-5
 tools: ["read", "write"]
 ---
 

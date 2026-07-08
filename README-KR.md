@@ -96,13 +96,15 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 ## 모델
 
-에이전트 모델 할당은 역할 기반입니다. 각 에이전트 정의의 `model` 필드가 유일한 소스입니다. 이 하네스는 **Kiro 세 모델에 최적화**되어 있습니다 — **`claude-opus-4.8`(기본)**, `claude-sonnet-4.6`, `claude-haiku-4.5`. `kiro-cli` 오케스트레이터(설치 시 기본 에이전트로 지정)와 모든 추론 에이전트는 `claude-opus-4.8`에 고정되고, 비용 민감 역할은 `claude-haiku-4.5`를 씁니다. (Kiro는 다른 모델도 제공하지만, 이 세 모델이 하네스가 최적화 대상으로 삼는 모델입니다.)
+에이전트 모델 할당은 역할 기반이며, **프로바이더 독립적인 세 능력 티어**로 구성됩니다. 각 에이전트 정의의 `model` 필드가 유일한 소스이며, [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js)에서 기록됩니다. 이 하네스는 **Kiro 세 모델에 최적화**되어 있습니다 — **`claude-opus-4.8`**(심층 추론), **`claude-sonnet-5`**(균형, 기본 코딩 티어), **`claude-haiku-4.5`**(비용 최적화). `kiro-cli` 오케스트레이터(설치 시 기본 에이전트로 지정)와 추론 에이전트는 `claude-opus-4.8`에 고정되고, 물량이 많은 코딩 에이전트는 `claude-sonnet-5`, 비용 민감 역할은 `claude-haiku-4.5`를 씁니다.
 
-| 역할 | 모델 | 에이전트 |
+| 티어 | 모델 | 에이전트 |
 |------|------|----------|
-| 추론 | `claude-opus-4.8` | architect, code-reviewer, security-reviewer, deep-researcher, devops, refactor-cleaner, 언어 리뷰어, 빌드 해결자 |
+| 심층 추론 | `claude-opus-4.8` | kiro-cli, architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| 균형 (기본) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, 언어 리뷰어, 빌드 해결자, database-reviewer, e2e-runner, 문서/기술 작성자 |
 | 비용 최적화 | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
-| 일반 | 상속됨 | 명시적 `model`이 없는 에이전트는 채팅에서 선택한 모델을 상속합니다 |
+
+설계 원칙: **Opus는 추론·오케스트레이션, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 라우팅은 에이전트 단위라 역할별로 모델을 섞을 수 있습니다. OpenAI GPT-5.5 / GPT-5.4가 Kiro에서 선택 가능해지면 동일한 티어가 그대로 매핑됩니다(`deep-reasoning → gpt-5.5`, `balanced → gpt-5.4`) — `node scripts/apply-model-policy.js --provider=openai`로 재지정하세요. 전체 배정·훅→티어 가이드·프로바이더 전환 워크플로: [모델 라우팅](docs/kr/model-routing.md).
 
 > **Opus 4.8 가용성:** `claude-opus-4.8`은 **실험적**이며 **us-east-1**과 **eu-central-1**에서만 사용 가능합니다. **Kiro CLI v2.5.0+**가 필요합니다. `claude-opus-4.8`으로 고정된 에이전트는 이전 CLI 버전 또는 지원되지 않는 지역에서 실패합니다 — Kiro CLI를 업그레이드하세요.
 
@@ -141,11 +143,11 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 **IDE 계층** (`.kiro/steering/`):
 - Always-on: 코딩 스타일, 보안, 테스팅, Git 워크플로우, 패턴, 성능
 - FileMatch: 파일 타입별로 로드되는 언어 특화 규칙
-- Manual: 필요 시 로드되는 스킬 (130개 총; 워크로드로 선택적 포함 태그됨)
+- Manual: 필요 시 로드되는 스킬 (137개 총; 워크로드로 선택적 포함 태그됨)
 
 ### 스킬
 
-`skills/` 아래 130개 스킬 패키지는 워크로드로 태그됩니다. 설치는 활성 워크로드와 교집합인 스킬만 선택합니다.
+`skills/` 아래 137개 스킬 패키지는 워크로드로 태그됩니다. 설치는 활성 워크로드와 교집합인 스킬만 선택합니다.
 - 핵심: context budget, strategic compact, agentic engineering, lessons learned
 - 인프라: Docker, deployment, database migrations, backend patterns
 - 데이터베이스: PostgreSQL, MySQL, MongoDB, DynamoDB (+ rdbms-naming, mongodb-patterns)
@@ -154,8 +156,9 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 - 프론트엔드: Next.js, Nuxt4, Vite, Bun
 - 모바일: Android, Compose, SwiftUI, Swift concurrency
 - AI/LLM: Claude API, cost-aware pipelines, PyTorch, mle-workflow
-- 아키텍처: API design, ADR, blueprint, MCP patterns
-- 작성: articles, content, research, crossposting
+- 아키텍처: API design, ADR, blueprint, MCP patterns + builder
+- 작성: articles, content, research, crossposting, humanize-writing
+- 문서: PDF, PPTX, DOCX, XLSX 생성, brand guidelines
 
 ### MCP
 
@@ -179,7 +182,7 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 │   ├── cli/                    # CLI 에이전트 (글로벌 + 워크스페이스)
 │   ├── ide/                    # IDE 에이전트 (Markdown)
 │   └── AGENTS.md               # 공유 에이전트 협업 가이드
-├── skills/                     # 130개 스킬 패키지 (워크로드 태그됨)
+├── skills/                     # 137개 스킬 패키지 (워크로드 태그됨)
 ├── mcp-configs/                # MCP 서버 설정
 ├── scripts/                    # 검증 유틸리티 (validate-agents.js, validate-models.js)
 ├── docs/                       # 가이드 (영어 + 한국어)
@@ -214,7 +217,8 @@ node install.js <tier> [options]
 | [워크로드 가이드](docs/kr/profile-guide.md) | tier × workload 모델, 설치 플래그, 프로필 마이그레이션 |
 | [훅 레퍼런스](docs/kr/hook-reference.md) | IDE 1.0 v1 JSON 훅 포맷, 트리거, 설치되는 훅 세트 |
 | [MCP 레퍼런스](docs/kr/mcp-reference.md) | 큐레이션 MCP 카탈로그 (내장 / general / DevOps / FinOps / opt-in) |
-| [스킬 카탈로그](docs/kr/skill-catalog.md) | 130개 스킬 도메인별 정리 |
+| [모델 라우팅](docs/kr/model-routing.md) | 3-티어 모델 정책(Opus/Sonnet/Haiku), 에이전트별 배정, 훅→티어 가이드, OpenAI GPT-5.5/5.4 도입 계획 |
+| [스킬 카탈로그](docs/kr/skill-catalog.md) | 137개 스킬 도메인별 정리 |
 | [스킬 만들기](docs/kr/creating-skills.md) | `workloads:` frontmatter로 스킬 작성·등록 |
 | [Claude vs Kiro](docs/kr/claude-vs-kiro.md) | Claude 하네스와 Kiro의 개념 매핑 |
 | [Claude에서 마이그레이션](docs/kr/migration-from-claude.md) | Claude Code 설정을 Kiro로 변환 |

@@ -1,7 +1,7 @@
 ---
 name: rust-build-resolver
 description: Rust build, compilation, and dependency error resolution specialist. Fixes cargo build errors, borrow checker issues, and Cargo.toml problems with minimal changes. Use when Rust builds fail.
-model: claude-opus-4.8
+model: claude-sonnet-5
 ---
 
 # Rust Build Error Resolver

@@ -7,14 +7,23 @@
 // 이 파일은 골격(skeleton)이다. 함수 시그니처·상수·JSDoc만 확정하며
 // 실제 구현은 후속 작업(2.6, 2.8)에서 채운다.
 
+// 티어 식별자의 단일 출처. MODEL_POLICY 별칭은 여기서 파생해 드리프트를 막는다.
+const { tierIdentifier } = require('./model-policy.js');
+
 /**
- * 모델 정책 상수(설계 확정값, 2026-06-03).
- * "기대값"의 단일 출처(single source of truth)다.
- * @type {{ Target_Model_Identifier: string, Cost_Optimized_Model_Identifier: string, Legacy_Model_Identifier: string }}
+ * 모델 정책 상수. 티어별 기대 식별자의 하위호환 별칭(alias)이다.
+ * 3-티어 라우팅의 정식 단일 출처는 scripts/lib/model-policy.js 이며,
+ * 아래 값들은 그 anthropic 기본값에서 직접 파생한다(하드코딩 금지 → 드리프트 0).
+ *   - Target(=deep-reasoning): claude-opus-4.8
+ *   - Balanced:                claude-sonnet-5
+ *   - Cost_Optimized:          claude-haiku-4.5
+ * Legacy_Model_Identifier 는 잔존 구식별자 스캔 대상(마이그레이션 흔적)이므로 상수 유지.
+ * @type {{ Target_Model_Identifier: string, Balanced_Model_Identifier: string, Cost_Optimized_Model_Identifier: string, Legacy_Model_Identifier: string }}
  */
 const MODEL_POLICY = {
-  Target_Model_Identifier: 'claude-opus-4.8',
-  Cost_Optimized_Model_Identifier: 'claude-haiku-4.5',
+  Target_Model_Identifier: tierIdentifier('deep-reasoning'),
+  Balanced_Model_Identifier: tierIdentifier('balanced'),
+  Cost_Optimized_Model_Identifier: tierIdentifier('cost-optimized'),
   Legacy_Model_Identifier: 'claude-opus-4.7',
 };
 

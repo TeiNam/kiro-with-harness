@@ -3,6 +3,20 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-07-09
+
+### Added
+- **3-tier provider-agnostic model routing** — `scripts/lib/model-policy.js` is the new single source of truth mapping every agent role to a capability tier: deep-reasoning → `claude-opus-4.8` / `gpt-5.5`, balanced → `claude-sonnet-5` / `gpt-5.4`, cost-optimized → `claude-haiku-4.5` / `gpt-5.4`. `balanced` is the default tier.
+- `scripts/apply-model-policy.js` — applies the tier→identifier map to all agent files (line-preserving; `--provider=anthropic|openai`, `--dry-run`). Idempotent; fails fast on unknown flags/providers and on corrupt/field-missing agent files.
+- `docs/{en,kr}/model-routing.md` — tiers, per-agent assignment, hook→tier guidance, the model-ID (`/model`) dot-vs-hyphen caveat, and the OpenAI GPT-5.5/5.4 forward plan (`--provider=openai` switch).
+- New skills (7): `humanize-writing` (human-like web/long-form writing), `pdf-generation`, `pptx-generation`, `docx-generation`, `xlsx-generation` (document deliverables), plus popular gap-fillers `mcp-builder` and `brand-guidelines`. Skill count 130 → 137.
+- `test/model-policy.test.js` — unit tests for the SSOT policy (classification, tier identifiers, providers) and the applier's argument contract.
+
+### Changed
+- Balanced tier introduced: **47 coding-volume agents** (code-reviewer, refactor-cleaner, all language reviewers/build-resolvers, e2e-runner, database-reviewer, doc/tech writers) repinned from `claude-opus-4.8` → `claude-sonnet-5`. Deep-reasoning roles (kiro-cli, architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler) stay on Opus; cost-optimized (translator-docs, article-writer, content-creator) stay on Haiku.
+- `validate-models.js` now validates all three tiers (was two); `MODEL_POLICY` in `model-detect.js` derives its identifiers from the SSOT to prevent drift; `workloads.js` gains classification rules for the new skills.
+- README/README-KR Models section reworked to the 3-tier table (Opus/Sonnet/Haiku) with the OpenAI forward mapping and a Model routing doc link; `agents/AGENTS.md` model policy and `docs/{en,kr}/skill-catalog.md` updated; `claude-api`, `aws-bedrock`, and `cost-aware-llm-pipeline` skills bumped from `claude-sonnet-4-6` to `claude-sonnet-5`.
+
 ## 2026-06-29
 
 ### Changed

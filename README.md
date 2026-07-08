@@ -96,13 +96,15 @@ Build agents (build-error-resolver, language build-resolvers, e2e-runner, kiro-c
 
 ## Models
 
-Agent model assignments are role-based. The `model` field in each agent definition is the single source of truth. The harness is **tuned for three Kiro models** — **`claude-opus-4.8` (default)**, `claude-sonnet-4.6`, and `claude-haiku-4.5`. The `kiro-cli` orchestrator (set as the default agent on install) and all reasoning agents are pinned to `claude-opus-4.8`; cost-sensitive roles use `claude-haiku-4.5`. (Kiro offers other models too; these three are what the harness is optimized around.)
+Agent model assignments are role-based, organized into three **provider-agnostic capability tiers**. The `model` field in each agent definition is the single source of truth, written from [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js). The harness is **tuned for three Kiro models** — **`claude-opus-4.8`** (deep reasoning), **`claude-sonnet-5`** (balanced, the default coding tier), and **`claude-haiku-4.5`** (cost-optimized). The `kiro-cli` orchestrator (set as the default agent on install) and reasoning agents are pinned to `claude-opus-4.8`; the high-volume coding agents use `claude-sonnet-5`; cost-sensitive roles use `claude-haiku-4.5`.
 
-| Role | Model | Agents |
+| Tier | Model | Agents |
 |------|-------|--------|
-| Reasoning | `claude-opus-4.8` | architect, code-reviewer, security-reviewer, deep-researcher, devops, refactor-cleaner, language reviewers, build-resolvers |
+| Deep reasoning | `claude-opus-4.8` | kiro-cli, architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| Balanced (default) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, language reviewers, build-resolvers, database-reviewer, e2e-runner, doc/tech writers |
 | Cost-optimized | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
-| General | inherited | Agents without explicit `model` inherit the model selected in chat |
+
+The design principle: **Opus reasons and orchestrates, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** Routing is per-agent, so you can mix models across roles. When OpenAI's GPT-5.5 / GPT-5.4 become selectable in Kiro, the same tiers map to them (`deep-reasoning → gpt-5.5`, `balanced → gpt-5.4`) — run `node scripts/apply-model-policy.js --provider=openai` to retarget. Full details, hook→tier guidance, and the provider-switch workflow: [Model routing](docs/en/model-routing.md).
 
 > **Opus 4.8 availability:** `claude-opus-4.8` is **experimental** and available only in **us-east-1** and **eu-central-1**. It requires **Kiro CLI v2.5.0+**. Agents pinned to `claude-opus-4.8` will fail on older CLI versions or unsupported regions — upgrade Kiro CLI to avoid silent failures.
 
@@ -141,11 +143,11 @@ Agent model assignments are role-based. The `model` field in each agent definiti
 **IDE tier** (`.kiro/steering/`):
 - Always-on: coding style, security, testing, git workflow, patterns, performance
 - FileMatch: language-specific rules loaded per file type
-- Manual: skills loaded on demand (130 total; workload-tagged for selective inclusion)
+- Manual: skills loaded on demand (137 total; workload-tagged for selective inclusion)
 
 ### Skills
 
-130 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
+137 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
 - Core: context budget, strategic compact, agentic engineering, lessons learned
 - Infrastructure: Docker, deployment, database migrations, backend patterns
 - Databases: PostgreSQL, MySQL, MongoDB, DynamoDB (+ rdbms-naming, mongodb-patterns)
@@ -154,8 +156,9 @@ Agent model assignments are role-based. The `model` field in each agent definiti
 - Frontend: Next.js, Nuxt4, Vite, Bun
 - Mobile: Android, Compose, SwiftUI, Swift concurrency
 - AI/LLM: Claude API, cost-aware pipelines, PyTorch, mle-workflow
-- Architecture: API design, ADRs, blueprint, MCP patterns
-- Writing: articles, content, research, crossposting
+- Architecture: API design, ADRs, blueprint, MCP patterns + builder
+- Writing: articles, content, research, crossposting, humanize-writing
+- Documents: PDF, PPTX, DOCX, XLSX generation, brand guidelines
 
 ### MCP
 
@@ -179,7 +182,7 @@ Full catalog (general / DevOps / FinOps / opt-in incl. brave-search, sentry, tim
 │   ├── cli/                    # CLI agents (global + workspace)
 │   ├── ide/                    # IDE agents (Markdown)
 │   └── AGENTS.md               # Shared agent collaboration guide
-├── skills/                     # 130 skill packages (workload-tagged)
+├── skills/                     # 137 skill packages (workload-tagged)
 ├── mcp-configs/                # MCP server configurations
 ├── scripts/                    # Validation utilities (validate-agents.js, validate-models.js)
 ├── docs/                       # Guides (English + Korean)
@@ -214,7 +217,8 @@ Full guides live under `docs/` — English in `docs/en/`, Korean in `docs/kr/`.
 | [Workload guide](docs/en/profile-guide.md) | Tier × workload model, install flags, profile migration |
 | [Hook reference](docs/en/hook-reference.md) | IDE 1.0 v1 JSON hook format, triggers, the installed hook set |
 | [MCP reference](docs/en/mcp-reference.md) | Curated MCP catalog (built-in / general / DevOps / FinOps / opt-in) |
-| [Skill catalog](docs/en/skill-catalog.md) | The 130 skills by domain |
+| [Model routing](docs/en/model-routing.md) | 3-tier model policy (Opus/Sonnet/Haiku), per-agent assignment, hook→tier guidance, OpenAI GPT-5.5/5.4 forward plan |
+| [Skill catalog](docs/en/skill-catalog.md) | The 137 skills by domain |
 | [Creating skills](docs/en/creating-skills.md) | Authoring + registering a skill via `workloads:` frontmatter |
 | [Claude vs Kiro](docs/en/claude-vs-kiro.md) | Conceptual mapping between the Claude harness and Kiro |
 | [Migration from Claude](docs/en/migration-from-claude.md) | Converting a Claude Code setup to Kiro |

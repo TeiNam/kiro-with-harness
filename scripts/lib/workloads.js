@@ -132,6 +132,7 @@ const RULES = [
   { pattern: /^(eval|agent)[-_]eval$/i, groups: ['ai-agent'] },
   { pattern: /^eval[-_]harness$/i, groups: ['ai-agent'] },
   { pattern: /^mcp[-_]server[-_]patterns$/i, groups: ['ai-agent'] },
+  { pattern: /^mcp[-_]builder$/i, groups: ['ai-agent'] },
   { pattern: /^agentic[-_]engineering$/i, groups: ['ai-agent'] },
   { pattern: /^enterprise[-_]agent[-_]ops$/i, groups: ['ai-agent'] },
   { pattern: /^prompt[-_]optimizer$/i, groups: ['ai-agent'] },
@@ -185,6 +186,11 @@ const RULES = [
   { pattern: /^markdown[-_]writing$/i, groups: ['writing'] },
   { pattern: /^video[-_]editing$/i, groups: ['writing'] },
   { pattern: /^humanize[-_]korean$/i, groups: ['writing'] },
+  { pattern: /^humanize[-_]writing$/i, groups: ['writing'] },
+  // 문서 생성 스킬(pdf/pptx/docx/xlsx). xlsx 는 데이터 리포팅도 겸해 python-data 추가.
+  { pattern: /^(pdf|pptx|docx|xlsx)[-_]generation$/i, groups: ['writing'] },
+  { pattern: /^xlsx[-_]generation$/i, groups: ['writing', 'python-data'] },
+  { pattern: /^brand[-_]guidelines$/i, groups: ['writing', 'frontend'] },
   { pattern: /^frontend[-_]slides$/i, groups: ['writing', 'frontend'] },
 
   // ── Domain (비즈니스 도메인) ──

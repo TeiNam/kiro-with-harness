@@ -23,10 +23,10 @@ Build applications with the Anthropic Claude API and SDKs.
 |-------|-----|----------|
 | Opus 4.8 | `claude-opus-4-8` | Most complex reasoning, large-context architecture, long-horizon agentic work |
 | Opus 4.1 | `claude-opus-4-1` | Complex reasoning, architecture, research |
-| Sonnet 4.6 | `claude-sonnet-4-6` | Balanced coding, most development tasks |
+| Sonnet 5 | `claude-sonnet-5` | Balanced coding, most development tasks |
 | Haiku 4.5 | `claude-haiku-4-5` | Fast responses, high-volume, cost-sensitive |
 
-Default to Sonnet 4.6 unless the task requires deep reasoning (Opus) or speed/cost optimization (Haiku). For production, prefer pinned snapshot IDs over aliases.
+Default to Sonnet 5 unless the task requires deep reasoning (Opus) or speed/cost optimization (Haiku). For production, prefer pinned snapshot IDs over aliases.
 
 ## Python SDK
 
@@ -44,7 +44,7 @@ import anthropic
 client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
 
 message = client.messages.create(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     max_tokens=1024,
     messages=[
         {"role": "user", "content": "Explain async/await in Python"}
@@ -57,7 +57,7 @@ print(message.content[0].text)
 
 ```python
 with client.messages.stream(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     max_tokens=1024,
     messages=[{"role": "user", "content": "Write a haiku about coding"}]
 ) as stream:
@@ -69,7 +69,7 @@ with client.messages.stream(
 
 ```python
 message = client.messages.create(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     max_tokens=1024,
     system="You are a senior Python developer. Be concise.",
     messages=[{"role": "user", "content": "Review this function"}]
@@ -92,7 +92,7 @@ import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic(); // reads ANTHROPIC_API_KEY from env
 
 const message = await client.messages.create({
-  model: "claude-sonnet-4-6",
+  model: "claude-sonnet-5",
   max_tokens: 1024,
   messages: [
     { role: "user", content: "Explain async/await in TypeScript" }
@@ -105,7 +105,7 @@ console.log(message.content[0].text);
 
 ```typescript
 const stream = client.messages.stream({
-  model: "claude-sonnet-4-6",
+  model: "claude-sonnet-5",
   max_tokens: 1024,
   messages: [{ role: "user", content: "Write a haiku" }],
 });
@@ -138,7 +138,7 @@ tools = [
 ]
 
 message = client.messages.create(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     max_tokens=1024,
     tools=tools,
     messages=[{"role": "user", "content": "What's the weather in SF?"}]
@@ -151,7 +151,7 @@ for block in message.content:
         result = get_weather(**block.input)
         # Send result back
         follow_up = client.messages.create(
-            model="claude-sonnet-4-6",
+            model="claude-sonnet-5",
             max_tokens=1024,
             tools=tools,
             messages=[
@@ -175,7 +175,7 @@ with open("diagram.png", "rb") as f:
     image_data = base64.standard_b64encode(f.read()).decode("utf-8")
 
 message = client.messages.create(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     max_tokens=1024,
     messages=[{
         "role": "user",
@@ -193,7 +193,7 @@ For complex reasoning tasks:
 
 ```python
 message = client.messages.create(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     max_tokens=16000,
     thinking={
         "type": "enabled",
@@ -215,7 +215,7 @@ Cache large system prompts or context to reduce costs:
 
 ```python
 message = client.messages.create(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     max_tokens=1024,
     system=[
         {"type": "text", "text": large_system_prompt, "cache_control": {"type": "ephemeral"}}
@@ -239,7 +239,7 @@ batch = client.messages.batches.create(
         {
             "custom_id": f"request-{i}",
             "params": {
-                "model": "claude-sonnet-4-6",
+                "model": "claude-sonnet-5",
                 "max_tokens": 1024,
                 "messages": [{"role": "user", "content": prompt}]
             }
@@ -285,7 +285,7 @@ messages = [{"role": "user", "content": "Review the auth module for security iss
 
 while True:
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-sonnet-5",
         max_tokens=4096,
         tools=tools,
         messages=messages,
@@ -333,7 +333,7 @@ except APIError as e:
 export ANTHROPIC_API_KEY="your-api-key-here"
 
 # Optional: set default model
-export ANTHROPIC_MODEL="claude-sonnet-4-6"
+export ANTHROPIC_MODEL="claude-sonnet-5"
 ```
 
 Never hardcode API keys. Always use environment variables.

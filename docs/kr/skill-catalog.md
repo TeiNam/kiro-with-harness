@@ -1,6 +1,6 @@
 # 스킬(Skill) 카탈로그
 
-도메인별로 정리된 130개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
+도메인별로 정리된 137개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
 
 ## 인프라(Infrastructure)
 
@@ -109,6 +109,7 @@
 | architecture-decision-records | ADR 템플릿, 의사결정 기록 |
 | blueprint | 시스템 블루프린트, 컴포넌트 다이어그램, 데이터 흐름 |
 | mcp-server-patterns | MCP 서버 구현 패턴 |
+| mcp-builder | MCP 서버 스캐폴딩·강화 — 트랜스포트, 도구/리소스/프롬프트, 입력 검증, Kiro 등록 |
 | codebase-onboarding | 코드베이스 탐색, 의존성 매핑 |
 | agent-harness-construction | 에이전트 하네스 설계, 스티어링, 훅, 스킬 |
 
@@ -144,6 +145,7 @@
 | 스킬 | 설명 |
 |-------|-------------|
 | article-writing | 기술 문서 구조, 초안 작성, 편집 |
+| humanize-writing | 웹/장문 글쓰기의 AI 티(tell) 제거 + 실제 품질 향상 (영어/범용, humanize-korean의 짝) |
 | content-engine | 콘텐츠 파이프라인, 스케줄링, 멀티 플랫폼 |
 | deep-research | 심층 리서치 방법론, 출처 평가 |
 | search-first | 검색 우선 접근법, 정보 수집 |
@@ -151,6 +153,16 @@
 | crosspost | 크로스 플랫폼 콘텐츠 배포 |
 | investor-materials | 피치 덱, 재무 모델, 원페이저 |
 | investor-outreach | 투자자 커뮤니케이션, 후속 시퀀스 |
+
+## 문서 및 산출물(Documents & Deliverables)
+
+| 스킬 | 설명 |
+|-------|-------------|
+| pdf-generation | PDF 생성/채우기/추출 — reportlab(데이터), WeasyPrint(HTML/CSS), pandoc+Typst(마크다운), pypdf/pdfplumber(읽기/폼) |
+| pptx-generation | python-pptx(또는 pptxgenjs)로 네이티브 .pptx; 오버플로·시각 QA 주의사항 반영 |
+| docx-generation | python-docx / pandoc로 네이티브 .docx; DXA 표 폭, US Letter, 스타일 |
+| xlsx-generation | openpyxl / XlsxWriter / pandas로 .xlsx; 실시간 수식, LibreOffice 재계산, 오류 0 전달 |
+| brand-guidelines | 브랜드 색·폰트·로고·보이스를 문서·덱·웹 산출물에 일관 적용 |
 
 ## 언어별 테스트(Language-Specific Testing)
 

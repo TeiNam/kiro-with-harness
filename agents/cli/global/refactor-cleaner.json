@@ -24,7 +24,7 @@
     "thinking",
     "todo_list"
   ],
-  "model": "claude-opus-4.8",
+  "model": "claude-sonnet-5",
   "toolsSettings": {
     "execute_bash": {
       "autoAllowReadonly": true,

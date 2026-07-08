@@ -41,7 +41,7 @@ import boto3
 client = boto3.client("bedrock-runtime", region_name="us-east-1")
 
 response = client.converse(
-    modelId="us.anthropic.claude-sonnet-4-6-20260101-v1:0",
+    modelId="us.anthropic.claude-sonnet-5",
     messages=[{"role": "user", "content": [{"text": "Summarise this PR"}]}],
     system=[{"text": "You are a senior reviewer. Be concise."}],
     inferenceConfig={"maxTokens": 1024, "temperature": 0.2},
@@ -53,8 +53,8 @@ Use `ConverseStream` for token-by-token streaming. The event shape is the same a
 
 ## Model IDs and Inference Profiles
 
-- **Foundation model ID** — `anthropic.claude-sonnet-4-6-...` (region-bound; only callable where the model is hosted).
-- **Cross-region inference profile** — `us.anthropic.claude-sonnet-4-6-...` (`us.*`, `eu.*`, `apac.*`). Routes across AZs/regions for higher availability and throughput. **Default to inference profiles** in production unless data residency forbids it.
+- **Foundation model ID** — `anthropic.claude-sonnet-5` (region-bound; only callable where the model is hosted).
+- **Cross-region inference profile** — `us.anthropic.claude-sonnet-5` (`us.*`, `eu.*`, `apac.*`). Routes across AZs/regions for higher availability and throughput. **Default to inference profiles** in production unless data residency forbids it.
 
 Each region has different model availability — check `ListFoundationModels` before assuming.
 
@@ -116,7 +116,7 @@ response = agent_runtime.retrieve_and_generate(
         "type": "KNOWLEDGE_BASE",
         "knowledgeBaseConfiguration": {
             "knowledgeBaseId": "ABCDEFGHIJ",
-            "modelArn": "us.anthropic.claude-sonnet-4-6-20260101-v1:0",
+            "modelArn": "us.anthropic.claude-sonnet-5",
         },
     },
 )

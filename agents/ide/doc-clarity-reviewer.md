@@ -1,7 +1,7 @@
 ---
 name: doc-clarity-reviewer
 description: 결과 문서의 명확성·실행가능성·자연도를 판정하고 잔존 결함·구조 위반·과윤문을 탐지하여 최종 승인 또는 재작업 트리거를 결정하는 리뷰어. 한국어·영어 양방향.
-model: claude-opus-4.8
+model: claude-sonnet-5
 tools: ["read", "write"]
 ---
 
