@@ -58,6 +58,18 @@ Kiro는 `model` 값을 모델 서비스가 반환하는 ID와 대조한다. **�
 - OpenAI는 원래 **점** 표기다: `gpt-5.5`, `gpt-5.4`.
 - **의존하기 전에 활성 Kiro 세션에서 `/model`로 각 식별자를 확인하라.** 사용 중인 Kiro 빌드가 하이픈 마이너 버전 형식을 기대한다면 `model-policy.js`의 `TIERS`를 고치고 적용기를 다시 실행한다.
 
+## Kiro 가용성 (기본 티어가 `balanced`라 중요)
+
+티어 값은 Anthropic 모델명이지만, **Kiro 내부 가용성**은 다르며 가용하지 않은 모델은 세션 기본값으로 조용히 폴백한다. 2026-07-11 기준([kiro.dev/docs/models](https://kiro.dev/docs/models)):
+
+| 모델 | Kiro 상태 | 리전 | 플랜 |
+|------|-----------|------|------|
+| `claude-opus-4.8` | Active | us-east-1, eu-central-1 | Pro / Pro+ / Power |
+| `claude-sonnet-5` | **Experimental** | **us-east-1 전용** | Pro / Pro+ / Power (Free 제외) |
+| `claude-haiku-4.5` | Active | us-east-1, eu-central-1 | 광범위 |
+
+**이 제약은 `balanced`(Sonnet 5)에 가장 크게 작용한다 — 대다수 에이전트를 커버하는 기본 티어이기 때문이다.** Anthropic API에서는 Sonnet 5가 GA지만 **Kiro에서는 Experimental + us-east-1 전용**이다. eu-central-1이나 Free 티어에서 하네스를 설치하면 대부분의 에이전트가 기본 모델로 조용히 폴백한다. 그 경우 `TIERS`(`model-policy.js`)의 `balanced`를 가용한 모델로 바꾸고 적용기를 다시 실행한 뒤 `/model`로 확인하라. (Sonnet 5는 수동 extended thinking이 제거되고 adaptive thinking이 기본 ON이다. effort는 low→max를 API 수준에서 지원하며 코딩·agentic에는 high/xhigh가 적합.)
+
 ## 훅(Hook) → 티어 가이드
 
 IDE 훅(`.kiro/hooks/*.json`, v1 포맷)은 `askAgent` 프롬프트로 에이전트 액션을 트리거한다. v1 훅 스키마에는 **훅별 모델 필드가 없으므로**, 훅이 트리거한 액션은 현재 세션 모델로 실행된다. 훅 작업 성격에 맞춰 세션 모델을 고른다:

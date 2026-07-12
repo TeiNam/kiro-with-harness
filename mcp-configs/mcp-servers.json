@@ -1,4 +1,19 @@
 {
+  "mcpProxy": {
+    "_comment": "Central MCP aggregator (tbxark/mcp-proxy), bundled at repo mcp-proxy/ (docker compose up -d). When install.js runs with --mcp-proxy, each selected server below is emitted into the generated .kiro/settings/mcp.json as { type:http, url } pointing at the proxy — overriding its direct stdio/general or docker equivalent. Non-proxyable servers stay direct: credentialed AWS docker servers (aws-core/cloudwatch/aws-ecs/aws-iam/aws-pricing/aws-billing-cost-management) keep their docker run, and host-specific stdio (GitKraken, playwright) is left to the client. Kiro built-ins (github, context7, playwright, memory, sequential-thinking) are intentionally NOT listed — Kiro provides them natively, so they are never proxied into a Kiro config (the proxy still serves github/context7 backends for non-Kiro clients). workloads gate = same rule as mcpServers: [] or omitted means universal, otherwise include only when it intersects the active workloads.",
+    "baseURL": "http://localhost:9090",
+    "servers": {
+      "fetch": { "workloads": [] },
+      "time": { "workloads": [] },
+      "brave-search": { "workloads": ["writing"] },
+      "exa": { "workloads": ["writing"] },
+      "drawio": { "workloads": ["architecture", "writing"] },
+      "token-optimizer": { "workloads": ["ai-agent", "ai"] },
+      "obsidian": { "workloads": ["obsidian"] },
+      "aws-documentation": { "workloads": ["cloud"] },
+      "terraform": { "workloads": ["cloud"] }
+    }
+  },
   "mcpServers": {
     "_comment": "비-docker MCP 서버. workloads 태그가 있으면 해당 워크로드(IDE 티어)에서만 포함(없으면 범용). CLI 티어는 mcp.json 을 생성하지 않으므로 IDE 전용이다.",
     "cloudflare-docs": {

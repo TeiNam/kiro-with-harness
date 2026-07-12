@@ -7,6 +7,37 @@ Curated Model Context Protocol (MCP) server catalog. Source of truth: `mcp-confi
 - Keep **fewer than ~10 active servers** to preserve the context window.
 - Secrets use `${VAR}` env references or `YOUR_*_HERE` placeholders — never commit real tokens.
 
+## Serving via MCP Proxy (`--mcp-proxy`)
+
+Running a local mcp-proxy instance (tbxark/mcp-proxy, bundled in the `mcp-proxy/` directory) centralizes multiple MCP servers in a single container, allowing all clients to connect to a single endpoint: `http://localhost:9090/<server>/mcp`. This prevents redundant server startup across multiple clients and reduces resource overhead. For setup and API key configuration, see `mcp-proxy/README.md`.
+
+When you install with `--mcp-proxy`, the generated `.kiro/settings/mcp.json` records proxy-eligible servers as HTTP connections instead of stdio/docker: `{"type":"http","url":"http://localhost:9090/<server>/mcp"}`.
+
+```bash
+node install.js ide --workload=cloud,writing --mcp-proxy
+```
+
+### Servers routed through the proxy (available when workload matches)
+
+| Server | Workload |
+|--------|----------|
+| fetch, time | (universal, always) |
+| brave-search, exa | writing |
+| drawio | architecture, writing |
+| token-optimizer | ai-agent, ai |
+| obsidian | obsidian |
+| aws-documentation, terraform | cloud |
+
+Proxied servers are excluded from general/docker output to prevent duplication. For example, in a cloud workload, terraform and aws-documentation emit proxy URLs rather than docker run commands.
+
+### Servers outside the proxy (not proxiable)
+
+- **Built into Kiro** — github, context7, playwright, memory, sequential-thinking. Because Kiro provides these natively, they are not exposed as proxy URLs (the proxy itself continues to serve github/context7 backends for non-Kiro clients).
+- **AWS Docker with credentials** — aws-core, cloudwatch, aws-ecs, aws-iam, aws-pricing, aws-billing-cost-management. Session-specific AWS credentials (AWS_PROFILE/keys, temporary SSO tokens) cannot be centralized in a shared proxy; these remain as direct docker run commands managed by the devops agent.
+- **Host-specific local stdio** — GitKraken (local binary paths), playwright (local browser). Clients start these directly; the harness does not manage them.
+
+> `--mcp-proxy` applies only to the IDE tier; the CLI tier does not generate mcp.json. If the proxy is not running, proxy URLs will fail to connect—start it first with `cd mcp-proxy && docker compose up -d`. We recommend keeping the total active servers well below ~10.
+
 ## Built into Kiro (not in the catalog)
 
 These are provided by Kiro itself, so the harness does not list them: `memory`, `sequential-thinking`, `context7`, `github`, `playwright`.

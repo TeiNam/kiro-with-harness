@@ -121,8 +121,10 @@ function hookJson(h) {
   return JSON.stringify({ version: 'v1', hooks: [hook] }, null, 2) + '\n';
 }
 
-function mcpJsonContent({ general, docker }) {
+function mcpJsonContent({ general, docker, proxy }) {
   const mcpServers = {};
+  // proxy(중앙 프록시 경유) 먼저 — general/docker 의 동명 서버는 select 단계에서 이미 제외됨
+  for (const [k, v] of Object.entries(proxy || {})) mcpServers[k] = v;
   for (const [k, v] of Object.entries(general || {})) mcpServers[k] = v;
   for (const [k, v] of Object.entries(docker || {})) {
     // docker 카탈로그 형태(pull/category/usedBy 등)에서 런타임 키만 추림

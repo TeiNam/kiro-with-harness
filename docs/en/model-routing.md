@@ -58,6 +58,18 @@ Kiro validates the `model` value against the IDs its model service returns. **An
 - OpenAI uses **dot** notation natively: `gpt-5.5`, `gpt-5.4`.
 - **Confirm each identifier with `/model` in an active Kiro session before relying on it.** If your Kiro build expects the hyphenated minor-version form, update `TIERS` in `model-policy.js` and re-run the applier.
 
+## Kiro Availability (matters because `balanced` is the default tier)
+
+The tier values are Anthropic model names; their **availability inside Kiro** differs, and an unavailable model silently falls back to the session default. As of 2026-07-11 ([kiro.dev/docs/models](https://kiro.dev/docs/models)):
+
+| Model | Kiro status | Regions | Plans |
+|-------|-------------|---------|-------|
+| `claude-opus-4.8` | Active | us-east-1, eu-central-1 | Pro / Pro+ / Power |
+| `claude-sonnet-5` | **Experimental** | **us-east-1 only** | Pro / Pro+ / Power (not Free) |
+| `claude-haiku-4.5` | Active | us-east-1, eu-central-1 | broad |
+
+**This bites hardest on `balanced` (Sonnet 5), because it is the default tier covering most agents.** On the Anthropic API Sonnet 5 is GA, but **in Kiro it is Experimental and us-east-1-only**. If you install the harness while on eu-central-1 or the Free tier, the majority of agents silently fall back to the default model. In that case, point `balanced` at an available model in `TIERS` (`model-policy.js`) and re-run the applier — then confirm with `/model`. (Sonnet 5 also removed manual extended thinking and defaults to adaptive thinking; effort levels low→max are supported at the API level, with high/xhigh best for coding/agentic work.)
+
 ## Hook → Tier Guidance
 
 IDE hooks (`.kiro/hooks/*.json`, v1 format) trigger agent actions via `askAgent` prompts. The v1 hook schema has **no per-hook model field**, so a hook-triggered action runs under the current session's model. Choose the session model with the hook workload in mind:

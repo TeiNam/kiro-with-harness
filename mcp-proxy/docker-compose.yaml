@@ -1,0 +1,39 @@
+services:
+  mcp-proxy:
+    image: ghcr.io/tbxark/mcp-proxy:latest
+    container_name: mcp-proxy
+    restart: unless-stopped
+    ports:
+      # 루프백에만 바인딩: 프록시는 github(PAT)/obsidian/brave 등 자격증명 백엔드를 프론트하므로
+      # 0.0.0.0(전 인터페이스) 노출 시 같은 LAN의 임의 호스트가 무인증으로 키를 쓸 수 있다.
+      # 로컬 클라이언트는 http://localhost:9090 으로 접근하므로 127.0.0.1 바인딩으로 충분.
+      # (원격 노출이 꼭 필요하면 config.json 에 authTokens 를 설정하고 바인딩을 조정할 것.)
+      - "127.0.0.1:9090:9090"
+    volumes:
+      # config.json은 읽기 전용으로 마운트 (Colima는 홈 디렉토리를 자동 마운트하므로 이 경로는 그대로 동작)
+      - ./config.json:/config/config.json:ro
+    environment:
+      # 값은 같은 폴더의 .env 파일, 또는 compose를 실행하는 셸의 환경변수(.zshrc/.bashrc의 export)에서 주입됨.
+      # config.json의 ${BRAVE_API_KEY} / ${GITHUB_PAT} / ${OBSIDIAN_API_KEY} 가 컨테이너 안에서 이 값으로 치환된다.
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+      GITHUB_PAT: ${GITHUB_PAT:-}
+      OBSIDIAN_API_KEY: ${OBSIDIAN_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Colima에서 컨테이너→호스트(Obsidian REST API 등) 도달용
+    depends_on:
+      - terraform-mcp
+
+  # Terraform MCP (Go 바이너리라 프록시 컨테이너 안에서 못 돌리므로 별도 서비스로 streamable-http 실행)
+  # 프록시는 내부 네트워크에서 http://terraform-mcp:8080/mcp 로 접근 (호스트에 포트 미발행)
+  terraform-mcp:
+    image: hashicorp/terraform-mcp-server:1.0.0
+    container_name: terraform-mcp
+    restart: unless-stopped
+    environment:
+      TRANSPORT_MODE: streamable-http
+      TRANSPORT_HOST: 0.0.0.0      # 컨테이너 밖(같은 네트워크의 프록시)에서 접근 허용
+      TRANSPORT_PORT: "8080"
+      MCP_CORS_MODE: disabled      # 내부 네트워크 전용(호스트/브라우저 미노출)이라 CORS 검사 비활성화
+      # HCP/TFE 워크스페이스 관리가 필요하면 아래 주석 해제:
+      # TFE_ADDRESS: https://app.terraform.io
+      # TFE_TOKEN: ${TFE_TOKEN:-}

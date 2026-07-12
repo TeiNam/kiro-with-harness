@@ -7,6 +7,37 @@
 - 컨텍스트 윈도 보호를 위해 **활성 서버는 ~10개 미만**으로 유지하세요.
 - 시크릿은 `${VAR}` 환경변수 참조나 `YOUR_*_HERE` 플레이스홀더로 — 실제 토큰은 절대 커밋하지 않습니다.
 
+## MCP Proxy 경유 (`--mcp-proxy`)
+
+로컬 mcp-proxy(tbxark/mcp-proxy, 저장소 `mcp-proxy/`에 번들)를 띄우면 여러 MCP 서버를 컨테이너 한 곳에서 중앙 관리하고, 클라이언트는 `http://localhost:9090/<서버>/mcp` 하나만 바라봅니다. 여러 클라이언트가 같은 서버 프로세스를 중복 기동하지 않아 리소스를 절약할 수 있습니다. 설치와 API 키 설정은 `mcp-proxy/README.md`를 참고하세요.
+
+IDE 설치에 `--mcp-proxy`를 주면 생성되는 `.kiro/settings/mcp.json`이 프록시 가능한 서버를 직접 stdio/docker 대신 `{"type":"http","url":"http://localhost:9090/<서버>/mcp"}` 형태로 기록합니다.
+
+```bash
+node install.js ide --workload=cloud,writing --mcp-proxy
+```
+
+### 프록시로 들어가는 것 (프록시 가능 — 활성 워크로드 매칭 시)
+
+| 서버 | 워크로드 |
+|------|----------|
+| fetch, time | (범용, 항상) |
+| brave-search, exa | writing |
+| drawio | architecture, writing |
+| token-optimizer | ai-agent, ai |
+| obsidian | obsidian |
+| aws-documentation, terraform | cloud |
+
+프록시로 나가는 서버는 general/docker 출력에서 제외됩니다(중복 방지). 예를 들어 cloud 워크로드에서 terraform과 aws-documentation은 docker run이 아닌 프록시 URL로 나갑니다.
+
+### 프록시 밖에 남는 것 (프록시 불가)
+
+- **Kiro 내장** — github, context7, playwright, memory, sequential-thinking. Kiro가 자체 제공하므로 프록시 URL로도 넣지 않습니다(프록시 자체는 비-Kiro 클라이언트용으로 github/context7 백엔드를 계속 제공).
+- **자격증명 필요 AWS docker** — aws-core, cloudwatch, aws-ecs, aws-iam, aws-pricing, aws-billing-cost-management. 세션별 AWS 자격증명(AWS_PROFILE/키, SSO 임시 토큰)을 공유 프록시에 중앙화할 수 없어 그대로 docker run으로 남고 devops 에이전트가 직접 띄웁니다.
+- **호스트 특정 로컬 stdio** — GitKraken(로컬 바이너리 경로), playwright(로컬 브라우저). 클라이언트가 직접 띄웁니다. 하네스는 관리하지 않습니다.
+
+> `--mcp-proxy`는 IDE 티어에만 적용됩니다(CLI 티어는 mcp.json을 생성하지 않음). 프록시가 안 떠 있으면 프록시 URL은 연결되지 않으므로 먼저 `cd mcp-proxy && docker compose up -d`로 기동하세요. 활성 서버 총합은 ~10개 미만 유지를 권장합니다.
+
 ## Kiro 내장 (카탈로그 미포함)
 
 Kiro가 자체 제공하므로 하네스는 나열하지 않습니다: `memory`, `sequential-thinking`, `context7`, `github`, `playwright`.

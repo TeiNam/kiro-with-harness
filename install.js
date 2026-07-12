@@ -27,6 +27,7 @@ const HARNESS_ROOT = __dirname;
 const { GROUPS, validateGroups } = require(path.join(HARNESS_ROOT, 'scripts/lib/workloads'));
 const { selectAssets, selectMcpServers } = require(path.join(HARNESS_ROOT, 'scripts/lib/select-assets'));
 const tiers = require(path.join(HARNESS_ROOT, 'scripts/lib/tiers'));
+const { runInteractiveInstall } = require(path.join(HARNESS_ROOT, 'scripts/lib/interactive'));
 
 let DRY_RUN = false;
 const MANIFEST_FILE = '.harness-manifest.json';
@@ -152,13 +153,17 @@ function runInstall(opts) {
   const scope = opts.scope || (tier === 'ide' ? 'workspace' : 'global');
   const workloads = resolveWorkloads(opts.workload);
   const reviewBackend = opts.reviewBackend || 'claude';
+  const useProxy = opts.mcpProxy === true;
 
   const kiroRoot = resolveKiroRoot(scope, opts.target);
-  console.log(`\ntier=${tier} scope=${scope} workloads=[${workloads.join(',') || 'core'}] review-backend=${reviewBackend}`);
+  console.log(`\ntier=${tier} scope=${scope} workloads=[${workloads.join(',') || 'core'}] review-backend=${reviewBackend}${useProxy ? ' mcp-proxy=on' : ''}`);
   console.log(`target: ${kiroRoot}`);
+  if (useProxy && tier === 'cli') {
+    console.log('  NOTE: --mcp-proxy 는 IDE 티어의 settings/mcp.json 에만 적용됩니다. CLI 티어는 mcp.json 을 생성하지 않아 효과가 없습니다.');
+  }
 
   const selection = selectAssets({ root: HARNESS_ROOT, tier, scope, workloads, reviewBackend });
-  selection.mcp = selectMcpServers({ root: HARNESS_ROOT, activeGroups: selection.activeGroups });
+  selection.mcp = selectMcpServers({ root: HARNESS_ROOT, activeGroups: selection.activeGroups, useProxy });
   const plan = tiers.plan(tier, selection, { root: HARNESS_ROOT });
 
   // 글로벌↔워크스페이스 중복 제거: 워크스페이스 설치 시 글로벌에 이미 있는 동일 파일은 상속(스킵)
@@ -174,7 +179,7 @@ function runInstall(opts) {
   const tracked = new Set();
   console.log('');
   executePlan(plan, kiroRoot, tracked);
-  writeManifest(kiroRoot, tracked, { tier, scope, workloads, reviewBackend });
+  writeManifest(kiroRoot, tracked, { tier, scope, workloads, reviewBackend, mcpProxy: useProxy });
   runPostInstall(plan.postInstall);
 
   if (DRY_RUN) {
@@ -211,7 +216,7 @@ function showStatus(opts) {
     console.log('  (no harness manifest — not installed)\n');
     return;
   }
-  console.log(`  tier: ${m.tier || '?'}  workloads: [${(m.workloads || []).join(',') || 'core'}]  review-backend: ${m.reviewBackend || '?'}`);
+  console.log(`  tier: ${m.tier || '?'}  workloads: [${(m.workloads || []).join(',') || 'core'}]  review-backend: ${m.reviewBackend || '?'}${m.mcpProxy ? '  mcp-proxy: on' : ''}`);
   console.log(`  managed files: ${m.managedFiles.length}`);
   if (m.installedAt) console.log(`  installed at: ${m.installedAt}`);
   const byTop = {};
@@ -231,22 +236,26 @@ function printIntro() {
     '',
     '  IDE 전용 (Kiro IDE):',
     '    node install.js ide --workload=python,cloud                      # 프로젝트 .kiro',
+    '    node install.js ide --workload=cloud,writing --mcp-proxy         # MCP를 로컬 mcp-proxy 경유로',
     '',
     '  옵션:',
     '    --review-backend kiro|claude   리뷰 에이전트 백엔드(기본 claude=peer-reviewer→claude -p)',
     '    --workload a,b | all           설치할 워크로드(기본: core만)',
+    '    --mcp-proxy                    프록시 가능한 MCP를 mcp-proxy(:9090) 경유 URL로 생성(IDE 티어). mcp-proxy/README.md 참고',
     '    --target <path>                워크스페이스 설치 위치(기본 cwd)',
     '    --dry-run                      변경 미리보기',
     '',
     '  node install.js --list      워크로드 목록',
     '  node install.js --status    설치 상태',
     '',
+    '  대화형 설치: 인자 없이 실행(TTY)하거나 `node install.js -i`',
+    '',
   ].join('\n'));
 }
 
 // ── CLI 파싱 ───────────────────────────────────────────────
 function parseArgs(argv) {
-  const opts = { tier: null, scope: null, workload: [], reviewBackend: null, target: null, dryRun: false, list: false, status: false, intro: false };
+  const opts = { tier: null, scope: null, workload: [], reviewBackend: null, target: null, dryRun: false, list: false, status: false, intro: false, mcpProxy: false, interactive: false };
   const args = argv.slice(2);
   if (args.length === 0) opts.intro = true;
   for (let i = 0; i < args.length; i++) {
@@ -260,6 +269,8 @@ function parseArgs(argv) {
       case '--scope': opts.scope = next(); break;
       case '--workload': case '--workloads': opts.workload = String(next() || '').split(',').map((s) => s.trim()).filter(Boolean); break;
       case '--review-backend': opts.reviewBackend = next(); break;
+      case '--mcp-proxy': opts.mcpProxy = true; break;
+      case '-i': case '--interactive': opts.interactive = true; break;
       case '--target': opts.target = path.resolve(next()); break;
       case '--dry-run': opts.dryRun = true; break;
       case '--list': opts.list = true; break;
@@ -274,7 +285,7 @@ function parseArgs(argv) {
   return opts;
 }
 
-function main(argv = process.argv) {
+async function main(argv = process.argv) {
   const opts = parseArgs(argv);
   DRY_RUN = opts.dryRun;
   console.log('Kiro Harness Installer (tier × workload)');
@@ -282,6 +293,32 @@ function main(argv = process.argv) {
 
   if (opts.list) return listWorkloads();
   if (opts.status) return showStatus(opts);
+
+  // 대화형: -i 명시, 또는 tier 미지정 + TTY(파이프/CI 아님).
+  const wantInteractive = opts.interactive || (!opts.tier && Boolean(process.stdin.isTTY));
+  if (wantInteractive) {
+    if (!process.stdin.isTTY) {
+      console.error('대화형 설치는 TTY가 필요합니다. 플래그로 지정하세요 (예: node install.js cli --workload=core). 목록: node install.js --list');
+      process.exit(1);
+    }
+    let chosen;
+    try {
+      chosen = await runInteractiveInstall({ dryRun: opts.dryRun, target: opts.target });
+    } catch (e) {
+      console.error(`\nERROR: ${e.message}`);
+      process.exit(1);
+    }
+    if (!chosen) { console.log('\n설치를 취소했습니다.'); return; }
+    DRY_RUN = chosen.dryRun === true;
+    try {
+      runInstall(chosen);
+    } catch (e) {
+      console.error(`\nERROR: ${e.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
   if (opts.intro || !opts.tier) return printIntro();
   if (!['cli', 'ide'].includes(opts.tier)) { console.error(`Unknown tier: ${opts.tier} (use cli|ide)`); process.exit(1); }
 
@@ -294,7 +331,7 @@ function main(argv = process.argv) {
 }
 
 if (require.main === module) {
-  main();
+  main().catch((e) => { console.error(`\nERROR: ${e.message}`); process.exit(1); });
 }
 
 module.exports = {

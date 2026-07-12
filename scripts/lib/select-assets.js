@@ -160,18 +160,40 @@ function loadMcpCatalog(root) {
 
 /**
  * 활성 워크로드에 맞는 카탈로그 MCP 서버 선택.
+ *   - proxy:   useProxy=true 일 때만. mcpProxy.servers 중 활성 워크로드에 맞는 것을
+ *              { type:'http', url } 로 emit(중앙 프록시 경유). 프록시로 나가는 이름은
+ *              general/docker 출력에서 제외한다(proxied wins). Kiro 내장(github/context7 등)은
+ *              애초에 mcpProxy.servers 에 없어 프록시로도 나가지 않는다.
  *   - general: 비-docker 서버. `workloads` 태그가 없으면 범용 포함, 있으면 활성
  *              워크로드와 교집합일 때만 포함(mcpydoc→python, cloudflare-docs→cloud).
- *   - docker:  워크로드 매칭 docker 서버 (cloud → category devops|finops 전체)
+ *   - docker:  워크로드 매칭 docker 서버 (cloud → category devops|finops 전체). 자격증명이
+ *              필요한 AWS 서버라 프록시화 불가 → useProxy 여도 그대로 docker 로 유지
+ *              (단 terraform/aws-documentation 은 프록시 대상이면 proxy 로 이동).
  * CLI 티어는 보통 에이전트(devops.json)가 자체 mcpServers 를 들고 가므로 docker 는
  * IDE 티어 mcp.json 구성에 주로 쓰인다.
  */
-function selectMcpServers({ root = ROOT, activeGroups = [] } = {}) {
+function selectMcpServers({ root = ROOT, activeGroups = [], useProxy = false } = {}) {
   const cat = loadMcpCatalog(root);
   const active = new Set(activeGroups);
+
+  // proxy(opt-in): 로컬 mcp-proxy 가 서빙하는, 활성 워크로드에 맞는 서버 이름 집합
+  const proxy = {};
+  const proxied = new Set();
+  if (useProxy && cat.mcpProxy && cat.mcpProxy.servers) {
+    const baseURL = (cat.mcpProxy.baseURL || 'http://localhost:9090').replace(/\/+$/, '');
+    for (const [name, def] of Object.entries(cat.mcpProxy.servers)) {
+      if (name.startsWith('_')) continue;
+      const wl = Array.isArray(def && def.workloads) ? def.workloads : [];
+      if (wl.length && !wl.some((w) => active.has(w))) continue; // 태그 있으면 워크로드 게이트
+      proxy[name] = { type: 'http', url: `${baseURL}/${name}/mcp` };
+      proxied.add(name);
+    }
+  }
+
   const general = {};
   for (const [name, def] of Object.entries(cat.mcpServers || {})) {
     if (name.startsWith('_')) continue;
+    if (proxied.has(name)) continue; // 프록시로 나가면 general 에서 제외(중복 방지)
     // workloads 태그가 있으면 활성 워크로드와 교집합일 때만 포함(없으면 범용)
     if (Array.isArray(def.workloads) && def.workloads.length && !def.workloads.some((w) => active.has(w))) continue;
     const { workloads, ...serverDef } = def; // 제어 필드는 출력 mcp.json 에 싣지 않음
@@ -180,10 +202,11 @@ function selectMcpServers({ root = ROOT, activeGroups = [] } = {}) {
   const docker = {};
   for (const [name, def] of Object.entries(cat.mcpServersDocker || {})) {
     if (name.startsWith('_')) continue;
+    if (proxied.has(name)) continue; // terraform/aws-documentation 등은 프록시로 이동
     const c = def && def.category;
     if (active.has('cloud') && (c === 'devops' || c === 'finops')) docker[name] = def;
   }
-  return { general, docker };
+  return { general, docker, proxy };
 }
 
 function parseArgs(argv) {

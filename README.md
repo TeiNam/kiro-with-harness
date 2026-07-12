@@ -14,6 +14,9 @@ Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload
 The installer uses a **tier × workload** model: choose `cli` or `ide`, then select workloads.
 
 ```bash
+# Interactive install (guided prompts: tier, scope, workloads, review backend, MCP proxy)
+node install.js              # or: node install.js -i
+
 # CLI tier: install global baseline (orchestrator agents, skills → ~/.kiro)
 node install.js cli --scope global --workload core
 
@@ -199,6 +202,7 @@ Tiers:
   ide                Install for Kiro IDE
 
 Options:
+  -i, --interactive              Guided interactive install (also the default with no args on a TTY)
   --scope <global|workspace>     Installation scope (default: global for CLI, workspace for IDE)
   --workload <list|all>          Comma-separated workloads or 'all' (default: core only)
   --review-backend <kiro|claude> Code review routing (default: claude)
@@ -220,7 +224,7 @@ Full guides live under `docs/` — English in `docs/en/`, Korean in `docs/kr/`.
 | [Model routing](docs/en/model-routing.md) | 3-tier model policy (Opus/Sonnet/Haiku), per-agent assignment, hook→tier guidance, OpenAI GPT-5.5/5.4 forward plan |
 | [Skill catalog](docs/en/skill-catalog.md) | The 137 skills by domain |
 | [Creating skills](docs/en/creating-skills.md) | Authoring + registering a skill via `workloads:` frontmatter |
-| [Claude vs Kiro](docs/en/claude-vs-kiro.md) | Conceptual mapping between the Claude harness and Kiro |
+| [Claude vs Kiro](docs/en/claude-vs-kiro.md) | Claude Code vs Kiro CLI vs Kiro IDE — feature-by-feature differences (official-docs-based) |
 | [Migration from Claude](docs/en/migration-from-claude.md) | Converting a Claude Code setup to Kiro |
 | [Eval harness](docs/en/eval-harness.md) | Eval-driven development workflow |
 | [Prompt templates](docs/en/prompt-templates.md) | Reusable prompt templates |

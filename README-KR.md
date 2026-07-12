@@ -14,6 +14,9 @@ Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 �
 설치 관리자는 **계층 × 워크로드** 모델을 사용합니다: `cli` 또는 `ide`를 선택한 후 워크로드를 선택하세요.
 
 ```bash
+# 대화형 설치 (가이드 프롬프트: 티어, scope, 워크로드, 리뷰 백엔드, MCP 프록시)
+node install.js              # 또는: node install.js -i
+
 # CLI 계층: 글로벌 기본 설정 설치 (오케스트레이터 에이전트, 스킬 → ~/.kiro)
 node install.js cli --scope global --workload core
 
@@ -199,6 +202,7 @@ node install.js <tier> [options]
   ide                Kiro IDE 용 설치
 
 옵션:
+  -i, --interactive              가이드 대화형 설치 (인자 없이 TTY 실행 시 기본)
   --scope <global|workspace>     설치 범위 (기본: CLI는 global, IDE는 workspace)
   --workload <list|all>          쉼표로 구분한 워크로드 또는 'all' (기본: core만)
   --review-backend <kiro|claude> 코드 리뷰 라우팅 (기본: claude)
@@ -220,7 +224,7 @@ node install.js <tier> [options]
 | [모델 라우팅](docs/kr/model-routing.md) | 3-티어 모델 정책(Opus/Sonnet/Haiku), 에이전트별 배정, 훅→티어 가이드, OpenAI GPT-5.5/5.4 도입 계획 |
 | [스킬 카탈로그](docs/kr/skill-catalog.md) | 137개 스킬 도메인별 정리 |
 | [스킬 만들기](docs/kr/creating-skills.md) | `workloads:` frontmatter로 스킬 작성·등록 |
-| [Claude vs Kiro](docs/kr/claude-vs-kiro.md) | Claude 하네스와 Kiro의 개념 매핑 |
+| [Claude vs Kiro](docs/kr/claude-vs-kiro.md) | Claude Code vs Kiro CLI vs Kiro IDE — 공식 문서 기준 기능별 차이 |
 | [Claude에서 마이그레이션](docs/kr/migration-from-claude.md) | Claude Code 설정을 Kiro로 변환 |
 | [Eval 하네스](docs/kr/eval-harness.md) | 평가 기반 개발 워크플로 |
 | [프롬프트 템플릿](docs/kr/prompt-templates.md) | 재사용 가능한 프롬프트 템플릿 |
