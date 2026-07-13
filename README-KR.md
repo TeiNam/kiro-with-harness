@@ -172,6 +172,8 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 전체 카탈로그(general / DevOps / FinOps / opt-in: brave-search·sentry·time 포함)와 설정 안내: `docs/kr/mcp-reference.md`.
 
+**중앙 프록시 (`--mcp-proxy`, IDE 티어):** 프록시 가능한 MCP 서버를 로컬 [mcp-proxy](mcp-proxy/README.md) 컨테이너 하나로 모아(`mcp.json`이 `{"type":"http","url":"http://localhost:9090/<서버>/mcp"}` 형태가 됨), 여러 클라이언트가 서버 프로세스를 중복 기동하지 않도록 한다. 설치기는 **컨테이너까지 자동 보장**한다: `docker ps`로 확인해 `mcp-proxy`가 실행 중이 아니면 `mcp-proxy/`에서 `docker compose up -d`, 이미 떠 있으면 스킵. Docker 미설치면 "Docker 설치 후 재실행", 데몬 미실행이면 "데몬 시작 후 재실행"을 안내하며, `--dry-run`·기동 실패는 graceful하게 넘어간다(설치는 계속된다). 자격증명 기반 AWS 서버와 Kiro 내장은 프록시를 거치지 않는다 — [`mcp-proxy/README.md`](mcp-proxy/README.md) 참고.
+
 ## 프로젝트 구조
 
 ```
@@ -207,6 +209,7 @@ node install.js <tier> [options]
   --scope <global|workspace>     설치 범위 (기본: CLI는 global, IDE는 workspace)
   --workload <list|all>          쉼표로 구분한 워크로드 또는 'all' (기본: core만)
   --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
+  --mcp-proxy                    IDE 전용: mcp.json을 mcp-proxy(:9090) 경유로 구성 + 프록시 컨테이너 자동 기동(미실행 시 docker compose up -d)
   --target <path>                지정 디렉토리에 설치
   --dry-run                      파일을 쓰지 않고 변경 사항 미리보기
   --list                         모든 워크로드 표시

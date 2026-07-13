@@ -28,6 +28,7 @@ const { GROUPS, validateGroups } = require(path.join(HARNESS_ROOT, 'scripts/lib/
 const { selectAssets, selectMcpServers } = require(path.join(HARNESS_ROOT, 'scripts/lib/select-assets'));
 const tiers = require(path.join(HARNESS_ROOT, 'scripts/lib/tiers'));
 const { runInteractiveInstall } = require(path.join(HARNESS_ROOT, 'scripts/lib/interactive'));
+const { ensureMcpProxy } = require(path.join(HARNESS_ROOT, 'scripts/lib/mcp-proxy'));
 
 let DRY_RUN = false;
 const MANIFEST_FILE = '.harness-manifest.json';
@@ -182,6 +183,12 @@ function runInstall(opts) {
   writeManifest(kiroRoot, tracked, { tier, scope, workloads, reviewBackend, mcpProxy: useProxy });
   runPostInstall(plan.postInstall);
 
+  // IDE + --mcp-proxy: mcp.json 이 가리키는 mcp-proxy 컨테이너를 보장(없으면 docker compose up -d, 있으면 스킵)
+  if (useProxy && tier === 'ide') {
+    console.log('');
+    ensureMcpProxy({ root: HARNESS_ROOT, dryRun: DRY_RUN });
+  }
+
   if (DRY_RUN) {
     console.log(`\nDRY-RUN complete. ${tracked.size} file(s) would be written. Re-run without --dry-run to apply.`);
     return;
@@ -241,7 +248,7 @@ function printIntro() {
     '  옵션:',
     '    --review-backend kiro|claude|cross  리뷰 백엔드(기본 claude=peer-reviewer→claude -p; cross=claude+codex 3-way + cross-review.sh 온디맨드)',
     '    --workload a,b | all           설치할 워크로드(기본: core만)',
-    '    --mcp-proxy                    프록시 가능한 MCP를 mcp-proxy(:9090) 경유 URL로 생성(IDE 티어). mcp-proxy/README.md 참고',
+    '    --mcp-proxy                    IDE 티어: mcp.json을 mcp-proxy(:9090) 경유로 생성 + 프록시 컨테이너 자동 보장(없으면 docker compose up -d, 있으면 스킵). mcp-proxy/README.md',
     '    --target <path>                워크스페이스 설치 위치(기본 cwd)',
     '    --dry-run                      변경 미리보기',
     '',

@@ -172,6 +172,8 @@ Curated MCP server catalog installed to `.kiro/settings/mcp.json` (or `~/.kiro/s
 
 Full catalog (general / DevOps / FinOps / opt-in incl. brave-search, sentry, time) and config notes: `docs/en/mcp-reference.md`.
 
+**Central proxy (`--mcp-proxy`, IDE tier):** route proxyable MCP servers through one local [mcp-proxy](mcp-proxy/README.md) container (`mcp.json` entries become `{"type":"http","url":"http://localhost:9090/<server>/mcp"}`), so multiple clients don't each spawn duplicate server processes. The installer also **auto-provisions the container**: it checks `docker ps`, runs `docker compose up -d` in `mcp-proxy/` when `mcp-proxy` isn't running, and skips when it already is. No Docker → it tells you to install Docker and re-run; daemon down → start it and re-run; `--dry-run` and failures degrade gracefully (the install still completes). Credential-backed AWS servers and Kiro built-ins stay off the proxy — see [`mcp-proxy/README.md`](mcp-proxy/README.md).
+
 ## Project Structure
 
 ```
@@ -207,6 +209,7 @@ Options:
   --scope <global|workspace>     Installation scope (default: global for CLI, workspace for IDE)
   --workload <list|all>          Comma-separated workloads or 'all' (default: core only)
   --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
+  --mcp-proxy                    IDE only: route mcp.json through mcp-proxy (:9090) and auto-start the proxy container (docker compose up -d) if not already running
   --target <path>                Install to specified directory
   --dry-run                      Preview changes without writing
   --list                         Show all workloads

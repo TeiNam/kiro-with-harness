@@ -84,6 +84,8 @@ curl -i http://localhost:9090/time/mcp
 node install.js ide --workload=cloud,writing --mcp-proxy
 ```
 
+설치기는 이때 **프록시 컨테이너까지 보장**한다: `docker ps`로 `mcp-proxy`가 떠 있는지 확인해 — 떠 있으면 스킵, 없으면 이 디렉터리에서 `docker compose up -d`를 자동 실행한다. **Docker 가 설치돼 있지 않으면 "Docker 설치 후 다시 실행"**, 데몬이 꺼져 있으면 "데몬 시작 후 다시 실행"하라고 안내한다. 기동 실패·`--dry-run`이면 안내만 출력하고 설치는 계속된다(수동 기동: `cd mcp-proxy && docker compose up -d`). 키가 필요한 백엔드(brave/github/obsidian)는 위 "1. API 키 설정"을 먼저 해두면 컨테이너 기동 시 함께 주입된다.
+
 **프록시로 들어가는 것(프록시 가능):** fetch, time, brave-search, exa, drawio, token-optimizer,
 obsidian, aws-documentation, terraform — 활성 워크로드에 맞는 것만.
 
