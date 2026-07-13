@@ -1,6 +1,6 @@
 # 스킬(Skill) 카탈로그
 
-도메인별로 정리된 137개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
+도메인별로 정리된 139개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
 
 ## 인프라(Infrastructure)
 
@@ -22,11 +22,13 @@
 | aws-bedrock | Amazon Bedrock Converse/InvokeModel, 에이전트, 지식 베이스, 가드레일 |
 | aws-lakehouse | S3 Tables, Apache Iceberg, Athena, EMR/Glue Spark 레이크하우스 |
 | aws-etl-cdc | 전처리 타입별로 DMS/Glue/Kinesis/MSK/Flink/Zero-ETL 선택; CDC 패턴 |
+| aws-finops | Cost Explorer·Budgets·Savings Plans vs RI·rightsizing·단위경제학·showback/chargeback (FinOps) |
 | log-data-offloading | RDBMS 로그/시계열 데이터를 S3·OpenSearch로 오프로드(파티셔닝·ISM·티어링) |
 | infra-version-currency | 프로비저닝 전 EKS/MSK/Terraform/이미지 최신 버전 확인·고정 |
 | terraform-deployment | 그린필드 Terraform 버전 고정·lock, fmt→validate→plan→apply 게이트 |
 | duckdb-patterns | DuckDB 분석, 클러스터 없이 Parquet/Iceberg 쿼리 |
 | python-data-analysis | pandas/polars/DuckDB 데이터 분석 워크플로 |
+| analysis-methodology | 분석 판단층: 프레이밍·기법 선택·인과/실험 설계·도메인 플레이북 |
 | cost-tracking | 토큰/지출 추적 및 예산 리포트 |
 
 ## 데이터베이스(Databases)

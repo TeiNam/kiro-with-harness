@@ -1,6 +1,6 @@
 # Skill Catalog
 
-137 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
+139 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
 
 ## Infrastructure
 
@@ -22,11 +22,13 @@
 | aws-bedrock | Amazon Bedrock Converse/InvokeModel, agents, knowledge bases, guardrails |
 | aws-lakehouse | S3 Tables, Apache Iceberg, Athena, Spark on EMR/Glue lakehouse |
 | aws-etl-cdc | Choose DMS/Glue/Kinesis/MSK/Flink/Zero-ETL by transform type; CDC patterns |
+| aws-finops | Cost Explorer, Budgets, Savings Plans vs RI, rightsizing, unit economics, showback/chargeback (FinOps) |
 | log-data-offloading | Move RDBMS log/time-series data to S3 or OpenSearch (partitioning, ISM, tiering) |
 | infra-version-currency | Resolve/pin latest EKS/MSK/Terraform/image versions before provisioning |
 | terraform-deployment | Greenfield Terraform version pinning, lock, fmt→validate→plan→apply gate |
 | duckdb-patterns | DuckDB analytics, Parquet/Iceberg querying without a cluster |
 | python-data-analysis | pandas/polars/DuckDB data analysis workflows |
+| analysis-methodology | Analysis judgment layer: framing, technique selection, causal/experiment design, domain playbooks |
 | cost-tracking | Token/spend tracking and budget reporting |
 
 ## Databases

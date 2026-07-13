@@ -192,11 +192,11 @@ The design principle: **Fable orchestrates the long-horizon DAG, Opus reasons, S
 **IDE tier** (`.kiro/steering/`):
 - Always-on: coding style, security, testing, git workflow, patterns, performance
 - FileMatch: language-specific rules loaded per file type
-- Manual: skills loaded on demand (137 total; workload-tagged for selective inclusion)
+- Manual: skills loaded on demand (139 total; workload-tagged for selective inclusion)
 
 ### Skills
 
-137 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
+139 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
 - Core: context budget, strategic compact, agentic engineering, lessons learned
 - Infrastructure: Docker, deployment, database migrations, backend patterns
 - Databases: PostgreSQL, MySQL, MongoDB, DynamoDB (+ rdbms-naming, mongodb-patterns)
@@ -234,7 +234,7 @@ Full catalog (general / DevOps / FinOps / opt-in incl. brave-search, sentry, tim
 │   ├── cli/                    # CLI agents (global + workspace)
 │   ├── ide/                    # IDE agents (Markdown)
 │   └── AGENTS.md               # Shared agent collaboration guide
-├── skills/                     # 137 skill packages (workload-tagged)
+├── skills/                     # 139 skill packages (workload-tagged)
 ├── mcp-configs/                # MCP server configurations
 ├── scripts/                    # Validation utilities (validate-agents.js, validate-models.js)
 ├── docs/                       # Guides (English + Korean)
@@ -275,7 +275,7 @@ Full guides live under `docs/` — English in `docs/en/`, Korean in `docs/kr/`.
 | [Hook reference](docs/en/hook-reference.md) | IDE 1.0 v1 JSON hook format, triggers, the installed hook set |
 | [MCP reference](docs/en/mcp-reference.md) | Curated MCP catalog (built-in / general / DevOps / FinOps / opt-in) |
 | [Model routing](docs/en/model-routing.md) | 3-tier model policy (Opus/Sonnet/Haiku), per-agent assignment, hook→tier guidance, OpenAI GPT-5.5/5.4 forward plan |
-| [Skill catalog](docs/en/skill-catalog.md) | The 137 skills by domain |
+| [Skill catalog](docs/en/skill-catalog.md) | The 139 skills by domain |
 | [Creating skills](docs/en/creating-skills.md) | Authoring + registering a skill via `workloads:` frontmatter |
 | [Claude vs Kiro](docs/en/claude-vs-kiro.md) | Claude Code vs Kiro CLI vs Kiro IDE — feature-by-feature differences (official-docs-based) |
 | [Migration from Claude](docs/en/migration-from-claude.md) | Converting a Claude Code setup to Kiro |
