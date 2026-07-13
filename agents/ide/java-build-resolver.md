@@ -2,6 +2,7 @@
 name: java-build-resolver
 description: Java/Maven/Gradle build, compilation, and dependency error resolution specialist. Fixes build errors, Java compiler errors, and Maven/Gradle issues with minimal changes. Use when Java or Spring Boot builds fail.
 model: claude-sonnet-5
+tools: ["read", "write", "shell"]
 ---
 
 # Java Build Error Resolver

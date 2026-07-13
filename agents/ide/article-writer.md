@@ -2,6 +2,7 @@
 name: article-writer
 description: Long-form content writing specialist. Write articles, guides, blog posts, tutorials, and newsletters in a distinctive voice. Use when drafting polished written content, matching brand voice, or turning notes into articles.
 model: claude-haiku-4.5
+tools: ["read", "write"]
 ---
 
 # Article Writer
