@@ -10,6 +10,9 @@
  * GPT-5.5 / GPT-5.4 가 Kiro 에 붙었을 때를 대비한 forward-looking 매핑이다.
  *
  * ── 능력 티어(capability tiers) ──────────────────────────────────────────
+ *   - frontier       : 프런티어 장기(long-horizon) 에이전틱 작업 — 며칠 단위 자율
+ *                      오케스트레이션, 광폭 병렬 서브에이전트 위임, 자가 검증.
+ *                      Mythos-class(Opus 상위). 오케스트레이터 전용.
  *   - deep-reasoning : 오케스트레이션·아키텍처·보안 판단·근본 원인 분석·리서치
  *                      종합·복잡한 데이터 모델링 등 다단계 추론이 필요한 작업.
  *   - balanced       : 코딩 주력(workhorse) — 코드/언어 리뷰, 빌드 오류 해결,
@@ -38,6 +41,16 @@ const PROVIDERS = ['anthropic', 'openai'];
  * @type {Record<string, { description: string, providers: Record<string, string> }>}
  */
 const TIERS = {
+  frontier: {
+    description:
+      'Frontier long-horizon agentic work: multi-day autonomous orchestration, wide parallel sub-agent delegation, self-verification. Mythos-class (above Opus).',
+    providers: {
+      anthropic: 'claude-fable-5',
+      // OpenAI 에는 Mythos-class 상응 모델이 확인되지 않았다 — 최상위 gpt-5.5 를 재사용한다.
+      // 상응 프런티어 모델이 출시되면 여기만 교체하면 된다.
+      openai: 'gpt-5.5',
+    },
+  },
   'deep-reasoning': {
     description:
       'Multi-step reasoning: orchestration, architecture, security judgment, root-cause analysis, research synthesis, complex data modeling.',
@@ -82,8 +95,12 @@ const DEFAULT_TIER = 'balanced';
  * @type {Record<string, string>}
  */
 const ROLE_TIERS = {
+  // ── frontier (claude-fable-5, Mythos-class) ──
+  // 오케스트레이터만 배치: Fable 5 의 강점(장기 자율 오케스트레이션·광폭 병렬 위임·자가 검증)이
+  // 정확히 오케스트레이터 역할이다. 나머지 추론 역할은 비용 대비 Opus 4.8 이 적정.
+  'kiro-cli': 'frontier', // 오케스트레이터: 병렬 DAG 위임 조율
+
   // ── deep-reasoning (claude-opus-4.8) ──
-  'kiro-cli': 'deep-reasoning', // 오케스트레이터: 병렬 DAG 위임 조율
   architect: 'deep-reasoning', // 시스템 설계·트레이드오프
   'security-reviewer': 'deep-reasoning', // OWASP·auth·취약점 판단
   'deep-researcher': 'deep-reasoning', // 다중 출처 종합

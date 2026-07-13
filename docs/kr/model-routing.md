@@ -1,26 +1,29 @@
 # 모델 라우팅(Model Routing)
 
-하네스는 파일마다 모델을 손으로 고르는 대신, 각 에이전트를 **능력 티어(capability tier)**로 배정한다. 티어는 **프로바이더 독립적(provider-agnostic)**이다 — 동일한 세 티어가 지금은 Claude 식별자에, GPT가 Kiro에 붙으면 OpenAI 식별자에 매핑된다. 단일 출처(SSOT)는 [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js)다.
+하네스는 파일마다 모델을 손으로 고르는 대신, 각 에이전트를 **능력 티어(capability tier)**로 배정한다. 티어는 **프로바이더 독립적(provider-agnostic)**이다 — 동일한 티어가 지금은 Claude 식별자에, GPT가 Kiro에 붙으면 OpenAI 식별자에 매핑된다. 단일 출처(SSOT)는 [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js)다.
 
 ## 능력 티어
 
 | 티어 | Claude (기본) | OpenAI (예정) | 용도 |
 |------|---------------|---------------|------|
+| **frontier** | `claude-fable-5` | `gpt-5.5` | 프런티어 장기(long-horizon) 에이전틱 작업: 며칠 단위 자율 오케스트레이션, 광폭 병렬 서브에이전트 위임, 자가 검증(Mythos-class, Opus 상위). 오케스트레이터 전용 |
 | **deep-reasoning** | `claude-opus-4.8` | `gpt-5.5` | 오케스트레이션, 아키텍처, 보안 판단, 근본 원인 분석, 리서치 종합, 복잡한 데이터 모델링 |
 | **balanced** | `claude-sonnet-5` | `gpt-5.4` | 코딩 주력(workhorse): 코드/언어 리뷰, 빌드 오류 해결, 리팩터링, e2e, 문서 |
 | **cost-optimized** | `claude-haiku-4.5` | `gpt-5.4` | 단순·대량·저판단 작업: 번역, 분류, 기본 콘텐츠 |
 
-설계 원칙: **Opus는 추론·오케스트레이션, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 기본 티어는 `balanced`(Sonnet 5)다 — 대부분의 에이전트가 코딩 에이전트이므로, deep-reasoning·cost-optimized로 명시되지 않은 역할은 모두 balanced로 떨어진다.
+설계 원칙: **Fable은 장기 DAG 오케스트레이션, Opus는 추론, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 기본 티어는 `balanced`(Sonnet 5)다 — 대부분의 에이전트가 코딩 에이전트이므로, 명시되지 않은 역할은 모두 balanced로 떨어진다.
 
 ## 에이전트별 배정
 
 | 티어 | 에이전트 |
 |------|----------|
-| **deep-reasoning** (`claude-opus-4.8`) | kiro-cli(오케스트레이터), architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| **frontier** (`claude-fable-5`) | kiro-cli(오케스트레이터) |
+| **deep-reasoning** (`claude-opus-4.8`) | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
 | **balanced** (`claude-sonnet-5`) | code-reviewer, refactor-cleaner, 전체 언어 리뷰어(python, rust, go, java, kotlin, cpp, typescript, flutter), database-reviewer, 전체 빌드 리졸버(build-error-resolver, cpp, go, java, kotlin, pytorch, rust), e2e-runner, 문서 에이전트(tech-doc-writer, tech-writer-monolith, doc-clarity-reviewer, doc-quality-detector, tech-fidelity-auditor) |
 | **cost-optimized** (`claude-haiku-4.5`) | translator-docs, article-writer, content-creator |
 
 분류 근거:
+- **kiro-cli는 Fable 5(frontier)로 이동** — 오케스트레이터의 일이 곧 Mythos-class 모델의 설계 목적(장기 자율 작업, 광폭 병렬 서브에이전트 위임, 자가 검증)이다. 하네스에서 지렛대가 가장 큰 단일 좌석이며 모든 에이전트의 산출물이 이곳을 거친다. Fable 5(`claude-fable-5`, 2026-06-09 GA)는 Opus 상위 티어이고 이 티어의 유일한 점유자이므로, 프리미엄 비용은 함대 전체가 아닌 에이전트 하나에만 적용된다.
 - **security-reviewer는 Opus 유지**, 범용 **code-reviewer는 Sonnet으로 이동** — 보안 판단은 깊은 추론에서 이득을 보지만, 일상적 품질 리뷰는 Sonnet의 강점이자 물량이 훨씬 많다.
 - **rdbms-data-modeler는 Opus 유지** — 3NF 정규화와 물리 스키마 트레이드오프는 언어별 리뷰와 달리 실제 추론이 필요하다.
 - **peer-reviewer는 Opus 유지** — Claude Code(`claude -p`) + Codex(`codex`)를 조율하는 교차 모델 second opinion(Kiro + Claude + Codex 3-way)은 왕복 비용을 정당화하려면 최상위 티어에서 나와야 한다.

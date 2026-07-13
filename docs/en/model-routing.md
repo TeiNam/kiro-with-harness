@@ -1,26 +1,29 @@
 # Model Routing
 
-The harness assigns each agent a model by **capability tier**, not by hand-picking a model per file. Tiers are **provider-agnostic**: the same three tiers map to Claude identifiers today and to OpenAI GPT identifiers when they land in Kiro. The single source of truth is [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js).
+The harness assigns each agent a model by **capability tier**, not by hand-picking a model per file. Tiers are **provider-agnostic**: the same tiers map to Claude identifiers today and to OpenAI GPT identifiers when they land in Kiro. The single source of truth is [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js).
 
 ## Capability Tiers
 
 | Tier | Claude (default) | OpenAI (forward-looking) | Use for |
 |------|------------------|--------------------------|---------|
+| **frontier** | `claude-fable-5` | `gpt-5.5` | Frontier long-horizon agentic work: multi-day autonomous orchestration, wide parallel sub-agent delegation, self-verification (Mythos-class, above Opus). Orchestrator only |
 | **deep-reasoning** | `claude-opus-4.8` | `gpt-5.5` | Orchestration, architecture, security judgment, root-cause analysis, research synthesis, complex data modeling |
 | **balanced** | `claude-sonnet-5` | `gpt-5.4` | High-volume coding workhorse: code/language review, build-error resolution, refactor, e2e, documentation |
 | **cost-optimized** | `claude-haiku-4.5` | `gpt-5.4` | Simple, high-throughput, low-judgment work: translation, classification, basic content |
 
-The design principle: **Opus reasons and orchestrates, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** `balanced` (Sonnet 5) is the default tier — most agents are coding agents, so any role not explicitly listed as deep-reasoning or cost-optimized falls to balanced.
+The design principle: **Fable orchestrates the long-horizon DAG, Opus reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** `balanced` (Sonnet 5) is the default tier — most agents are coding agents, so any role not explicitly listed falls to balanced.
 
 ## Per-Agent Assignment
 
 | Tier | Agents |
 |------|--------|
-| **deep-reasoning** (`claude-opus-4.8`) | kiro-cli (orchestrator), architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| **frontier** (`claude-fable-5`) | kiro-cli (orchestrator) |
+| **deep-reasoning** (`claude-opus-4.8`) | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
 | **balanced** (`claude-sonnet-5`) | code-reviewer, refactor-cleaner, all language reviewers (python, rust, go, java, kotlin, cpp, typescript, flutter), database-reviewer, all build-resolvers (build-error-resolver, cpp, go, java, kotlin, pytorch, rust), e2e-runner, doc agents (tech-doc-writer, tech-writer-monolith, doc-clarity-reviewer, doc-quality-detector, tech-fidelity-auditor) |
 | **cost-optimized** (`claude-haiku-4.5`) | translator-docs, article-writer, content-creator |
 
 Why these splits:
+- **kiro-cli moves to Fable 5 (frontier)** — the orchestrator's job is exactly what the Mythos-class model is built for: long-horizon autonomous work, wide parallel sub-agent delegation, and self-verification. It is the single highest-leverage seat in the harness; every other agent's output flows through it. Fable 5 (`claude-fable-5`, GA 2026-06-09) sits above Opus and is the only tier occupant, so the premium applies to one agent, not the fleet.
 - **security-reviewer stays on Opus** while the generic **code-reviewer moves to Sonnet** — security judgment benefits from deeper reasoning; routine quality review is Sonnet's sweet spot and far higher volume.
 - **rdbms-data-modeler stays on Opus** — 3NF normalization and physical-schema trade-offs are genuine reasoning, unlike per-language review.
 - **peer-reviewer stays on Opus** — it coordinates a cross-model second opinion (Claude Code `claude -p` + Codex `codex`, a Kiro + Claude + Codex 3-way), which should come from the strongest tier to be worth the round-trip.

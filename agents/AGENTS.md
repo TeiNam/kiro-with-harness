@@ -9,12 +9,13 @@
 - 각 위임 산출물은 검증 후 수렴(verify-then-converge): 결과를 합치기 전에 정확성을 확인한 뒤에만 수렴 결과를 사용자에게 제시한다.
 - 교차 모델 리뷰·설계 토론·독립 교차 점검이 필요하면 `peer-reviewer`(터미널 `claude -p`) 에이전트를 사용한다.
 
-## 모델 정책 요약 (3-티어, 프로바이더 독립)
+## 모델 정책 요약 (4-티어, 프로바이더 독립)
 
 역할을 능력 티어에 매핑하고, 티어를 모델 식별자에 매핑한다. 단일 출처는 `scripts/lib/model-policy.js`이며, 자세한 배정·전환은 `docs/kr/model-routing.md`를 참조한다.
 
-- `claude-opus-4.8` (deep-reasoning) — 오케스트레이션·아키텍처·보안·근본 원인 분석·리서치 종합 등 추론 중심 작업(kiro-cli, architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler).
+- `claude-fable-5` (frontier, Mythos-class) — 장기 자율 오케스트레이션·광폭 병렬 위임·자가 검증. 오케스트레이터 전용(kiro-cli).
+- `claude-opus-4.8` (deep-reasoning) — 아키텍처·보안·근본 원인 분석·리서치 종합 등 추론 중심 작업(architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler).
 - `claude-sonnet-5` (balanced, 기본 티어) — 코드/언어 리뷰·빌드 오류 해결·리팩터·e2e·문서 등 코딩 주력. 명시되지 않은 역할은 이 티어로 떨어진다.
 - `claude-haiku-4.5` (cost-optimized) — 번역·문서·분류 등 비용 최적화 작업.
 
-OpenAI GPT가 Kiro에 붙으면 deep-reasoning→`gpt-5.5`, balanced→`gpt-5.4`로 매핑한다(예정). 프로바이더 전환: `node scripts/apply-model-policy.js --provider=openai`.
+OpenAI GPT가 Kiro에 붙으면 frontier/deep-reasoning→`gpt-5.5`, balanced→`gpt-5.4`로 매핑한다(예정). 프로바이더 전환: `node scripts/apply-model-policy.js --provider=openai`.

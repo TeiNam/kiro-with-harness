@@ -488,9 +488,7 @@ function printHumanReport(report) {
   console.log('=== Model Identifier Consistency ===');
   console.log(
     `  Policy (provider=${DEFAULT_PROVIDER}): ` +
-      `deep-reasoning=${tierIdentifier('deep-reasoning', DEFAULT_PROVIDER)}, ` +
-      `balanced=${tierIdentifier('balanced', DEFAULT_PROVIDER)}, ` +
-      `cost-optimized=${tierIdentifier('cost-optimized', DEFAULT_PROVIDER)}`
+      TIER_IDS.map((t) => `${t}=${tierIdentifier(t, DEFAULT_PROVIDER)}`).join(', ')
   );
 
   // [Global CLI Agents]
@@ -579,6 +577,11 @@ function printWsIdeSummary(wsIde) {
     }
   };
 
+  summarize(
+    'frontier agents (orchestrator)',
+    `model=${tierIdentifier('frontier', DEFAULT_PROVIDER)}`,
+    byClass.frontier
+  );
   summarize(
     'deep-reasoning agents',
     `model=${tierIdentifier('deep-reasoning', DEFAULT_PROVIDER)}`,

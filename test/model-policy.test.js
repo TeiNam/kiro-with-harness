@@ -36,8 +36,8 @@ test('기본값: provider=anthropic, tier=balanced', () => {
   assert.ok(PROVIDERS.includes('openai'));
 });
 
-test('TIER_IDS 는 정확히 3개 티어이며 각 티어는 anthropic·openai 식별자를 갖는다', () => {
-  assert.deepStrictEqual(TIER_IDS, ['deep-reasoning', 'balanced', 'cost-optimized']);
+test('TIER_IDS 는 정확히 4개 티어(frontier 포함)이며 각 티어는 anthropic·openai 식별자를 갖는다', () => {
+  assert.deepStrictEqual(TIER_IDS, ['frontier', 'deep-reasoning', 'balanced', 'cost-optimized']);
   for (const tier of TIER_IDS) {
     const p = providersFor(tier);
     for (const provider of PROVIDERS) {
@@ -57,8 +57,12 @@ test('ROLE_TIERS 의 모든 값은 유효한 TIER_ID 다', () => {
 // classifyRole — 역할 → 티어
 // ---------------------------------------------------------------------------
 
+test('classifyRole: frontier 역할(오케스트레이터 전용)', () => {
+  assert.strictEqual(classifyRole('kiro-cli'), 'frontier');
+});
+
 test('classifyRole: deep-reasoning 역할', () => {
-  for (const role of ['kiro-cli', 'architect', 'security-reviewer', 'deep-researcher', 'devops', 'peer-reviewer', 'rdbms-data-modeler']) {
+  for (const role of ['architect', 'security-reviewer', 'deep-researcher', 'devops', 'peer-reviewer', 'rdbms-data-modeler']) {
     assert.strictEqual(classifyRole(role), 'deep-reasoning', role);
   }
 });
@@ -83,12 +87,14 @@ test('classifyRole: balanced 역할 및 미등록 역할 기본값', () => {
 // ---------------------------------------------------------------------------
 
 test('tierIdentifier: anthropic 기본 식별자', () => {
+  assert.strictEqual(tierIdentifier('frontier'), 'claude-fable-5');
   assert.strictEqual(tierIdentifier('deep-reasoning'), 'claude-opus-4.8');
   assert.strictEqual(tierIdentifier('balanced'), 'claude-sonnet-5');
   assert.strictEqual(tierIdentifier('cost-optimized'), 'claude-haiku-4.5');
 });
 
 test('tierIdentifier: openai 식별자(예정)', () => {
+  assert.strictEqual(tierIdentifier('frontier', 'openai'), 'gpt-5.5');
   assert.strictEqual(tierIdentifier('deep-reasoning', 'openai'), 'gpt-5.5');
   assert.strictEqual(tierIdentifier('balanced', 'openai'), 'gpt-5.4');
   assert.strictEqual(tierIdentifier('cost-optimized', 'openai'), 'gpt-5.4');
@@ -100,7 +106,8 @@ test('tierIdentifier: 알 수 없는 티어/프로바이더는 throw', () => {
 });
 
 test('identifierForRole: 역할 → 식별자(프로바이더별)', () => {
-  assert.strictEqual(identifierForRole('kiro-cli'), 'claude-opus-4.8');
+  assert.strictEqual(identifierForRole('kiro-cli'), 'claude-fable-5');
+  assert.strictEqual(identifierForRole('architect'), 'claude-opus-4.8');
   assert.strictEqual(identifierForRole('code-reviewer'), 'claude-sonnet-5');
   assert.strictEqual(identifierForRole('translator-docs'), 'claude-haiku-4.5');
   assert.strictEqual(identifierForRole('code-reviewer', 'openai'), 'gpt-5.4');
