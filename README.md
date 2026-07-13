@@ -18,10 +18,10 @@ The installer uses a **tier × category tree** model: choose `cli` or `ide`, the
 node install.js              # or: node install.js -i
 
 # CLI tier: install global baseline (orchestrator agents, skills → ~/.kiro)
-node install.js cli --scope global --category=core
+node install.js cli --scope global
 
 # Orchestrator on Fable 5 (Mythos-class) where available — default is opus-4.8
-node install.js cli --scope global --category=core --frontier-model=fable5
+node install.js cli --scope global --frontier-model=fable5
 
 # Rust + Python dev, workspace install
 node install.js cli --scope workspace --dev=rust,python

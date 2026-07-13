@@ -18,10 +18,10 @@ Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 �
 node install.js              # 또는: node install.js -i
 
 # CLI 계층: 글로벌 기본 설정 설치 (오케스트레이터 에이전트, 스킬 → ~/.kiro)
-node install.js cli --scope global --category=core
+node install.js cli --scope global
 
 # 오케스트레이터를 Fable 5(Mythos-class)로 — 가용 환경에서만, 기본은 opus-4.8
-node install.js cli --scope global --category=core --frontier-model=fable5
+node install.js cli --scope global --frontier-model=fable5
 
 # Rust + Python 개발, 워크스페이스 설치
 node install.js cli --scope workspace --dev=rust,python

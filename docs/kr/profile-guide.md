@@ -114,7 +114,7 @@ Kiro CLI는 사용 가능 모델을 비대화형으로 조회하는 명령이 �
 
 | 구 프로파일 | 새 대응 |
 |------------|---------|
-| `install.js global` | `install.js cli --scope global --category=core` |
+| `install.js global` | `install.js cli --scope global` |
 | `install.js developer` | `install.js cli --scope workspace --dev=<사용 언어>` |
 | `install.js backend` | `install.js cli --scope workspace --category=dev --dev=rust,python,go` |
 | `install.js frontend` | `install.js ide --dev=frontend` |

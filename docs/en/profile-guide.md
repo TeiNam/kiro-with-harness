@@ -114,7 +114,7 @@ A workspace install inherits (skips) any file byte-identical to one already inst
 
 | Old profile | New equivalent |
 |-------------|----------------|
-| `install.js global` | `install.js cli --scope global --category=core` |
+| `install.js global` | `install.js cli --scope global` |
 | `install.js developer` | `install.js cli --scope workspace --dev=<your languages>` |
 | `install.js backend` | `install.js cli --scope workspace --category=dev --dev=rust,python,go` |
 | `install.js frontend` | `install.js ide --dev=frontend` |
