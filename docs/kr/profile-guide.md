@@ -98,7 +98,7 @@ node install.js cli --scope global --workload rust,postgres,cloud
 
 ## 글로벌 ↔ 워크스페이스 상속
 
-워크스페이스 설치는 글로벌에 이미 설치된 파일과 바이트 단위로 동일한 파일을 상속(스킵)하므로, `--scope workspace`는 글로벌 베이스라인과 다른 것만 추가합니다. `node install.js --status --scope global`로 글로벌 매니페스트를 확인하세요.
+워크스페이스 설치는 글로벌에 이미 설치된 파일과 바이트 단위로 동일한 파일을 상속(스킵)하므로, `--scope workspace`는 글로벌 베이스라인과 다른 것만 추가합니다. `node install.js --status --scope global`로 글로벌 매니페스트를 확인하세요 — 설치된 하네스 버전(`sourceVersion`, `package.json`에서 기록)과 현재 소스 대비 **갱신 필요(outdated)** 여부도 함께 표시합니다.
 
 ## 프로파일에서 마이그레이션
 

@@ -262,7 +262,7 @@ Options:
   --target <path>                Install to specified directory
   --dry-run                      Preview changes without writing
   --list                         Show category tree
-  --status                       Show installation status
+  --status                       Show installation status (installed version + outdated check)
 ```
 
 ## Documentation

@@ -15,6 +15,7 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.join(__dirname, '..');
 const { selectAssets, selectMcpServers } = require(path.join(ROOT, 'scripts/lib/select-assets'));
 const tiers = require(path.join(ROOT, 'scripts/lib/tiers'));
+const { compareSemver } = require(path.join(ROOT, 'install.js'));
 
 function names(arr) { return arr.map((a) => a.name); }
 function mkTmp() { return fs.mkdtempSync(path.join(os.tmpdir(), 'kh-test-')); }
@@ -167,5 +168,39 @@ test('e2e: 워크스페이스 설치가 글로벌과 동일한 파일을 상속(
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
     fs.rmSync(ws, { recursive: true, force: true });
+  }
+});
+
+test('버전 비교: compareSemver 는 major.minor.patch 순서로 비교(prerelease 무시)', () => {
+  assert.strictEqual(compareSemver('1.0.0', '1.0.0'), 0, '동일');
+  assert.strictEqual(compareSemver('0.9.0', '1.0.0'), -1, 'older');
+  assert.strictEqual(compareSemver('1.2.0', '1.1.9'), 1, 'minor 우선');
+  assert.strictEqual(compareSemver('2.0.0', '1.9.9'), 1, 'major 우선');
+  assert.strictEqual(compareSemver('1.0.0-beta', '1.0.0'), 0, 'prerelease 태그 무시');
+});
+
+test('e2e: 매니페스트에 sourceVersion 기록 + --status 가 버전/outdated 를 감지', () => {
+  const pkgVersion = require(path.join(ROOT, 'package.json')).version;
+  const tmp = mkTmp();
+  try {
+    const r1 = runInstall(['ide', '--workload=core', `--target=${tmp}`]);
+    assert.strictEqual(r1.status, 0, `install exit 0 (${r1.stderr})`);
+    const mfPath = path.join(tmp, '.kiro', '.harness-manifest.json');
+    const m = JSON.parse(fs.readFileSync(mfPath, 'utf8'));
+    assert.strictEqual(m.sourceVersion, pkgVersion, '매니페스트 sourceVersion === package.json version');
+
+    // --status: 설치 버전 표시 + up to date
+    const s1 = runInstall(['--status', '--scope=workspace', `--target=${tmp}`]);
+    assert.strictEqual(s1.status, 0);
+    assert.ok(s1.stdout.includes(`installed v${pkgVersion}`), 'status 에 설치 버전 표시');
+    assert.match(s1.stdout, /up to date/, 'status: up to date');
+
+    // sourceVersion 을 낮춰 재조회 → outdated 감지
+    m.sourceVersion = '0.0.1';
+    fs.writeFileSync(mfPath, JSON.stringify(m, null, 2));
+    const s2 = runInstall(['--status', '--scope=workspace', `--target=${tmp}`]);
+    assert.match(s2.stdout, /outdated/, 'status: outdated 감지');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });

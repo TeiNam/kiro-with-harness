@@ -34,6 +34,12 @@ const { buildProxyConfig } = require(path.join(HARNESS_ROOT, 'scripts/lib/proxy-
 
 let DRY_RUN = false;
 const MANIFEST_FILE = '.harness-manifest.json';
+// 하네스 소스 버전(package.json). 설치 시 매니페스트에 sourceVersion 으로 기록해
+// --status 에서 설치본이 현재 소스보다 오래됐는지(outdated)를 판정한다.
+const HARNESS_VERSION = (() => {
+  try { return require(path.join(HARNESS_ROOT, 'package.json')).version || '0.0.0'; }
+  catch { return '0.0.0'; }
+})();
 
 // ── 파일시스템 유틸 ─────────────────────────────────────────
 function ensureDir(dir) {
@@ -51,6 +57,21 @@ function writeManaged(destAbs, content, kiroRoot, tracked) {
 
 function manifestPath(kiroRoot) { return path.join(kiroRoot, MANIFEST_FILE); }
 
+/**
+ * semver 대략 비교: a<b→-1, a>b→1, 같으면 0.
+ * ponytail: major.minor.patch 숫자 세 파트만 비교하고 prerelease 태그(-beta 등)는
+ * 무시한다 — 설치본 outdated 판정에는 이 정도로 충분하다.
+ */
+function compareSemver(a, b) {
+  const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d !== 0) return d < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
 function readManifest(kiroRoot) {
   const p = manifestPath(kiroRoot);
   if (!fs.existsSync(p)) return { managedFiles: [] };
@@ -61,7 +82,7 @@ function writeManifest(kiroRoot, tracked, meta) {
   const p = manifestPath(kiroRoot);
   if (DRY_RUN) { console.log(`  DRY-RUN: would update manifest ${p}`); return; }
   ensureDir(kiroRoot);
-  fs.writeFileSync(p, JSON.stringify({ managedFiles: [...tracked].sort(), installedAt: new Date().toISOString(), ...meta }, null, 2) + '\n', 'utf8');
+  fs.writeFileSync(p, JSON.stringify({ managedFiles: [...tracked].sort(), installedAt: new Date().toISOString(), sourceVersion: HARNESS_VERSION, ...meta }, null, 2) + '\n', 'utf8');
 }
 
 function cleanManaged(kiroRoot) {
@@ -241,6 +262,16 @@ function showStatus(opts) {
   console.log(`  tier: ${m.tier || '?'}  workloads: [${(m.workloads || []).join(',') || 'core'}]  review-backend: ${m.reviewBackend || '?'}${m.mcpProxy ? '  mcp-proxy: on' : ''}`);
   console.log(`  managed files: ${m.managedFiles.length}`);
   if (m.installedAt) console.log(`  installed at: ${m.installedAt}`);
+  // 설치 버전 vs 현재 소스 버전 — outdated(갱신 필요) 판정
+  if (m.sourceVersion) {
+    const cmp = compareSemver(m.sourceVersion, HARNESS_VERSION);
+    const note = cmp < 0 ? ` — ⚠ outdated, source is now v${HARNESS_VERSION} (re-run install to update)`
+      : cmp > 0 ? ` — ahead of source v${HARNESS_VERSION}`
+        : ' — up to date';
+    console.log(`  version: installed v${m.sourceVersion}${note}`);
+  } else {
+    console.log(`  version: (installed before version tracking) — re-run install to record v${HARNESS_VERSION}`);
+  }
   const byTop = {};
   for (const rel of m.managedFiles) { const t = rel.split('/')[0]; byTop[t] = (byTop[t] || 0) + 1; }
   console.log(`  by dir: ${Object.entries(byTop).map(([k, v]) => `${k}=${v}`).join(', ')}\n`);
@@ -385,6 +416,6 @@ if (require.main === module) {
 module.exports = {
   parseArgs, resolveWorkloads, resolveKiroRoot, executePlan,
   readManifest, cleanManaged, runInstall, main,
-  opContent, dedupAgainstGlobal,
+  opContent, dedupAgainstGlobal, compareSemver, HARNESS_VERSION,
   setDryRun: (v) => { DRY_RUN = v; },
 };

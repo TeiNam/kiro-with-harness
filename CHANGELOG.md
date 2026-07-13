@@ -3,6 +3,17 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-07-14
+
+### Added
+- **매니페스트 설치 버전 기록** — 설치 시 `.harness-manifest.json`에 `sourceVersion`(`package.json` version)을 기록한다. `node install.js --status`가 설치 버전과 현재 소스 버전을 semver 비교해 **outdated**(갱신 필요) / ahead / up-to-date 를 안내한다(`install.js`의 `compareSemver`). `test/tier-install.test.js`에 단위·e2e 테스트 추가.
+- **frontier 모델 티어(`claude-fable-5`, Mythos-class)** — kiro-cli 오케스트레이터 전용. `model-policy.js`에 tier 추가, `validate-models.js`가 4티어를 출력.
+- 신규 스킬 2종 — `aws-finops`(finops 워크로드; Cost Explorer·SP/RI·rightsizing·단위경제학·showback/chargeback), `analysis-methodology`(python-data; 분석 판단층). 스킬 137 → 139.
+
+### Changed
+- **3-tier 카테고리 트리** 도입 — `install-menu.js` → `categories.js`(대분류→중분류→소분류 + CLI 플래그 파서). `cloud`에서 `finops`, `writing`에서 `research`/`report` 워크로드 분리.
+- **워크로드별 프록시 config 필터링** — `proxy-config.js`가 활성 워크로드에 필요한 백엔드만 담은 `mcp-proxy/config.generated.json`을 생성.
+
 ## 2026-07-09
 
 ### Added

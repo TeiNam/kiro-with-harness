@@ -98,7 +98,7 @@ Programming, build, and orchestrator agents are always Kiro-native regardless of
 
 ## Global ↔ workspace inheritance
 
-A workspace install inherits (skips) any file byte-identical to one already installed globally, so `--scope workspace` only adds what differs from your global baseline. Run `node install.js --status --scope global` to inspect the global manifest.
+A workspace install inherits (skips) any file byte-identical to one already installed globally, so `--scope workspace` only adds what differs from your global baseline. Run `node install.js --status --scope global` to inspect the global manifest — it also reports the installed harness version (`sourceVersion`, recorded from `package.json`) and flags whether the install is **outdated** relative to the current source.
 
 ## Migrating from profiles
 

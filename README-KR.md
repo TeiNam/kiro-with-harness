@@ -262,7 +262,7 @@ node install.js <tier> [options]
   --target <path>                지정 디렉토리에 설치
   --dry-run                      파일을 쓰지 않고 변경 사항 미리보기
   --list                         카테고리 트리 표시
-  --status                       설치 상태 표시
+  --status                       설치 상태 표시 (설치 버전·갱신 필요 여부 포함)
 ```
 
 ## 문서
