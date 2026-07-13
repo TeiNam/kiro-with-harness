@@ -86,3 +86,11 @@ The IDE tier installs an optimized set defined in `scripts/lib/tiers.js` (`IDE_H
 - **Add a custom hook**: create a `.kiro/hooks/<name>.json` file following the v1 schema above, or use the Command Palette → "Kiro: Open Kiro Hook UI" → describe in natural language.
 
 > **CLI tier note**: the CLI tier (`kiro-cli chat`) does not use these files. It embeds hooks inside the agent JSON (`hooks` field) and ships a deterministic `pre-write-guard.sh` (exit 2) referenced by `kiro-cli.json`.
+
+## On-demand 3-way cross-review (`--review-backend cross`)
+
+Installing with `--review-backend cross` adds `cross-review.sh` under `.kiro/hooks/` (both tiers). It is an **on-demand command**, not an automatic hook — not every change needs a 3-way review, so it never runs on its own.
+
+- Run `bash .kiro/hooks/cross-review.sh` (optionally `--base <branch>`) to cross-check uncommitted changes with **Codex** (`codex review --uncommitted`, which reads the git worktree directly — no code passed as a shell argument) and **Claude Code** (`claude -p`, fed the diff via stdin). Kiro then synthesizes a Kiro + Claude + Codex review.
+- Diff-guarded: exits silently when there are no changes. Each external CLI degrades gracefully when it is not installed or fails.
+- For a synthesized, agent-driven pass, delegate to the `peer-reviewer` agent instead (same 3-way, with narrative synthesis and cleanup).

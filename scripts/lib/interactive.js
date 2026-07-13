@@ -9,7 +9,7 @@
  *   1) tier            cli | ide
  *   2) scope           global | workspace (tier 기본값 커서)
  *   3) workloads       카테고리(다중) → 각 카테고리 워크로드(다중, 미선택=전체)
- *   4) review-backend  claude | kiro
+ *   4) review-backend  claude | cross | kiro
  *   5) mcp-proxy       ide 티어에서만 물음(cli 는 mcp.json 미생성이라 skip)
  *   6) 요약 후 확인    install | cancel
  *
@@ -83,6 +83,7 @@ async function runInteractiveInstall(io = {}) {
       title: '\n\ucf54\ub4dc \ub9ac\ubdf0 \ubc31\uc5d4\ub4dc:',
       options: [
         { id: 'claude', label: 'claude (\uae30\ubcf8 \u2014 \ub124\uc774\ud2f0\ube0c \ub9ac\ubdf0\uc5b4 \uc81c\uc678, peer-reviewer\u2192claude -p \ub77c\uc6b0\ud305)' },
+        { id: 'cross', label: 'cross  (claude+codex 3-way peer-reviewer + cross-review.sh on-demand)' },
         { id: 'kiro', label: 'kiro   (\ub124\uc774\ud2f0\ube0c \ub9ac\ubdf0\uc5b4 \uc124\uce58: code/security/\uc5b8\uc5b4 \ub9ac\ubdf0\uc5b4)' },
       ],
     }));

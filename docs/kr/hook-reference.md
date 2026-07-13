@@ -86,3 +86,11 @@ IDE 티어는 `scripts/lib/tiers.js`(`IDE_HOOKS`)에 정의된 최적화 세트�
 - **커스텀 훅 추가**: 위 v1 스키마에 따라 `.kiro/hooks/<name>.json`을 생성하거나, 명령 팔레트 → "Kiro: Open Kiro Hook UI" → 자연어로 설명.
 
 > **CLI 티어 참고**: CLI 티어(`kiro-cli chat`)는 이 파일들을 쓰지 않습니다. 훅을 에이전트 JSON(`hooks` 필드)에 임베드하고, `kiro-cli.json`이 참조하는 결정적 `pre-write-guard.sh`(exit 2)를 함께 배치합니다.
+
+## 온디맨드 3-way 교차 리뷰 (`--review-backend cross`)
+
+`--review-backend cross`로 설치하면 두 티어 모두 `.kiro/hooks/`에 `cross-review.sh`가 추가됩니다. 이것은 자동 훅이 아니라 **온디맨드 command**입니다 — 모든 변경이 3-way 리뷰를 필요로 하지는 않으므로 스스로 실행되지 않습니다.
+
+- `bash .kiro/hooks/cross-review.sh`(옵션 `--base <branch>`)를 실행하면 커밋되지 않은 변경을 **Codex**(`codex review --uncommitted` — git 워크트리를 직접 읽으며 코드를 셸 인자로 넘기지 않음)와 **Claude Code**(`claude -p` — diff를 stdin으로 전달)로 교차 점검합니다. 이후 Kiro가 Kiro + Claude + Codex 리뷰를 종합합니다.
+- diff 가드: 변경이 없으면 조용히 종료합니다. 각 외부 CLI는 미설치이거나 실패하면 graceful하게 건너뜁니다.
+- 종합까지 포함한 에이전트 주도 리뷰가 필요하면 `peer-reviewer` 에이전트에 위임하세요(동일한 3-way, 서술형 종합 + 정리 포함).

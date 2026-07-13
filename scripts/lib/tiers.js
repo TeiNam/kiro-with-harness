@@ -133,6 +133,16 @@ function mcpJsonContent({ general, docker, proxy }) {
   return JSON.stringify({ mcpServers }, null, 2) + '\n';
 }
 
+// ── cross 리뷰 스크립트 op(CLI/IDE 공용) ────────────────────
+/** cross 리뷰 백엔드일 때 온디맨드 3-way 교차리뷰 스크립트 설치 op(그 외 null).
+ *  자동 훅이 아니라 필요 시 `bash .kiro/hooks/cross-review.sh` 로 실행하는 스크립트다. */
+function crossReviewScriptOp(root, selection) {
+  if (selection.reviewBackend !== 'cross') return null;
+  const src = path.join(root, 'agents/cli/hooks/cross-review.sh');
+  if (!fs.existsSync(src)) return null;
+  return { type: 'copy', src, destRel: 'hooks/cross-review.sh', label: 'hook cross-review' };
+}
+
 // ── CLI 티어 계획 ───────────────────────────────────────────
 function planCli(selection, { root = ROOT } = {}) {
   const ops = [];
@@ -171,6 +181,10 @@ function planCli(selection, { root = ROOT } = {}) {
     }
     postInstall.push('kiro-cli agent set-default kiro-cli');
   }
+
+  // cross 리뷰 백엔드: 온디맨드 3-way 교차리뷰 스크립트 설치(자동 훅 아님)
+  const crossOp = crossReviewScriptOp(root, selection);
+  if (crossOp) ops.push(crossOp);
 
   return { ops, postInstall };
 }
@@ -224,6 +238,10 @@ function planIde(selection, { root = ROOT } = {}) {
   if (selection.mcp) {
     ops.push({ type: 'content', destRel: 'settings/mcp.json', content: mcpJsonContent(selection.mcp), label: 'mcp.json' });
   }
+
+  // cross 리뷰 백엔드: 온디맨드 3-way 교차리뷰 스크립트 설치(자동 훅 아님)
+  const crossOp = crossReviewScriptOp(root, selection);
+  if (crossOp) ops.push(crossOp);
 
   return { ops, postInstall: [] };
 }

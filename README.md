@@ -92,7 +92,8 @@ Examples:
 
 Control how code review agents are installed with `--review-backend`:
 
-- `--review-backend claude` (default): Exclude native reviewers; route review through `peer-reviewer` agent (calls terminal Claude Code for cross-model second opinion)
+- `--review-backend claude` (default): Exclude native reviewers; route review through the `peer-reviewer` agent, which calls terminal Claude Code (`claude -p`) for a cross-model second opinion (Kiro + Claude, 2-way)
+- `--review-backend cross`: Same routing as `claude`, but `peer-reviewer` gathers opinions from **both** Claude Code (`claude -p`) and Codex CLI (`codex`), synthesized into a **Kiro + Claude + Codex 3-way** review. Also installs an on-demand `cross-review.sh` (`bash .kiro/hooks/cross-review.sh` to cross-check uncommitted changes). Each external CLI degrades gracefully when unavailable. Not every review needs 3-way — the script is opt-in, **not** an automatic hook.
 - `--review-backend kiro`: Install native Kiro reviewer agents (code-reviewer, security-reviewer, language reviewers)
 
 Build agents (build-error-resolver, language build-resolvers, e2e-runner, kiro-cli) are always native regardless of this toggle.
@@ -205,7 +206,7 @@ Options:
   -i, --interactive              Guided interactive install (also the default with no args on a TTY)
   --scope <global|workspace>     Installation scope (default: global for CLI, workspace for IDE)
   --workload <list|all>          Comma-separated workloads or 'all' (default: core only)
-  --review-backend <kiro|claude> Code review routing (default: claude)
+  --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --target <path>                Install to specified directory
   --dry-run                      Preview changes without writing
   --list                         Show all workloads

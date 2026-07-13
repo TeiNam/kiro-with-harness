@@ -14,7 +14,8 @@
  *
  * review-backend 토글(리뷰 에이전트에만 적용):
  *   - 'kiro'   → 네이티브 리뷰 에이전트(*-reviewer) 설치
- *   - 'claude' → 네이티브 리뷰 에이전트 제외, peer-reviewer(claude -p) 로 라우팅
+ *   - 'claude' → 네이티브 리뷰 에이전트 제외, peer-reviewer(claude -p, 2-way) 로 라우팅
+ *   - 'cross'  → 네이티브 제외, peer-reviewer(claude + codex, 3-way) 라우팅 + cross-review.sh(온디맨드) 설치
  *   프로그래밍/빌드/오케스트레이터 에이전트는 항상 Kiro 네이티브(토글 영향 없음).
  *
  * CLI:
@@ -109,7 +110,7 @@ function intersects(a, b) {
 }
 
 /**
- * @param {{root?:string, tier:'cli'|'ide', workloads:string[], reviewBackend?:'kiro'|'claude'}} opts
+ * @param {{root?:string, tier:'cli'|'ide', workloads:string[], reviewBackend?:'kiro'|'claude'|'cross'}} opts
  */
 function selectAssets({ root = ROOT, tier, scope, workloads = [], reviewBackend = 'claude' }) {
   validateGroups(workloads, '--workload');
@@ -136,8 +137,8 @@ function selectAssets({ root = ROOT, tier, scope, workloads = [], reviewBackend 
     agents.push(a);                                           // 프로그래밍/빌드/오케스트레이터 등 항상 설치
   }
 
-  // claude 모드에서 리뷰가 제외됐다면 peer-reviewer 보장(있으면 중복 추가 안 함)
-  if (reviewBackend === 'claude' && peerReviewerNeeded && !agents.some((a) => a.name === 'peer-reviewer')) {
+  // claude/cross 모드에서 리뷰가 제외됐다면 peer-reviewer 보장(있으면 중복 추가 안 함)
+  if (reviewBackend !== 'kiro' && peerReviewerNeeded && !agents.some((a) => a.name === 'peer-reviewer')) {
     const peer = allAgents.find((a) => a.name === 'peer-reviewer');
     if (peer) agents.push(peer);
   }

@@ -23,7 +23,7 @@ The design principle: **Opus reasons and orchestrates, Sonnet does the coding vo
 Why these splits:
 - **security-reviewer stays on Opus** while the generic **code-reviewer moves to Sonnet** — security judgment benefits from deeper reasoning; routine quality review is Sonnet's sweet spot and far higher volume.
 - **rdbms-data-modeler stays on Opus** — 3NF normalization and physical-schema trade-offs are genuine reasoning, unlike per-language review.
-- **peer-reviewer stays on Opus** — a cross-model second opinion should come from the strongest tier to be worth the round-trip.
+- **peer-reviewer stays on Opus** — it coordinates a cross-model second opinion (Claude Code `claude -p` + Codex `codex`, a Kiro + Claude + Codex 3-way), which should come from the strongest tier to be worth the round-trip.
 
 ## Applying and Switching Providers
 

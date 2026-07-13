@@ -6,7 +6,7 @@
 ## 모델
 
 ```
-node install.js <cli|ide> [--scope global|workspace] [--workload a,b|all] [--review-backend kiro|claude] [--dry-run]
+node install.js <cli|ide> [--scope global|workspace] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
 ```
 
 - **티어(tier)** — `cli`(`kiro-cli chat`용: JSON 에이전트, 에이전트 JSON 내부 훅, `skill://` 스킬) 또는 `ide`(Kiro IDE용: Markdown 에이전트, `.kiro/hooks/*.json` v1 JSON 훅, 스티어링).
@@ -47,7 +47,8 @@ node install.js cli --scope global --workload all
 
 `--review-backend`는 코드 리뷰에만 적용됩니다:
 
-- `claude`(기본) — 리뷰를 `peer-reviewer`로 라우팅하여 터미널 Claude Code(`claude -p`)로 교차 모델 검토를 받습니다.
+- `claude`(기본) — 리뷰를 `peer-reviewer`로 라우팅하여 터미널 Claude Code(`claude -p`)로 교차 모델 검토를 받습니다(Kiro + Claude, 2-way).
+- `cross` — `claude`와 동일하게 라우팅하되, `peer-reviewer`가 Claude Code(`claude -p`)와 Codex CLI(`codex`) **양쪽**을 모아 Kiro + Claude + Codex 3-way로 종합하고, 온디맨드 `cross-review.sh`(`bash .kiro/hooks/cross-review.sh`)를 설치합니다. 자동 훅이 아닌 선택 실행이며, 각 외부 CLI는 없으면 graceful하게 건너뜁니다.
 - `kiro` — 네이티브 Kiro 리뷰어 에이전트(code-reviewer, security-reviewer, 언어별 `*-reviewer`)를 설치합니다.
 
 프로그래밍·빌드·오케스트레이터 에이전트는 이 토글과 무관하게 항상 Kiro 네이티브입니다.

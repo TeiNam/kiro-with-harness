@@ -9,8 +9,8 @@
  *   - workload: 워크로드 그룹들 (필요한 자산만; scripts/lib/workloads.js GROUPS)
  *
  * 사용:
- *   node install.js cli  [--scope global|workspace] [--workload a,b] [--review-backend kiro|claude] [--target <path>] [--dry-run]
- *   node install.js ide  [--workload a,b] [--review-backend kiro|claude] [--target <path>] [--dry-run]
+ *   node install.js cli  [--scope global|workspace] [--workload a,b] [--review-backend kiro|claude|cross] [--target <path>] [--dry-run]
+ *   node install.js ide  [--workload a,b] [--review-backend kiro|claude|cross] [--target <path>] [--dry-run]
  *   node install.js --list                          # 워크로드 목록
  *   node install.js --status [--scope global|workspace] [--target <path>]
  *   node install.js --workload all ...              # 모든 워크로드(메뉴 비노출 lab 제외)
@@ -239,7 +239,7 @@ function printIntro() {
     '    node install.js ide --workload=cloud,writing --mcp-proxy         # MCP를 로컬 mcp-proxy 경유로',
     '',
     '  옵션:',
-    '    --review-backend kiro|claude   리뷰 에이전트 백엔드(기본 claude=peer-reviewer→claude -p)',
+    '    --review-backend kiro|claude|cross  리뷰 백엔드(기본 claude=peer-reviewer→claude -p; cross=claude+codex 3-way + cross-review.sh 온디맨드)',
     '    --workload a,b | all           설치할 워크로드(기본: core만)',
     '    --mcp-proxy                    프록시 가능한 MCP를 mcp-proxy(:9090) 경유 URL로 생성(IDE 티어). mcp-proxy/README.md 참고',
     '    --target <path>                워크스페이스 설치 위치(기본 cwd)',
@@ -281,7 +281,7 @@ function parseArgs(argv) {
     }
   }
   if (opts.scope && !['global', 'workspace'].includes(opts.scope)) { console.error(`Invalid --scope: ${opts.scope}`); process.exit(1); }
-  if (opts.reviewBackend && !['kiro', 'claude'].includes(opts.reviewBackend)) { console.error(`Invalid --review-backend: ${opts.reviewBackend}`); process.exit(1); }
+  if (opts.reviewBackend && !['kiro', 'claude', 'cross'].includes(opts.reviewBackend)) { console.error(`Invalid --review-backend: ${opts.reviewBackend} (use kiro|claude|cross)`); process.exit(1); }
   return opts;
 }
 

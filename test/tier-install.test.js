@@ -37,6 +37,35 @@ test('review-backend=kiro: 네이티브 리뷰어 포함', () => {
   assert.ok(n.includes('code-reviewer') && n.includes('python-reviewer'), '네이티브 리뷰어 포함');
 });
 
+test('review-backend=cross: 네이티브 리뷰어 제외, peer-reviewer 포함(claude와 동일 라우팅)', () => {
+  const sel = selectAssets({ root: ROOT, tier: 'ide', workloads: ['python'], reviewBackend: 'cross' });
+  const n = names(sel.agents);
+  assert.ok(n.includes('peer-reviewer'), 'peer-reviewer 포함되어야 함');
+  assert.ok(!n.includes('code-reviewer'), 'code-reviewer 제외');
+  assert.ok(!n.includes('python-reviewer'), 'python-reviewer 제외');
+  assert.ok(!n.includes('security-reviewer'), 'security-reviewer 제외');
+});
+
+test('review-backend=cross: 온디맨드 cross-review.sh 스크립트가 CLI/IDE에 설치된다', () => {
+  for (const [tier, scope] of [['cli', 'global'], ['ide', 'workspace']]) {
+    const sel = selectAssets({ root: ROOT, tier, scope, workloads: ['python'], reviewBackend: 'cross' });
+    sel.mcp = selectMcpServers({ root: ROOT, activeGroups: sel.activeGroups });
+    const plan = tiers.plan(tier, sel, { root: ROOT });
+    const op = plan.ops.find((o) => o.destRel === 'hooks/cross-review.sh');
+    assert.ok(op, `${tier}: hooks/cross-review.sh 설치되어야 함`);
+    assert.strictEqual(op.type, 'copy', `${tier}: cross-review.sh는 copy op`);
+  }
+});
+
+test('review-backend=claude/kiro: cross-review.sh 미설치(자동 강제 아님)', () => {
+  for (const rb of ['claude', 'kiro']) {
+    const sel = selectAssets({ root: ROOT, tier: 'ide', workloads: ['python'], reviewBackend: rb });
+    sel.mcp = selectMcpServers({ root: ROOT, activeGroups: sel.activeGroups });
+    const plan = tiers.plan('ide', sel, { root: ROOT });
+    assert.ok(!plan.ops.some((o) => o.destRel === 'hooks/cross-review.sh'), `${rb}: cross-review.sh 미설치여야 함`);
+  }
+});
+
 test('프로그래밍/빌드 에이전트는 review-backend 무관하게 항상 설치', () => {
   for (const rb of ['kiro', 'claude']) {
     const sel = selectAssets({ root: ROOT, tier: 'cli', scope: 'workspace', workloads: ['rust'], reviewBackend: rb });

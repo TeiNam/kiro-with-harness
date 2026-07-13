@@ -6,7 +6,7 @@
 ## Model
 
 ```
-node install.js <cli|ide> [--scope global|workspace] [--workload a,b|all] [--review-backend kiro|claude] [--dry-run]
+node install.js <cli|ide> [--scope global|workspace] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
 ```
 
 - **Tier** — `cli` (for `kiro-cli chat`: JSON agents, hooks embedded in agent JSON, `skill://` skills) or `ide` (for Kiro IDE: Markdown agents, `.kiro/hooks/*.json` v1 JSON hooks, steering).
@@ -47,7 +47,8 @@ node install.js cli --scope global --workload all
 
 `--review-backend` controls code review only:
 
-- `claude` (default) — route review through `peer-reviewer`, which calls terminal Claude Code (`claude -p`) for a cross-model second opinion.
+- `claude` (default) — route review through `peer-reviewer`, which calls terminal Claude Code (`claude -p`) for a cross-model second opinion (Kiro + Claude, 2-way).
+- `cross` — same routing as `claude`, but `peer-reviewer` gathers **both** Claude Code (`claude -p`) and Codex CLI (`codex`) into a Kiro + Claude + Codex 3-way review, and installs an on-demand `cross-review.sh` (`bash .kiro/hooks/cross-review.sh`). Opt-in, not an automatic hook; each external CLI degrades gracefully.
 - `kiro` — install native Kiro reviewer agents (code-reviewer, security-reviewer, language `*-reviewer`s).
 
 Programming, build, and orchestrator agents are always Kiro-native regardless of this toggle.

@@ -92,7 +92,8 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 `--review-backend`로 코드 리뷰 에이전트 설치 방식을 제어하세요:
 
-- `--review-backend claude` (기본값): 네이티브 리뷰어 제외; `peer-reviewer` 에이전트를 통해 리뷰 라우팅 (터미널 Claude Code 호출로 교차 모델 의견 수렴)
+- `--review-backend claude` (기본값): 네이티브 리뷰어 제외; `peer-reviewer` 에이전트를 통해 리뷰 라우팅 (터미널 Claude Code `claude -p` 호출로 교차 모델 의견 수렴 — Kiro + Claude 2-way)
+- `--review-backend cross`: `claude`와 동일하게 라우팅하되, `peer-reviewer`가 Claude Code(`claude -p`)와 Codex CLI(`codex`) **양쪽** 의견을 모아 **Kiro + Claude + Codex 3-way**로 종합합니다. 온디맨드 `cross-review.sh`도 설치합니다(`bash .kiro/hooks/cross-review.sh`로 커밋되지 않은 변경을 교차 점검). 각 외부 CLI는 없으면 graceful하게 건너뜁니다. 모든 리뷰가 3-way일 필요는 없으므로, 이 스크립트는 자동 훅이 **아니라** 선택 실행입니다.
 - `--review-backend kiro`: 네이티브 Kiro 리뷰어 에이전트 설치 (code-reviewer, security-reviewer, 언어 리뷰어)
 
 빌드 에이전트(build-error-resolver, 언어 build-resolver, e2e-runner, kiro-cli)는 이 토글과 관계없이 항상 네이티브입니다.
@@ -205,7 +206,7 @@ node install.js <tier> [options]
   -i, --interactive              가이드 대화형 설치 (인자 없이 TTY 실행 시 기본)
   --scope <global|workspace>     설치 범위 (기본: CLI는 global, IDE는 workspace)
   --workload <list|all>          쉼표로 구분한 워크로드 또는 'all' (기본: core만)
-  --review-backend <kiro|claude> 코드 리뷰 라우팅 (기본: claude)
+  --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --target <path>                지정 디렉토리에 설치
   --dry-run                      파일을 쓰지 않고 변경 사항 미리보기
   --list                         모든 워크로드 표시
