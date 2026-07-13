@@ -14,11 +14,14 @@ Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 �
 설치 관리자는 **계층 × 카테고리 트리** 모델을 사용합니다: `cli` 또는 `ide`를 선택한 후 카테고리를 선택하세요.
 
 ```bash
-# 대화형 설치 (가이드 프롬프트: 티어, scope, 카테고리, 리뷰 백엔드, MCP 프록시)
+# 대화형 설치 (가이드 프롬프트: 티어, scope, 카테고리, 리뷰 백엔드, 오케스트레이터 모델, MCP 프록시)
 node install.js              # 또는: node install.js -i
 
 # CLI 계층: 글로벌 기본 설정 설치 (오케스트레이터 에이전트, 스킬 → ~/.kiro)
 node install.js cli --scope global --category=core
+
+# 오케스트레이터를 Fable 5(Mythos-class)로 — 가용 환경에서만, 기본은 opus-4.8
+node install.js cli --scope global --category=core --frontier-model=fable5
 
 # Rust + Python 개발, 워크스페이스 설치
 node install.js cli --scope workspace --dev=rust,python

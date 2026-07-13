@@ -7,7 +7,7 @@
 ## Model
 
 ```
-node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
+node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--frontier-model opus48|fable5] [--dry-run]
 ```
 
 - **Tier** — `cli` (for `kiro-cli chat`: JSON agents, hooks embedded in agent JSON, `skill://` skills) or `ide` (for Kiro IDE: Markdown agents, `.kiro/hooks/*.json` v1 JSON hooks, steering).
@@ -95,6 +95,16 @@ node install.js cli --scope global --workload rust,postgres,cloud
 - `kiro` — install native Kiro reviewer agents (code-reviewer, security-reviewer, language `*-reviewer`s).
 
 Programming, build, and orchestrator agents are always Kiro-native regardless of this toggle.
+
+## Frontier model (orchestrator)
+
+The `kiro-cli` orchestrator (CLI global only) defaults to **`claude-opus-4.8`** — widely available and safe. When the Mythos-class **`claude-fable-5`** is available in your environment, upgrade it at install time:
+
+- `--frontier-model=fable5` — pin the orchestrator to `claude-fable-5`
+- `--frontier-model=opus48` (or omit / `auto`) — baseline `claude-opus-4.8`
+- The interactive installer asks for the orchestrator model on CLI global installs.
+
+Kiro CLI has no non-interactive model-list command, so the choice is explicit — there is **no auto-detection**. The selection is recorded in the manifest (`frontierModel`) and shown by `--status`. If you pick a model your environment can't serve, Kiro warns and falls back to `chat.defaultModel`, so it never hard-fails.
 
 ## Global ↔ workspace inheritance
 

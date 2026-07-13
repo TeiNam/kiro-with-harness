@@ -7,7 +7,7 @@
 ## 모델
 
 ```
-node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
+node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--frontier-model opus48|fable5] [--dry-run]
 ```
 
 - **티어(tier)** — `cli`(`kiro-cli chat`용: JSON 에이전트, 에이전트 JSON 내부 훅, `skill://` 스킬) 또는 `ide`(Kiro IDE용: Markdown 에이전트, `.kiro/hooks/*.json` v1 JSON 훅, 스티어링).
@@ -95,6 +95,16 @@ node install.js cli --scope global --workload rust,postgres,cloud
 - `kiro` — 네이티브 Kiro 리뷰어 에이전트(code-reviewer, security-reviewer, 언어별 `*-reviewer`)를 설치합니다.
 
 프로그래밍·빌드·오케스트레이터 에이전트는 이 토글과 무관하게 항상 Kiro 네이티브입니다.
+
+## Frontier 모델 (오케스트레이터)
+
+`kiro-cli` 오케스트레이터(CLI global 전용)는 기본으로 **`claude-opus-4.8`**을 씁니다 — 널리 가용하고 안전합니다. 환경에 Mythos-class **`claude-fable-5`**가 사용 가능하면 설치 시 승격하세요:
+
+- `--frontier-model=fable5` — 오케스트레이터를 `claude-fable-5`로 고정
+- `--frontier-model=opus48`(또는 생략 / `auto`) — baseline `claude-opus-4.8`
+- 대화형 설치는 CLI global 설치에서 오케스트레이터 모델을 묻습니다.
+
+Kiro CLI는 사용 가능 모델을 비대화형으로 조회하는 명령이 없어 선택은 명시적입니다 — **자동 감지는 없습니다**. 선택은 매니페스트(`frontierModel`)에 기록되고 `--status`로 표시됩니다. 환경이 서빙할 수 없는 모델을 골라도 Kiro가 경고 후 `chat.defaultModel`로 폴백하므로 하드 실패하지 않습니다.
 
 ## 글로벌 ↔ 워크스페이스 상속
 

@@ -14,11 +14,14 @@ Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload
 The installer uses a **tier × category tree** model: choose `cli` or `ide`, then select categories.
 
 ```bash
-# Interactive install (guided prompts: tier, scope, categories, review backend, MCP proxy)
+# Interactive install (guided prompts: tier, scope, categories, review backend, orchestrator model, MCP proxy)
 node install.js              # or: node install.js -i
 
 # CLI tier: install global baseline (orchestrator agents, skills → ~/.kiro)
 node install.js cli --scope global --category=core
+
+# Orchestrator on Fable 5 (Mythos-class) where available — default is opus-4.8
+node install.js cli --scope global --category=core --frontier-model=fable5
 
 # Rust + Python dev, workspace install
 node install.js cli --scope workspace --dev=rust,python
