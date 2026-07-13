@@ -142,35 +142,82 @@ function validateAgent(filePath) {
   return issues;
 }
 
+const IDE_TOOL_TAGS = new Set(['read', 'write', 'shell', 'web', 'subagent', 'context', '@mcp', '@builtin', '*']);
+
+/** IDE 에이전트(.md) frontmatter 최소 파서 — name/model/tools 등 단순 `key: value`. */
+function parseFrontmatter(raw) {
+  if (!raw.startsWith('---')) return null;
+  const end = raw.indexOf('\n---', 3);
+  if (end === -1) return null;
+  const obj = {};
+  for (const line of raw.slice(3, end).split(/\r?\n/)) {
+    const m = line.match(/^([A-Za-z_]+)\s*:\s*(.*)$/);
+    if (m) obj[m[1]] = m[2].trim();
+  }
+  return obj;
+}
+
+/**
+ * IDE 에이전트(.md) 검증 — IDE 1.0 custom agent 규격.
+ * tag-based tools 를 필수로 요구하고, 태그가 허용 집합(read/write/shell/web/
+ * subagent/context/@mcp/@builtin/*) 에 속하는지 확인한다.
+ */
+function validateIdeAgent(filePath) {
+  const issues = [];
+  const fm = parseFrontmatter(fs.readFileSync(filePath, 'utf8'));
+  if (!fm) return [{ level: 'ERROR', msg: 'missing YAML frontmatter' }];
+  const base = path.basename(filePath, '.md');
+  if (!fm.name) issues.push({ level: 'ERROR', msg: 'missing required field: name' });
+  else if (fm.name !== base) issues.push({ level: 'WARN', msg: `name('${fm.name}') != filename('${base}')` });
+  if (!fm.model) issues.push({ level: 'WARN', msg: 'missing field: model' });
+  if (!fm.tools) {
+    issues.push({ level: 'ERROR', msg: 'missing tools (IDE 1.0 tag-based tools required)' });
+  } else {
+    const tags = fm.tools.replace(/^\[|\]$/g, '').split(',').map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+    if (tags.length === 0) issues.push({ level: 'ERROR', msg: 'tools is empty' });
+    for (const t of tags) {
+      if (!IDE_TOOL_TAGS.has(t)) {
+        issues.push({ level: 'ERROR', msg: `invalid tool tag '${t}' (allowed: ${[...IDE_TOOL_TAGS].join(', ')})` });
+      }
+    }
+  }
+  return issues;
+}
+
 function main() {
-  const dirs = ['agents/cli/global', 'agents/cli/workspace'];
   let totalErrors = 0;
   let totalWarns = 0;
   let filesWithIssues = 0;
+  const groups = [
+    { dirs: ['agents/cli/global', 'agents/cli/workspace'], ext: '.json', fn: validateAgent },
+    { dirs: ['agents/ide'], ext: '.md', fn: validateIdeAgent },
+  ];
 
-  for (const dir of dirs) {
-    const dirPath = path.join(__dirname, '..', dir);
-    if (!fs.existsSync(dirPath)) continue;
+  for (const grp of groups) {
+    for (const dir of grp.dirs) {
+      const dirPath = path.join(__dirname, '..', dir);
+      if (!fs.existsSync(dirPath)) continue;
 
-    const files = fs.readdirSync(dirPath).filter((f) => f.endsWith('.json'));
-    console.log(`\n=== ${dir} (${files.length} files) ===`);
+      const files = fs.readdirSync(dirPath).filter((f) => f.endsWith(grp.ext));
+      console.log(`\n=== ${dir} (${files.length} files) ===`);
 
-    for (const f of files) {
-      const filePath = path.join(dirPath, f);
-      const issues = validateAgent(filePath);
-      const errors = issues.filter((i) => i.level === 'ERROR');
-      const warns = issues.filter((i) => i.level === 'WARN');
+      for (const f of files) {
+        const filePath = path.join(dirPath, f);
+        const issues = grp.fn(filePath);
+        const errors = issues.filter((i) => i.level === 'ERROR');
+        const warns = issues.filter((i) => i.level === 'WARN');
 
-      if (issues.length === 0) {
-        console.log(`  ✅ ${f}`);
-      } else {
-        filesWithIssues++;
-        totalErrors += errors.length;
-        totalWarns += warns.length;
-        const icon = errors.length > 0 ? '❌' : '⚠️ ';
-        console.log(`  ${icon} ${f}`);
-        for (const issue of issues) {
-          console.log(`     [${issue.level}] ${issue.msg}`);
+        if (issues.length === 0) {
+          console.log(`  ✅ ${f}`);
+        } else {
+          filesWithIssues++;
+          totalErrors += errors.length;
+          totalWarns += warns.length;
+          const icon = errors.length > 0 ? '❌' : '⚠️ ';
+          console.log(`  ${icon} ${f}`);
+          for (const issue of issues) {
+            console.log(`     [${issue.level}] ${issue.msg}`);
+          }
         }
       }
     }
@@ -180,6 +227,7 @@ function main() {
   console.log(`Files with issues: ${filesWithIssues}`);
   console.log(`ERROR: ${totalErrors}`);
   console.log(`WARN:  ${totalWarns}`);
+  process.exitCode = totalErrors > 0 ? 1 : 0;
 }
 
 main();
