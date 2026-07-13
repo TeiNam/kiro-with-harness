@@ -1,0 +1,26 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Token Budget Monitor",
+      "description": "Monitors context window consumption after each agent turn. Calls token-optimizer MCP to analyze current usage and suggest compaction when overhead exceeds threshold.",
+      "trigger": "Stop",
+      "action": {
+        "type": "agent",
+        "prompt": "You have access to the token-optimizer MCP. After this turn completes, silently check the current context budget:\n\n1. Call token-optimizer to analyze current context window utilization.\n2. If utilization exceeds 60%, report a brief one-line warning with the percentage and top contributor.\n3. If utilization exceeds 80%, strongly recommend running /compact or delegating heavy reads to a sub-agent.\n4. If utilization is below 60%, say nothing (exit silently).\n\nDo NOT interrupt the user's workflow. Only surface warnings when actionable. Format:\n⚠️ Context: {pct}% used — {top contributor} is the largest consumer. Consider {action}."
+      },
+      "enabled": true
+    },
+    {
+      "name": "Token-Optimize Large Reads",
+      "description": "Before reading large files, suggests token-efficient alternatives (partial reads, summaries, delegation to sub-agent).",
+      "trigger": "PreToolUse",
+      "matcher": "read",
+      "action": {
+        "type": "agent",
+        "prompt": "Before this read operation executes, quickly assess whether it will consume excessive context:\n\n1. Check the file size from the tool input. If the file is likely >500 lines or >20KB:\n   - Call token-optimizer MCP to estimate the token cost of ingesting this file.\n   - If the cost would push context above 70% utilization, suggest an alternative:\n     a) Read only the relevant section (grep/ripgrep first)\n     b) Summarize via a sub-agent\n     c) Use offset/max_chars to read in chunks\n   - Output the suggestion as a brief note.\n2. If the file is small (<500 lines), pass silently.\n\nNever block the read operation (do not exit 2). Advisory only."
+      },
+      "enabled": true
+    }
+  ]
+}
