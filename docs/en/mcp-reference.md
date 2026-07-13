@@ -60,7 +60,7 @@ These are provided by Kiro itself, so the harness does not list them: `memory`, 
 | aws-ecs | acuvity/mcp-server-aws-ecs | ECS deploy/troubleshoot |
 | aws-iam | mcp/iam-mcp-server | IAM users/roles/policies (sensitive — enable per task) |
 
-## FinOps / Cost (Docker, cloud workload)
+## FinOps / Cost (Docker, finops workload)
 
 | Server | Image | Purpose |
 |--------|-------|---------|

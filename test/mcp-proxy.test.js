@@ -42,11 +42,23 @@ test('useProxy=true: 프록시 가능 서버는 {type:http,url} 로 emit되고 g
 });
 
 test('자격증명 필요한 AWS 서버는 프록시화하지 않고 docker 유지', () => {
-  const on = selectMcpServers({ root: ROOT, activeGroups: ['core', 'cloud'], useProxy: true });
+  // devops 서버는 cloud, finops 서버(aws-pricing/aws-billing)는 finops 워크로드 게이트
+  const on = selectMcpServers({ root: ROOT, activeGroups: ['core', 'cloud', 'finops'], useProxy: true });
   for (const n of ['aws-core', 'cloudwatch', 'aws-ecs', 'aws-iam', 'aws-pricing', 'aws-billing-cost-management']) {
     assert.ok(on.docker[n], `${n} 은 docker 유지`);
     assert.ok(!on.proxy[n], `${n} 은 프록시 대상 아님`);
   }
+});
+
+test('finops 게이트: cloud 만으로는 FinOps 서버 미포함, finops 에서만 포함', () => {
+  const cloudOnly = selectMcpServers({ root: ROOT, activeGroups: ['core', 'cloud'], useProxy: false });
+  assert.ok(!cloudOnly.docker['aws-pricing'], 'cloud 만: aws-pricing 제외');
+  assert.ok(!cloudOnly.docker['aws-billing-cost-management'], 'cloud 만: aws-billing 제외');
+  assert.ok(cloudOnly.docker['aws-core'], 'cloud: devops 서버는 포함');
+
+  const finopsOnly = selectMcpServers({ root: ROOT, activeGroups: ['core', 'finops'], useProxy: false });
+  assert.ok(finopsOnly.docker['aws-pricing'] && finopsOnly.docker['aws-billing-cost-management'], 'finops → FinOps 서버 포함');
+  assert.ok(!finopsOnly.docker['aws-core'], 'finops 만: devops 서버 제외');
 });
 
 test('Kiro 내장(github/context7)은 프록시로도 나가지 않음', () => {
@@ -116,6 +128,8 @@ test('e2e: install.js ide --mcp-proxy → settings/mcp.json 이 프록시 URL + 
     assert.strictEqual(m.mcpProxy, true, '매니페스트 mcpProxy=true');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
+    // 옵션 A: install 이 저장소 mcp-proxy/ 에 남긴 워크로드 필터 config(gitignore 대상) 정리
+    fs.rmSync(path.join(ROOT, 'mcp-proxy', 'config.generated.json'), { force: true });
   }
 });
 

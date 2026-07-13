@@ -5,8 +5,8 @@
     "servers": {
       "fetch": { "workloads": [] },
       "time": { "workloads": [] },
-      "brave-search": { "workloads": ["writing"] },
-      "exa": { "workloads": ["writing"] },
+      "brave-search": { "workloads": ["research", "writing"] },
+      "exa": { "workloads": ["research", "writing"] },
       "drawio": { "workloads": ["architecture", "writing"] },
       "token-optimizer": { "workloads": ["ai-agent", "ai"] },
       "obsidian": { "workloads": ["obsidian"] },

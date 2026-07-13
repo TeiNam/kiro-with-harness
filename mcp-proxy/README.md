@@ -86,6 +86,8 @@ node install.js ide --workload=cloud,writing --mcp-proxy
 
 설치기는 이때 **프록시 컨테이너까지 보장**한다: `docker ps`로 `mcp-proxy`가 떠 있는지 확인해 — 떠 있으면 스킵, 없으면 이 디렉터리에서 `docker compose up -d`를 자동 실행한다. **Docker 가 설치돼 있지 않으면 "Docker 설치 후 다시 실행"**, 데몬이 꺼져 있으면 "데몬 시작 후 다시 실행"하라고 안내한다. 기동 실패·`--dry-run`이면 안내만 출력하고 설치는 계속된다(수동 기동: `cd mcp-proxy && docker compose up -d`). 키가 필요한 백엔드(brave/github/obsidian)는 위 "1. API 키 설정"을 먼저 해두면 컨테이너 기동 시 함께 주입된다.
 
+**워크로드 선별 (`config.generated.json`):** `--mcp-proxy` 설치는 활성 워크로드에 맞는 백엔드만 담은 `config.generated.json`을 이 디렉터리에 생성하고, 컨테이너가 그것을 마운트하도록 `MCP_PROXY_CONFIG`로 주입한다(전체 `config.json`은 템플릿이자 수동 `up` 시 기본값으로 유지). 그래서 프록시도 **"필요한 백엔드만"** 서빙하며, 클라이언트 `mcp.json`과 동일한 워크로드 게이트라 서빙 목록과 구독 목록이 정합한다. 프록시가 이미 실행 중이면 공유 안정성을 위해 자동 재기동하지 않는다 — 새 구성을 반영하려면 `MCP_PROXY_CONFIG=./config.generated.json docker compose up -d`로 재적용한다. Kiro 내장(github/context7)은 선별 config 에서 제외되므로, 비-Kiro 클라이언트용으로 전체를 서빙하려면 수동 `docker compose up -d`(기본값 = 전체 `config.json`)를 쓴다.
+
 **프록시로 들어가는 것(프록시 가능):** fetch, time, brave-search, exa, drawio, token-optimizer,
 obsidian, aws-documentation, terraform — 활성 워크로드에 맞는 것만.
 

@@ -67,6 +67,10 @@ function ensureMcpProxy({ root, dryRun = false, run = spawnSync, log = console.l
   }
   if (isRunning(ps.stdout)) {
     log('  mcp-proxy: 이미 실행 중 — 스킵합니다.');
+    if (fs.existsSync(path.join(dir, 'config.generated.json'))) {
+      log('      워크로드 구성을 프록시에 반영하려면(공유 프록시라 자동 재기동 안 함):');
+      log('      cd mcp-proxy && MCP_PROXY_CONFIG=./config.generated.json docker compose up -d');
+    }
     return 'already-running';
   }
 
@@ -76,9 +80,11 @@ function ensureMcpProxy({ root, dryRun = false, run = spawnSync, log = console.l
     return 'skipped-dry-run';
   }
 
-  // 4) 미실행 → 기동
+  // 4) 미실행 → 기동 (워크로드 필터본 config.generated.json 이 있으면 그것을 마운트)
+  const gen = path.join(dir, 'config.generated.json');
+  const env = fs.existsSync(gen) ? { ...process.env, MCP_PROXY_CONFIG: './config.generated.json' } : process.env;
   log('  mcp-proxy: 컨테이너가 없어 기동합니다 (docker compose up -d)…');
-  const up = run('docker', ['compose', 'up', '-d'], { cwd: dir, encoding: 'utf8' });
+  const up = run('docker', ['compose', 'up', '-d'], { cwd: dir, encoding: 'utf8', env });
   if (up && up.status === 0) {
     log('  OK: mcp-proxy 기동됨 → http://localhost:9090');
     log('      (brave/github/obsidian 등 키가 필요한 백엔드는 mcp-proxy/README.md 의 키 설정을 참고하세요.)');

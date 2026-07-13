@@ -60,7 +60,7 @@ Kiro가 자체 제공하므로 하네스는 나열하지 않습니다: `memory`,
 | aws-ecs | acuvity/mcp-server-aws-ecs | ECS 배포/트러블슈팅 |
 | aws-iam | mcp/iam-mcp-server | IAM 사용자/역할/정책 (민감 — 작업별 활성화) |
 
-## FinOps / 비용 (Docker, cloud 워크로드)
+## FinOps / 비용 (Docker, finops 워크로드)
 
 | 서버 | 이미지 | 용도 |
 |------|--------|------|

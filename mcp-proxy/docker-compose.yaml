@@ -1,6 +1,6 @@
 services:
   mcp-proxy:
-    image: ghcr.io/tbxark/mcp-proxy:latest
+    image: ghcr.io/tbxark/mcp-proxy:v0.43.2
     container_name: mcp-proxy
     restart: unless-stopped
     ports:
@@ -10,8 +10,10 @@ services:
       # (원격 노출이 꼭 필요하면 config.json 에 authTokens 를 설정하고 바인딩을 조정할 것.)
       - "127.0.0.1:9090:9090"
     volumes:
-      # config.json은 읽기 전용으로 마운트 (Colima는 홈 디렉토리를 자동 마운트하므로 이 경로는 그대로 동작)
-      - ./config.json:/config/config.json:ro
+      # config.json(전체 템플릿)을 읽기 전용 마운트. 설치기(--mcp-proxy)는 워크로드로 필터한
+      # config.generated.json 을 MCP_PROXY_CONFIG 로 주입한다(수동 up 은 기본값=전체 config.json).
+      # (Colima는 홈 디렉토리를 자동 마운트하므로 이 상대경로는 그대로 동작)
+      - ${MCP_PROXY_CONFIG:-./config.json}:/config/config.json:ro
     environment:
       # 값은 같은 폴더의 .env 파일, 또는 compose를 실행하는 셸의 환경변수(.zshrc/.bashrc의 export)에서 주입됨.
       # config.json의 ${BRAVE_API_KEY} / ${GITHUB_PAT} / ${OBSIDIAN_API_KEY} 가 컨테이너 안에서 이 값으로 치환된다.
