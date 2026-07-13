@@ -7,7 +7,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자와 워크로드 선택으로 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. Claude Fable 5(Mythos-class)에 최적화 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 공유 에이전트 협업 가이드(AGENTS.md).
+Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자와 워크로드 선택으로 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. Kiro frontier 티어(기본 Claude Opus 4.8, Fable 5 opt-in)에 최적화 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 공유 에이전트 협업 가이드(AGENTS.md).
 
 ## 빠른 시작
 
@@ -144,16 +144,16 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 ## 모델
 
-에이전트 모델 할당은 역할 기반이며, **프로바이더 독립적인 네 능력 티어**로 구성됩니다. 각 에이전트 정의의 `model` 필드가 유일한 소스이며, [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js)에서 기록됩니다. 이 하네스는 **Kiro 네 모델에 최적화**되어 있습니다 — **`claude-fable-5`**(프런티어, Mythos-class), **`claude-opus-4.8`**(심층 추론), **`claude-sonnet-5`**(균형, 기본 코딩 티어), **`claude-haiku-4.5`**(비용 최적화). `kiro-cli` 오케스트레이터(설치 시 기본 에이전트로 지정)는 `claude-fable-5`에 고정되고, 추론 에이전트는 `claude-opus-4.8`, 물량이 많은 코딩 에이전트는 `claude-sonnet-5`, 비용 민감 역할은 `claude-haiku-4.5`를 씁니다.
+에이전트 모델 할당은 역할 기반이며, **프로바이더 독립적인 네 능력 티어**로 구성됩니다. 각 에이전트 정의의 `model` 필드가 유일한 소스이며, [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js)에서 기록됩니다. 이 하네스는 **Kiro 네 모델에 최적화**되어 있습니다 — **`claude-fable-5`**(프런티어, Mythos-class), **`claude-opus-4.8`**(심층 추론), **`claude-sonnet-5`**(균형, 기본 코딩 티어), **`claude-haiku-4.5`**(비용 최적화). `kiro-cli` 오케스트레이터(설치 시 기본 에이전트로 지정)는 기본 `claude-opus-4.8`이며 설치 시 사용 가능하면 `claude-fable-5`로 승격되고(`--frontier-model=fable5` 또는 대화형 설치), 추론 에이전트는 `claude-opus-4.8`, 물량이 많은 코딩 에이전트는 `claude-sonnet-5`, 비용 민감 역할은 `claude-haiku-4.5`를 씁니다.
 
 | 티어 | 모델 | 에이전트 |
 |------|------|----------|
-| 프런티어 (Mythos-class) | `claude-fable-5` | kiro-cli(오케스트레이터) |
+| 프런티어 | `claude-opus-4.8`(baseline) → `claude-fable-5`(upgrade) | kiro-cli(오케스트레이터) |
 | 심층 추론 | `claude-opus-4.8` | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
 | 균형 (기본) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, 언어 리뷰어, 빌드 해결자, database-reviewer, e2e-runner, 문서/기술 작성자 |
 | 비용 최적화 | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
-설계 원칙: **Fable은 장기 DAG 오케스트레이션, Opus는 추론, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 라우팅은 에이전트 단위라 역할별로 모델을 섞을 수 있습니다. OpenAI GPT-5.5 / GPT-5.4가 Kiro에서 선택 가능해지면 동일한 티어가 그대로 매핑됩니다(`frontier/deep-reasoning → gpt-5.5`, `balanced → gpt-5.4`) — `node scripts/apply-model-policy.js --provider=openai`로 재지정하세요. 전체 배정·훅→티어 가이드·프로바이더 전환 워크플로: [모델 라우팅](docs/kr/model-routing.md).
+설계 원칙: **오케스트레이터는 frontier 티어(기본 opus-4.8, 가용시 fable-5), Opus는 추론, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 라우팅은 에이전트 단위라 역할별로 모델을 섞을 수 있습니다. OpenAI GPT-5.5 / GPT-5.4가 Kiro에서 선택 가능해지면 동일한 티어가 그대로 매핑됩니다(`frontier/deep-reasoning → gpt-5.5`, `balanced → gpt-5.4`) — `node scripts/apply-model-policy.js --provider=openai`로 재지정하세요. 전체 배정·훅→티어 가이드·프로바이더 전환 워크플로: [모델 라우팅](docs/kr/model-routing.md).
 
 > **Opus 4.8 가용성:** `claude-opus-4.8`은 **실험적**이며 **us-east-1**과 **eu-central-1**에서만 사용 가능합니다. **Kiro CLI v2.5.0+**가 필요합니다. `claude-opus-4.8`으로 고정된 에이전트는 이전 CLI 버전 또는 지원되지 않는 지역에서 실패합니다 — Kiro CLI를 업그레이드하세요.
 
@@ -260,6 +260,7 @@ node install.js <tier> [options]
   --<category>-<sub>= <list>     소분류 옵션 (예: --dev-apple=core; 소분류가 있는 중분류만)
   --workload <list|all>           저수준: 워크로드 키 직접 지정 (쉼표로 구분 또는 'all'; 레거시 표면, 카테고리와 합집합)
   --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
+  --frontier-model <opus48|fable5> 오케스트레이터(kiro-cli) frontier 모델 (기본: opus-4.8; fable5 = 가용 환경에서 claude-fable-5)
   --mcp-proxy                    IDE 전용: mcp.json을 mcp-proxy(:9090) 경유로 구성 + 프록시 컨테이너 자동 기동(미실행 시 docker compose up -d)
   --target <path>                지정 디렉토리에 설치
   --dry-run                      파일을 쓰지 않고 변경 사항 미리보기

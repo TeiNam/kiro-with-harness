@@ -8,7 +8,7 @@
 ### Added
 - **Agent Focus Mode 가이드**(`docs/{en,kr}/agent-focus-mode.md`) — IDE 1.0 에이전트 포커스 모드(병렬 세션·workflow picker Spec/Plan/Bug Fix/Quick Spec)를 하네스 에이전트 묶음·DAG 오케스트레이션에 매핑. README 버전 호환성에 세션 마이그레이션·Focus Mode 항목과 docs 링크(en/kr) 추가.
 - **매니페스트 설치 버전 기록** — 설치 시 `.harness-manifest.json`에 `sourceVersion`(`package.json` version)을 기록한다. `node install.js --status`가 설치 버전과 현재 소스 버전을 semver 비교해 **outdated**(갱신 필요) / ahead / up-to-date 를 안내한다(`install.js`의 `compareSemver`). `test/tier-install.test.js`에 단위·e2e 테스트 추가.
-- **frontier 모델 티어(`claude-fable-5`, Mythos-class)** — kiro-cli 오케스트레이터 전용. `model-policy.js`에 tier 추가, `validate-models.js`가 4티어를 출력.
+- **frontier 모델 티어(오케스트레이터 전용)** — 기본 `claude-opus-4.8`(널리 가용), 설치 시 `--frontier-model=fable5`(또는 대화형)로 Mythos-class `claude-fable-5` 승격. `model-policy.js`에 frontier tier + `FRONTIER_UPGRADE`, `install.js`가 kiro-cli model 치환 + 매니페스트 `frontierModel` 기록, `validate-models.js` 4티어 출력. Kiro CLI에 비대화형 모델 목록 명령이 없어 명시 선택 방식(미가용 모델은 `chat.defaultModel`로 폴백).
 - 신규 스킬 2종 — `aws-finops`(finops 워크로드; Cost Explorer·SP/RI·rightsizing·단위경제학·showback/chargeback), `analysis-methodology`(python-data; 분석 판단층). 스킬 137 → 139.
 
 ### Changed

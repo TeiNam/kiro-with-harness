@@ -6,24 +6,24 @@
 
 | 티어 | Claude (기본) | OpenAI (예정) | 용도 |
 |------|---------------|---------------|------|
-| **frontier** | `claude-fable-5` | `gpt-5.5` | 프런티어 장기(long-horizon) 에이전틱 작업: 며칠 단위 자율 오케스트레이션, 광폭 병렬 서브에이전트 위임, 자가 검증(Mythos-class, Opus 상위). 오케스트레이터 전용 |
+| **frontier** | `claude-opus-4.8`(baseline) → `claude-fable-5`(upgrade) | `gpt-5.5` | 오케스트레이터 전용. 기본은 opus-4.8(널리 가용), 사용 가능하면 Mythos-class fable-5로 승격 — `--frontier-model=fable5`로 설치 |
 | **deep-reasoning** | `claude-opus-4.8` | `gpt-5.5` | 오케스트레이션, 아키텍처, 보안 판단, 근본 원인 분석, 리서치 종합, 복잡한 데이터 모델링 |
 | **balanced** | `claude-sonnet-5` | `gpt-5.4` | 코딩 주력(workhorse): 코드/언어 리뷰, 빌드 오류 해결, 리팩터링, e2e, 문서 |
 | **cost-optimized** | `claude-haiku-4.5` | `gpt-5.4` | 단순·대량·저판단 작업: 번역, 분류, 기본 콘텐츠 |
 
-설계 원칙: **Fable은 장기 DAG 오케스트레이션, Opus는 추론, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 기본 티어는 `balanced`(Sonnet 5)다 — 대부분의 에이전트가 코딩 에이전트이므로, 명시되지 않은 역할은 모두 balanced로 떨어진다.
+설계 원칙: **오케스트레이터는 frontier 티어(기본 opus-4.8, 가용시 fable-5), Opus는 추론, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 기본 티어는 `balanced`(Sonnet 5)다 — 대부분의 에이전트가 코딩 에이전트이므로, 명시되지 않은 역할은 모두 balanced로 떨어진다.
 
 ## 에이전트별 배정
 
 | 티어 | 에이전트 |
 |------|----------|
-| **frontier** (`claude-fable-5`) | kiro-cli(오케스트레이터) |
+| **frontier** (baseline `claude-opus-4.8`, upgrade `claude-fable-5`) | kiro-cli(오케스트레이터) |
 | **deep-reasoning** (`claude-opus-4.8`) | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
 | **balanced** (`claude-sonnet-5`) | code-reviewer, refactor-cleaner, 전체 언어 리뷰어(python, rust, go, java, kotlin, cpp, typescript, flutter), database-reviewer, 전체 빌드 리졸버(build-error-resolver, cpp, go, java, kotlin, pytorch, rust), e2e-runner, 문서 에이전트(tech-doc-writer, tech-writer-monolith, doc-clarity-reviewer, doc-quality-detector, tech-fidelity-auditor) |
 | **cost-optimized** (`claude-haiku-4.5`) | translator-docs, article-writer, content-creator |
 
 분류 근거:
-- **kiro-cli는 Fable 5(frontier)로 이동** — 오케스트레이터의 일이 곧 Mythos-class 모델의 설계 목적(장기 자율 작업, 광폭 병렬 서브에이전트 위임, 자가 검증)이다. 하네스에서 지렛대가 가장 큰 단일 좌석이며 모든 에이전트의 산출물이 이곳을 거친다. Fable 5(`claude-fable-5`, 2026-06-09 GA)는 Opus 상위 티어이고 이 티어의 유일한 점유자이므로, 프리미엄 비용은 함대 전체가 아닌 에이전트 하나에만 적용된다.
+- **kiro-cli는 frontier 티어** — 기본 `claude-opus-4.8`(널리 가용), 설치 환경에 사용 가능하면 설치 시 Mythos-class `claude-fable-5`로 승격한다(`--frontier-model=fable5` 또는 대화형 설치). 오케스트레이터의 일이 곧 Mythos-class 모델의 설계 목적(장기 자율 작업, 광폭 병렬 서브에이전트 위임, 자가 검증)이며, 지렛대가 가장 큰 단일 좌석이자 frontier의 유일한 점유자다 — 따라서 fable-5 프리미엄(선택 시)은 함대 전체가 아닌 에이전트 하나에만 적용된다. Kiro CLI는 사용 가능 모델을 비대화형으로 조회하는 명령이 없어 승격은 명시 설치 선택이며, 미가용 모델은 `chat.defaultModel`로 폴백한다.
 - **security-reviewer는 Opus 유지**, 범용 **code-reviewer는 Sonnet으로 이동** — 보안 판단은 깊은 추론에서 이득을 보지만, 일상적 품질 리뷰는 Sonnet의 강점이자 물량이 훨씬 많다.
 - **rdbms-data-modeler는 Opus 유지** — 3NF 정규화와 물리 스키마 트레이드오프는 언어별 리뷰와 달리 실제 추론이 필요하다.
 - **peer-reviewer는 Opus 유지** — Claude Code(`claude -p`) + Codex(`codex`)를 조율하는 교차 모델 second opinion(Kiro + Claude + Codex 3-way)은 왕복 비용을 정당화하려면 최상위 티어에서 나와야 한다.

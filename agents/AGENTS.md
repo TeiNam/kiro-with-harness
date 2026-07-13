@@ -13,7 +13,7 @@
 
 역할을 능력 티어에 매핑하고, 티어를 모델 식별자에 매핑한다. 단일 출처는 `scripts/lib/model-policy.js`이며, 자세한 배정·전환은 `docs/kr/model-routing.md`를 참조한다.
 
-- `claude-fable-5` (frontier, Mythos-class) — 장기 자율 오케스트레이션·광폭 병렬 위임·자가 검증. 오케스트레이터 전용(kiro-cli).
+- `claude-opus-4.8` → `claude-fable-5` (frontier) — 오케스트레이터(kiro-cli) 전용. 기본 opus-4.8(널리 가용), 설치 시 가용하면 fable-5(Mythos-class)로 승격(`--frontier-model=fable5` 또는 대화형).
 - `claude-opus-4.8` (deep-reasoning) — 아키텍처·보안·근본 원인 분석·리서치 종합 등 추론 중심 작업(architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler).
 - `claude-sonnet-5` (balanced, 기본 티어) — 코드/언어 리뷰·빌드 오류 해결·리팩터·e2e·문서 등 코딩 주력. 명시되지 않은 역할은 이 티어로 떨어진다.
 - `claude-haiku-4.5` (cost-optimized) — 번역·문서·분류 등 비용 최적화 작업.
