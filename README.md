@@ -164,6 +164,8 @@ The design principle: **Fable orchestrates the long-horizon DAG, Opus reasons, S
 - **IDE hooks use the v1 JSON format** (`.kiro/hooks/*.json`), introduced in IDE 1.0 and replacing the legacy `.kiro.hook` format. Legacy hooks do not execute until migrated. The installer emits v1 JSON directly. See `docs/en/hook-reference.md`.
 - **Default resource inheritance (CLI 2.7+):** custom agents automatically inherit global steering, skills, and `AGENTS.md` in addition to their own `resources`. To keep installs strictly workload-scoped (no global pull-in), disable it: `kiro-cli settings chat.disableInheritingDefaultResources true` (add `--workspace` to scope per project). Built-in agents always inherit regardless.
 - **Hot-reload (CLI 2.10+):** edits to `~/.kiro/agents/*` and `mcp.json` apply at the next idle boundary without restarting the session — reinstalling the harness takes effect without losing chat context.
+- **Sessions (IDE 1.0):** IDE 1.0 uses a new session storage format; 0.x sessions need migrating (each shows a **Migrate** button, or opening one migrates it automatically). This is independent of the harness — it installs assets, not sessions — and hot-reload means re-running the installer keeps the active session.
+- **Agent Focus Mode (IDE 1.0, experimental):** a chat-first layout with multiple parallel sessions and a workflow picker (Spec/Plan/Bug Fix/Quick Spec), running over the same `.kiro/` assets. See `docs/en/agent-focus-mode.md` for how it maps to the harness agent fleet and DAG orchestration.
 
 ## What Gets Installed
 
@@ -273,6 +275,7 @@ Full guides live under `docs/` — English in `docs/en/`, Korean in `docs/kr/`.
 |-----|--------|
 | [Workload guide](docs/en/profile-guide.md) | Tier × workload model, install flags, profile migration |
 | [Hook reference](docs/en/hook-reference.md) | IDE 1.0 v1 JSON hook format, triggers, the installed hook set |
+| [Agent Focus Mode](docs/en/agent-focus-mode.md) | IDE 1.0 Agent Focus Mode (experimental) — parallel sessions & workflow picker mapped to harness agents/orchestration |
 | [MCP reference](docs/en/mcp-reference.md) | Curated MCP catalog (built-in / general / DevOps / FinOps / opt-in) |
 | [Model routing](docs/en/model-routing.md) | 3-tier model policy (Opus/Sonnet/Haiku), per-agent assignment, hook→tier guidance, OpenAI GPT-5.5/5.4 forward plan |
 | [Skill catalog](docs/en/skill-catalog.md) | The 139 skills by domain |

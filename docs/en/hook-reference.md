@@ -2,9 +2,9 @@
 
 Kiro IDE hooks are event-driven automations defined as **v1 JSON files** in `.kiro/hooks/*.json`. They trigger on IDE events and run an agent prompt or a shell command.
 
-> **Reference source**: Hook schema and trigger names verified against the official Kiro IDE documentation ([kiro.dev/docs/hooks](https://kiro.dev/docs/hooks/), [What's new in IDE 1.0](https://kiro.dev/docs/whats-new-1-0/)). Verification date: 2026-06-29.
+> **Reference source**: Hook schema and trigger names verified against the official Kiro IDE documentation ([kiro.dev/docs/hooks](https://kiro.dev/docs/hooks/), [What's new in IDE 1.0](https://kiro.dev/docs/whats-new-1-0/)). Verification date: 2026-07-14.
 >
-> **IDE 1.0 format change**: The v1 JSON format (`.kiro/hooks/*.json`) replaces the legacy `.kiro.hook` / `.hook` format. Legacy hooks show an upgrade badge in the Agent Hooks panel and **do not execute until migrated**. The harness installer emits v1 JSON directly.
+> **IDE 1.0 format change**: The v1 JSON format (`.kiro/hooks/*.json`) replaces the legacy `.kiro.hook` / `.hook` format. Legacy hooks show an upgrade badge in the Agent Hooks panel and **do not execute until migrated** (click the badge to convert; the migrated hook activates immediately). The harness installer emits v1 JSON directly, so a fresh harness install needs no hook migration — only hooks you authored under 0.x need the panel upgrade. Legacy `Manual` hooks are replaced by manual steering files (`.kiro/steering/<name>.md` invoked as `/<name>`).
 
 ## v1 JSON Schema
 

@@ -164,6 +164,8 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 - **IDE 훅은 v1 JSON 포맷**(`.kiro/hooks/*.json`)을 사용합니다. IDE 1.0에서 도입되어 레거시 `.kiro.hook` 포맷을 대체하며, 레거시 훅은 마이그레이션 전까지 실행되지 않습니다. 설치기는 v1 JSON을 직접 생성합니다. `docs/kr/hook-reference.md` 참고.
 - **기본 리소스 상속(CLI 2.7+):** 커스텀 에이전트는 자신의 `resources`에 더해 글로벌 steering·skills·`AGENTS.md`를 자동 상속합니다. 설치를 워크로드 범위로만 엄격히 유지하려면(글로벌 끌어오기 차단) 비활성화하세요: `kiro-cli settings chat.disableInheritingDefaultResources true` (`--workspace`로 프로젝트 범위 지정 가능). 내장 에이전트는 설정과 무관하게 항상 상속합니다.
 - **Hot-reload(CLI 2.10+):** `~/.kiro/agents/*` 와 `mcp.json` 편집은 세션 재시작 없이 다음 idle 경계에서 반영됩니다 — 하네스를 재설치해도 채팅 컨텍스트 손실 없이 적용됩니다.
+- **세션(IDE 1.0):** IDE 1.0은 새 세션 저장 포맷을 씁니다. 0.x 세션은 마이그레이션이 필요합니다(각 세션의 **Migrate** 버튼, 또는 세션을 열면 자동 마이그레이션). 이는 하네스와 무관합니다 — 하네스는 세션이 아니라 자산을 설치하며, hot-reload 덕분에 설치기를 다시 실행해도 활성 세션이 유지됩니다.
+- **에이전트 포커스 모드(IDE 1.0, 실험적):** 다중 병렬 세션과 workflow picker(Spec/Plan/Bug Fix/Quick Spec)를 갖춘 채팅 우선 레이아웃으로, 동일한 `.kiro/` 자산 위에서 동작합니다. 하네스 에이전트 묶음·DAG 오케스트레이션과의 매핑은 `docs/kr/agent-focus-mode.md` 참조.
 
 ## 설치되는 항목
 
@@ -273,6 +275,7 @@ node install.js <tier> [options]
 |------|------|
 | [워크로드 가이드](docs/kr/profile-guide.md) | tier × workload 모델, 설치 플래그, 프로필 마이그레이션 |
 | [훅 레퍼런스](docs/kr/hook-reference.md) | IDE 1.0 v1 JSON 훅 포맷, 트리거, 설치되는 훅 세트 |
+| [에이전트 포커스 모드](docs/kr/agent-focus-mode.md) | IDE 1.0 에이전트 포커스 모드(실험적) — 병렬 세션·workflow picker를 하네스 에이전트/오케스트레이션에 매핑 |
 | [MCP 레퍼런스](docs/kr/mcp-reference.md) | 큐레이션 MCP 카탈로그 (내장 / general / DevOps / FinOps / opt-in) |
 | [모델 라우팅](docs/kr/model-routing.md) | 3-티어 모델 정책(Opus/Sonnet/Haiku), 에이전트별 배정, 훅→티어 가이드, OpenAI GPT-5.5/5.4 도입 계획 |
 | [스킬 카탈로그](docs/kr/skill-catalog.md) | 139개 스킬 도메인별 정리 |

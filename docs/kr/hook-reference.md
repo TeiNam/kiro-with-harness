@@ -2,9 +2,9 @@
 
 Kiro IDE 훅은 `.kiro/hooks/*.json`에 정의되는 **v1 JSON** 이벤트 기반 자동화입니다. IDE 이벤트에 트리거되어 에이전트 프롬프트 또는 셸 명령을 실행합니다.
 
-> **참조 출처**: 훅 스키마와 트리거 이름은 Kiro IDE 공식 문서([kiro.dev/docs/hooks](https://kiro.dev/docs/hooks/), [What's new in IDE 1.0](https://kiro.dev/docs/whats-new-1-0/))를 기준으로 확인했습니다. 확인 일자: 2026-06-29.
+> **참조 출처**: 훅 스키마와 트리거 이름은 Kiro IDE 공식 문서([kiro.dev/docs/hooks](https://kiro.dev/docs/hooks/), [What's new in IDE 1.0](https://kiro.dev/docs/whats-new-1-0/))를 기준으로 확인했습니다. 확인 일자: 2026-07-14.
 >
-> **IDE 1.0 포맷 변경**: v1 JSON 포맷(`.kiro/hooks/*.json`)이 레거시 `.kiro.hook` / `.hook` 포맷을 대체합니다. 레거시 훅은 Agent Hooks 패널에 업그레이드 배지로 표시되며 **마이그레이션 전까지 실행되지 않습니다**. 하네스 설치기는 v1 JSON을 직접 생성합니다.
+> **IDE 1.0 포맷 변경**: v1 JSON 포맷(`.kiro/hooks/*.json`)이 레거시 `.kiro.hook` / `.hook` 포맷을 대체합니다. 레거시 훅은 Agent Hooks 패널에 업그레이드 배지로 표시되며 **마이그레이션 전까지 실행되지 않습니다**(배지를 클릭하면 변환되고 즉시 활성화). 하네스 설치기는 v1 JSON을 직접 생성하므로 새로 설치하면 훅 마이그레이션이 필요 없습니다 — 0.x에서 직접 만든 훅만 패널에서 업그레이드하면 됩니다. 레거시 `Manual` 훅은 매뉴얼 steering 파일(`.kiro/steering/<name>.md`, `/<name>`으로 호출)로 대체됩니다.
 
 ## v1 JSON 스키마
 

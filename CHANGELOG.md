@@ -6,11 +6,14 @@
 ## 2026-07-14
 
 ### Added
+- **Agent Focus Mode 가이드**(`docs/{en,kr}/agent-focus-mode.md`) — IDE 1.0 에이전트 포커스 모드(병렬 세션·workflow picker Spec/Plan/Bug Fix/Quick Spec)를 하네스 에이전트 묶음·DAG 오케스트레이션에 매핑. README 버전 호환성에 세션 마이그레이션·Focus Mode 항목과 docs 링크(en/kr) 추가.
 - **매니페스트 설치 버전 기록** — 설치 시 `.harness-manifest.json`에 `sourceVersion`(`package.json` version)을 기록한다. `node install.js --status`가 설치 버전과 현재 소스 버전을 semver 비교해 **outdated**(갱신 필요) / ahead / up-to-date 를 안내한다(`install.js`의 `compareSemver`). `test/tier-install.test.js`에 단위·e2e 테스트 추가.
 - **frontier 모델 티어(`claude-fable-5`, Mythos-class)** — kiro-cli 오케스트레이터 전용. `model-policy.js`에 tier 추가, `validate-models.js`가 4티어를 출력.
 - 신규 스킬 2종 — `aws-finops`(finops 워크로드; Cost Explorer·SP/RI·rightsizing·단위경제학·showback/chargeback), `analysis-methodology`(python-data; 분석 판단층). 스킬 137 → 139.
 
 ### Changed
+- **IDE 에이전트 tag-based tools 정합** — tools 누락 23종에 역할별 최소권한 태그 부여(리뷰어=`read`, build-resolver·e2e-runner·refactor-cleaner=`read/write/shell`, architect·deep-researcher=`read/web`, content-creator·article-writer=`read/write`). IDE 에이전트 32종 전부 IDE 1.0 custom agent 규격(tag-based tools) 정합.
+- **hook-reference(en/kr)** — 훅 마이그레이션 흐름(레거시 배지 업그레이드, `Manual`→매뉴얼 steering 파일) 명확화 + verification date 갱신. 하네스는 v1 JSON을 직접 emit하므로 신규 설치는 훅 마이그레이션 불필요.
 - **3-tier 카테고리 트리** 도입 — `install-menu.js` → `categories.js`(대분류→중분류→소분류 + CLI 플래그 파서). `cloud`에서 `finops`, `writing`에서 `research`/`report` 워크로드 분리.
 - **워크로드별 프록시 config 필터링** — `proxy-config.js`가 활성 워크로드에 필요한 백엔드만 담은 `mcp-proxy/config.generated.json`을 생성.
 
