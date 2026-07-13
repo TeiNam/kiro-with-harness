@@ -43,11 +43,14 @@ const PROVIDERS = ['anthropic', 'openai'];
 const TIERS = {
   frontier: {
     description:
-      'Frontier long-horizon agentic work: multi-day autonomous orchestration, wide parallel sub-agent delegation, self-verification. Mythos-class (above Opus).',
+      'Frontier orchestration tier (orchestrator only). Baseline is claude-opus-4.8 ' +
+      '(widely available); upgrades to the Mythos-class claude-fable-5 when it is ' +
+      'available in the install environment — install with --frontier-model=fable5 ' +
+      '(or pick it in the interactive installer). See FRONTIER_UPGRADE.',
     providers: {
-      anthropic: 'claude-fable-5',
-      // OpenAI 에는 Mythos-class 상응 모델이 확인되지 않았다 — 최상위 gpt-5.5 를 재사용한다.
-      // 상응 프런티어 모델이 출시되면 여기만 교체하면 된다.
+      // 안전 기본값 — 널리 가용한 opus-4.8. fable-5 미가용 환경에서도 동작한다.
+      // fable-5 승격은 설치 시 명시 선택(FRONTIER_UPGRADE)으로 이뤄진다.
+      anthropic: 'claude-opus-4.8',
       openai: 'gpt-5.5',
     },
   },
@@ -84,6 +87,16 @@ const TIERS = {
 const TIER_IDS = Object.keys(TIERS);
 
 /**
+ * frontier 승격(upgrade) 모델 — 설치 환경에 사용 가능하면 오케스트레이터를 baseline
+ * (frontier.providers)에서 이 모델로 올린다. Kiro CLI 는 사용 가능 모델을 비대화형으로
+ * 조회하는 명령이 없어(자동 감지 불가) 설치 시 명시 선택한다: `--frontier-model=fable5`
+ * 또는 대화형 설치의 오케스트레이터 모델 프롬프트. 미가용 모델을 지정하더라도 Kiro 가
+ * 경고와 함께 chat.defaultModel 로 폴백하므로 안전하다.
+ * @type {Record<string,string>}
+ */
+const FRONTIER_UPGRADE = { anthropic: 'claude-fable-5', openai: 'gpt-5.5' };
+
+/**
  * 명시적으로 배정되지 않은 역할의 기본 티어.
  * 코딩 주력이 하네스의 다수 역할(리뷰어·빌드 리졸버·문서)이므로 balanced 로 떨어뜨린다.
  * 추론 중심·비용 최적화 역할만 아래 ROLE_TIERS 에 명시한다.
@@ -95,9 +108,10 @@ const DEFAULT_TIER = 'balanced';
  * @type {Record<string, string>}
  */
 const ROLE_TIERS = {
-  // ── frontier (claude-fable-5, Mythos-class) ──
-  // 오케스트레이터만 배치: Fable 5 의 강점(장기 자율 오케스트레이션·광폭 병렬 위임·자가 검증)이
-  // 정확히 오케스트레이터 역할이다. 나머지 추론 역할은 비용 대비 Opus 4.8 이 적정.
+  // ── frontier (오케스트레이터 전용) ──
+  // baseline claude-opus-4.8(널리 가용). 설치 환경에 claude-fable-5(Mythos-class)가 있으면
+  // `--frontier-model=fable5`(또는 대화형)로 승격한다 — Fable 5 의 강점(장기 자율 오케스트레이션·
+  // 광폭 병렬 위임·자가 검증)이 오케스트레이터 역할과 정확히 맞기 때문이다.
   'kiro-cli': 'frontier', // 오케스트레이터: 병렬 DAG 위임 조율
 
   // ── deep-reasoning (claude-opus-4.8) ──
@@ -161,6 +175,15 @@ function tierIdentifier(tier, provider = DEFAULT_PROVIDER) {
 }
 
 /**
+ * frontier 승격 모델 식별자. 설치 시 오케스트레이터를 이 값으로 올린다(가용 환경).
+ * @param {string} [provider] 프로바이더(기본: anthropic).
+ * @returns {string} 승격 모델 식별자(예: claude-fable-5).
+ */
+function frontierUpgradeIdentifier(provider = DEFAULT_PROVIDER) {
+  return FRONTIER_UPGRADE[provider] || FRONTIER_UPGRADE[DEFAULT_PROVIDER];
+}
+
+/**
  * 역할 + 프로바이더 → 모델 식별자(에이전트 파일에 기록할 값).
  * @param {string} role 에이전트 이름.
  * @param {string} [provider] 프로바이더(기본: anthropic).
@@ -182,9 +205,11 @@ module.exports = {
   TIER_IDS,
   DEFAULT_TIER,
   ROLE_TIERS,
+  FRONTIER_UPGRADE,
   classifyRole,
   providersFor,
   tierIdentifier,
   identifierForRole,
+  frontierUpgradeIdentifier,
   isKnownProvider,
 };

@@ -104,6 +104,20 @@ async function runInteractiveInstall(io = {}) {
     }));
     if (!reviewBackend) return null;
 
+    // 4.5) frontier 모델 — CLI global(오케스트레이터 kiro-cli 설치 대상)에서만 물음
+    let frontierModel = null;
+    if (tier === 'cli' && scope === 'global') {
+      const fm = await selectOne(ask({
+        title: '\n\uc624\ucf00\uc2a4\ud2b8\ub808\uc774\ud130(kiro-cli) frontier \ubaa8\ub378:',
+        options: [
+          { id: 'opus48', label: 'opus-4.8 (\uae30\ubcf8 \u00b7 \uc548\uc815 \u00b7 \ub110\ub9ac \uac00\uc6a9)' },
+          { id: 'fable5', label: 'fable-5  (Mythos-class \u2014 claude-fable-5 \uac00\uc6a9 \ud658\uacbd\uc5d0\uc11c\ub9cc)' },
+        ],
+      }));
+      if (!fm) return null;
+      frontierModel = fm;
+    }
+
     // 5) mcp-proxy — IDE 티어에서만(cli 는 mcp.json 미생성)
     let mcpProxy = false;
     if (tier === 'ide') {
@@ -124,6 +138,7 @@ async function runInteractiveInstall(io = {}) {
     say(`  scope         : ${scope}`);
     say(`  workloads     : ${sel.workloads.join(', ')}`);
     say(`  review-backend: ${reviewBackend}`);
+    if (frontierModel) say(`  frontier model: ${frontierModel === 'fable5' ? 'claude-fable-5' : 'claude-opus-4.8'}`);
     if (tier === 'ide') say(`  mcp-proxy     : ${mcpProxy ? 'on' : 'off'}`);
     say('');
 
@@ -142,6 +157,7 @@ async function runInteractiveInstall(io = {}) {
       workload: sel.workloads,
       reviewBackend,
       mcpProxy,
+      frontierModel,
       target: io.target || null,
       dryRun: io.dryRun === true,
     };

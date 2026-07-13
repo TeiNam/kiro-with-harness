@@ -87,7 +87,7 @@ test('classifyRole: balanced 역할 및 미등록 역할 기본값', () => {
 // ---------------------------------------------------------------------------
 
 test('tierIdentifier: anthropic 기본 식별자', () => {
-  assert.strictEqual(tierIdentifier('frontier'), 'claude-fable-5');
+  assert.strictEqual(tierIdentifier('frontier'), 'claude-opus-4.8');
   assert.strictEqual(tierIdentifier('deep-reasoning'), 'claude-opus-4.8');
   assert.strictEqual(tierIdentifier('balanced'), 'claude-sonnet-5');
   assert.strictEqual(tierIdentifier('cost-optimized'), 'claude-haiku-4.5');
@@ -106,7 +106,7 @@ test('tierIdentifier: 알 수 없는 티어/프로바이더는 throw', () => {
 });
 
 test('identifierForRole: 역할 → 식별자(프로바이더별)', () => {
-  assert.strictEqual(identifierForRole('kiro-cli'), 'claude-fable-5');
+  assert.strictEqual(identifierForRole('kiro-cli'), 'claude-opus-4.8');
   assert.strictEqual(identifierForRole('architect'), 'claude-opus-4.8');
   assert.strictEqual(identifierForRole('code-reviewer'), 'claude-sonnet-5');
   assert.strictEqual(identifierForRole('translator-docs'), 'claude-haiku-4.5');
@@ -143,4 +143,14 @@ test('apply main: --dry-run 은 자산을 쓰지 않고 exit 0', () => {
   } finally {
     console.log = orig;
   }
+});
+
+test('frontierUpgradeIdentifier: fable-5 승격 식별자이며 baseline(opus-4.8)과 구분된다', () => {
+  const { frontierUpgradeIdentifier, FRONTIER_UPGRADE, tierIdentifier } = require('../scripts/lib/model-policy');
+  assert.strictEqual(frontierUpgradeIdentifier(), 'claude-fable-5');
+  assert.strictEqual(frontierUpgradeIdentifier('anthropic'), 'claude-fable-5');
+  assert.strictEqual(frontierUpgradeIdentifier('openai'), 'gpt-5.5');
+  assert.strictEqual(FRONTIER_UPGRADE.anthropic, 'claude-fable-5');
+  // frontier baseline(opus-4.8)과 upgrade(fable-5)는 서로 달라야 한다(승격의 의미).
+  assert.notStrictEqual(tierIdentifier('frontier'), frontierUpgradeIdentifier());
 });
