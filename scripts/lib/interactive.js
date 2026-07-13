@@ -8,7 +8,7 @@
  * 이 모듈이 방향키 프롬프트로 설치 옵션을 순서대로 받는다:
  *   1) tier            cli | ide
  *   2) scope           global | workspace (tier 기본값 커서)
- *   3) workloads       카테고리(다중) → 각 카테고리 워크로드(다중, 미선택=전체)
+ *   3) workloads       대분류(다중) → 중분류(다중, 미선택=전체) → 소분류(있을 때만)
  *   4) review-backend  claude | cross | kiro
  *   5) mcp-proxy       ide 티어에서만 물음(cli 는 mcp.json 미생성이라 skip)
  *   6) 요약 후 확인    install | cancel
@@ -21,7 +21,7 @@
  */
 
 const { checkboxPrompt, selectOne } = require('./checkbox-prompt');
-const { CATEGORIES, resolveWorkloadSelection } = require('./install-menu');
+const { CATEGORIES, resolveSelection } = require('./categories');
 
 /**
  * 대화형 설치 옵션을 수집한다.
@@ -59,24 +59,39 @@ async function runInteractiveInstall(io = {}) {
     }));
     if (!scope) return null;
 
-    // 3) workloads: 카테고리(다중) → 각 카테고리 워크로드(다중)
+    // 3) workloads: 대분류(다중) → 중분류(다중, 미선택=전체) → 소분류(있을 때만)
     say('\n\ud575\uc2ec(core)\uc740 \ud56d\uc0c1 \uc124\uce58\ub429\ub2c8\ub2e4. \ucd94\uac00\ub85c \uc124\uce58\ud560 \uc601\uc5ed\uc744 \uace0\ub974\uc138\uc694.');
     const categories = await checkboxPrompt(ask({
-      title: '\uce74\ud14c\uace0\ub9ac (space \ud1a0\uae00 \u00b7 a \uc804\uccb4 \u00b7 enter \ud655\uc815, \ubbf8\uc120\ud0dd=core\ub9cc):',
+      title: '\ub300\ubd84\ub958 (space \ud1a0\uae00 \u00b7 a \uc804\uccb4 \u00b7 enter \ud655\uc815, \ubbf8\uc120\ud0dd=core\ub9cc):',
       options: CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
     }));
 
     const subSelections = {};
+    const detailSelections = {};
     for (const catId of categories) {
       const cat = CATEGORIES.find((c) => c.id === catId);
       if (!cat) continue;
-      subSelections[catId] = await checkboxPrompt(ask({
-        title: `\n[${cat.label}] \uc124\uce58\ud560 \ud56d\ubaa9 (\ubbf8\uc120\ud0dd = \uc774 \uce74\ud14c\uace0\ub9ac \uc804\uccb4):`,
-        options: cat.workloads.map((w) => ({ id: w.id, label: w.label })),
+
+      // 중분류
+      const subIds = await checkboxPrompt(ask({
+        title: `\n[${cat.label}] ${cat.subQuestion || '\ud56d\ubaa9\uc744 \uace0\ub974\uc138\uc694'} (\ubbf8\uc120\ud0dd = \uc804\uccb4):`,
+        options: cat.subOptions.map((s) => ({ id: s.id, label: s.label })),
       }));
+      subSelections[catId] = subIds; // 빈 배열이면 resolveSelection 이 전체로 해석
+
+      // 소분류 (선택된 중분류 중 detailOptions 를 가진 것만 드릴다운)
+      const effectiveSubs = subIds.length ? subIds : cat.subOptions.map((s) => s.id);
+      for (const subId of effectiveSubs) {
+        const sub = cat.subOptions.find((s) => s.id === subId);
+        if (!sub || !sub.detailOptions || !sub.detailOptions.length) continue;
+        detailSelections[`${catId}.${subId}`] = await checkboxPrompt(ask({
+          title: `\n[${cat.label} \u203a ${sub.label}] ${sub.detailQuestion || '\ud56d\ubaa9\uc744 \uace0\ub974\uc138\uc694'} (\ubbf8\uc120\ud0dd = \uc804\uccb4):`,
+          options: sub.detailOptions.map((d) => ({ id: d.id, label: d.label })),
+        }));
+      }
     }
 
-    const sel = resolveWorkloadSelection({ categories, subSelections });
+    const sel = resolveSelection({ categories, subSelections, detailSelections });
 
     // 4) review-backend
     const reviewBackend = await selectOne(ask({

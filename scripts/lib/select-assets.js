@@ -167,7 +167,7 @@ function loadMcpCatalog(root) {
  *              애초에 mcpProxy.servers 에 없어 프록시로도 나가지 않는다.
  *   - general: 비-docker 서버. `workloads` 태그가 없으면 범용 포함, 있으면 활성
  *              워크로드와 교집합일 때만 포함(mcpydoc→python, cloudflare-docs→cloud).
- *   - docker:  워크로드 매칭 docker 서버 (cloud → category devops|finops 전체). 자격증명이
+ *   - docker:  워크로드 매칭 docker 서버 (devops 카테고리 → cloud, finops 카테고리 → finops). 자격증명이
  *              필요한 AWS 서버라 프록시화 불가 → useProxy 여도 그대로 docker 로 유지
  *              (단 terraform/aws-documentation 은 프록시 대상이면 proxy 로 이동).
  * CLI 티어는 보통 에이전트(devops.json)가 자체 mcpServers 를 들고 가므로 docker 는
@@ -205,7 +205,9 @@ function selectMcpServers({ root = ROOT, activeGroups = [], useProxy = false } =
     if (name.startsWith('_')) continue;
     if (proxied.has(name)) continue; // terraform/aws-documentation 등은 프록시로 이동
     const c = def && def.category;
-    if (active.has('cloud') && (c === 'devops' || c === 'finops')) docker[name] = def;
+    // 세분화 게이트: devops 서버는 cloud, finops 서버는 finops 워크로드에서만.
+    // (--category=cloud 는 cloud+finops 를 모두 켜므로 종전과 동일한 전체 설치)
+    if ((c === 'devops' && active.has('cloud')) || (c === 'finops' && active.has('finops'))) docker[name] = def;
   }
   return { general, docker, proxy };
 }

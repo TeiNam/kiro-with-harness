@@ -2,7 +2,7 @@
 name: cost-tracking
 description: Track and report AI model token usage, spending, and budgets from a local cost-tracking database.
 origin: harness
-workloads: [cloud, ai]
+workloads: [finops, ai]
 ---
 
 # Cost Tracking

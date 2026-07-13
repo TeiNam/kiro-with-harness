@@ -25,10 +25,12 @@ const os = require('os');
 
 const HARNESS_ROOT = __dirname;
 const { GROUPS, validateGroups } = require(path.join(HARNESS_ROOT, 'scripts/lib/workloads'));
+const { CATEGORIES, parseCliFlags: parseCategoryFlags, resolveSelection, categoryFlagNames } = require(path.join(HARNESS_ROOT, 'scripts/lib/categories'));
 const { selectAssets, selectMcpServers } = require(path.join(HARNESS_ROOT, 'scripts/lib/select-assets'));
 const tiers = require(path.join(HARNESS_ROOT, 'scripts/lib/tiers'));
 const { runInteractiveInstall } = require(path.join(HARNESS_ROOT, 'scripts/lib/interactive'));
 const { ensureMcpProxy } = require(path.join(HARNESS_ROOT, 'scripts/lib/mcp-proxy'));
+const { buildProxyConfig } = require(path.join(HARNESS_ROOT, 'scripts/lib/proxy-config'));
 
 let DRY_RUN = false;
 const MANIFEST_FILE = '.harness-manifest.json';
@@ -183,9 +185,17 @@ function runInstall(opts) {
   writeManifest(kiroRoot, tracked, { tier, scope, workloads, reviewBackend, mcpProxy: useProxy });
   runPostInstall(plan.postInstall);
 
-  // IDE + --mcp-proxy: mcp.json 이 가리키는 mcp-proxy 컨테이너를 보장(없으면 docker compose up -d, 있으면 스킵)
+  // IDE + --mcp-proxy: 워크로드로 필터한 프록시 config 생성 후 mcp-proxy 컨테이너 보장
   if (useProxy && tier === 'ide') {
     console.log('');
+    const { config: proxyConfig, selectedNames } = buildProxyConfig({ root: HARNESS_ROOT, activeGroups: selection.activeGroups });
+    const genPath = path.join(HARNESS_ROOT, 'mcp-proxy', 'config.generated.json');
+    if (DRY_RUN) {
+      console.log(`  DRY-RUN: would write mcp-proxy/config.generated.json (${selectedNames.length} backends: ${selectedNames.join(', ') || 'none'})`);
+    } else {
+      fs.writeFileSync(genPath, JSON.stringify(proxyConfig, null, 2) + '\n', 'utf8');
+      console.log(`  proxy config: ${selectedNames.length} backends → mcp-proxy/config.generated.json (${selectedNames.join(', ') || 'none'})`);
+    }
     ensureMcpProxy({ root: HARNESS_ROOT, dryRun: DRY_RUN });
   }
 
@@ -199,18 +209,23 @@ function runInstall(opts) {
 
 // ── 명령: list ─────────────────────────────────────────────
 function listWorkloads() {
-  const groups = [
-    ['언어', ['python', 'rust', 'go', 'java', 'javascript', 'typescript', 'node', 'kotlin', 'cpp', 'csharp', 'php', 'perl', 'swift']],
-    ['특화', ['ai-agent', 'ai', 'cloud', 'frontend', 'mobile', 'python-data']],
-    ['데이터베이스', ['mysql', 'postgres', 'mongodb', 'dynamodb']],
-    ['기타', ['architecture', 'writing', 'domain', 'obsidian']],
-  ];
-  console.log('\nWorkloads (core is always installed):\n');
-  for (const [label, ids] of groups) {
-    console.log(`  ${label}: ${ids.join(', ')}`);
+  console.log('\n설치 카테고리 (대분류 → 중분류 → 소분류; core 는 항상 설치):\n');
+  for (const cat of CATEGORIES) {
+    console.log(`  ■ ${cat.label}   --category=${cat.id}`);
+    for (const sub of cat.subOptions || []) {
+      if (sub.detailOptions && sub.detailOptions.length) {
+        console.log(`     ├─ ${sub.label}   --${cat.id}=${sub.id} (소분류↓)`);
+        for (const det of sub.detailOptions) {
+          console.log(`     │    · ${det.label}   --${cat.id}-${sub.id}=${det.id} → [${det.workloads.join(',')}]`);
+        }
+      } else {
+        console.log(`     ├─ ${sub.label}   --${cat.id}=${sub.id} → [${sub.workloads.join(',')}]`);
+      }
+    }
   }
-  console.log('\n  특수: lab (메뉴 비노출, --workload=lab 로만)\n');
-  console.log('사용: node install.js cli --workload=cloud,rust  |  node install.js ide --workload=python\n');
+  console.log('\n  특수: lab (메뉴 비노출, --workload=lab 로만)');
+  console.log('  저수준: --workload=<키,...> 로 워크로드 키 직접 지정도 가능 (기존 표면 유지)\n');
+  console.log('사용: node install.js cli --category=cloud --dev=rust  |  node install.js ide --data=postgres\n');
 }
 
 // ── 명령: status ───────────────────────────────────────────
@@ -235,24 +250,29 @@ function showStatus(opts) {
 function printIntro() {
   console.log([
     '',
-    'Kiro Harness — tier × workload installer',
+    'Kiro Harness — tier × category installer',
     '',
     '  CLI 전용 (kiro-cli chat):',
-    '    node install.js cli --scope global  --workload=cloud,rust        # ~/.kiro 글로벌',
-    '    node install.js cli --scope workspace --workload=rust            # 프로젝트 .kiro',
+    '    node install.js cli --scope global  --category=cloud --dev=rust   # ~/.kiro 글로벌',
+    '    node install.js cli --scope workspace --dev=rust                  # 프로젝트 .kiro',
     '',
     '  IDE 전용 (Kiro IDE):',
-    '    node install.js ide --workload=python,cloud                      # 프로젝트 .kiro',
-    '    node install.js ide --workload=cloud,writing --mcp-proxy         # MCP를 로컬 mcp-proxy 경유로',
+    '    node install.js ide --dev=python --category=cloud                 # 프로젝트 .kiro',
+    '    node install.js ide --category=cloud,writing --mcp-proxy          # MCP를 로컬 mcp-proxy 경유로',
+    '',
+    '  카테고리 선택 (대분류 → 중분류 → 소분류):',
+    '    --category=dev,cloud,ai,data,research,writing   대분류 (전체 하위 포함)',
+    '    --dev=frontend,rust --data=postgres             중분류',
+    '    --dev-apple=core --writing-social=voice         소분류 (3단)',
+    '    --workload=<키,...> | all                       워크로드 키 직접 지정(저수준)',
     '',
     '  옵션:',
     '    --review-backend kiro|claude|cross  리뷰 백엔드(기본 claude=peer-reviewer→claude -p; cross=claude+codex 3-way + cross-review.sh 온디맨드)',
-    '    --workload a,b | all           설치할 워크로드(기본: core만)',
     '    --mcp-proxy                    IDE 티어: mcp.json을 mcp-proxy(:9090) 경유로 생성 + 프록시 컨테이너 자동 보장(없으면 docker compose up -d, 있으면 스킵). mcp-proxy/README.md',
     '    --target <path>                워크스페이스 설치 위치(기본 cwd)',
     '    --dry-run                      변경 미리보기',
     '',
-    '  node install.js --list      워크로드 목록',
+    '  node install.js --list      카테고리 트리 목록',
     '  node install.js --status    설치 상태',
     '',
     '  대화형 설치: 인자 없이 실행(TTY)하거나 `node install.js -i`',
@@ -262,7 +282,8 @@ function printIntro() {
 
 // ── CLI 파싱 ───────────────────────────────────────────────
 function parseArgs(argv) {
-  const opts = { tier: null, scope: null, workload: [], reviewBackend: null, target: null, dryRun: false, list: false, status: false, intro: false, mcpProxy: false, interactive: false };
+  const opts = { tier: null, scope: null, workload: [], reviewBackend: null, target: null, dryRun: false, list: false, status: false, intro: false, mcpProxy: false, interactive: false, categoryFlags: {} };
+  const catFlagNames = categoryFlagNames(); // 'category' + 대분류 + 소분류 플래그 (categories.js)
   const args = argv.slice(2);
   if (args.length === 0) opts.intro = true;
   for (let i = 0; i < args.length; i++) {
@@ -283,9 +304,29 @@ function parseArgs(argv) {
       case '--list': opts.list = true; break;
       case '--status': opts.status = true; break;
       default:
-        if (a.startsWith('--')) { console.error(`Unknown flag: ${a}`); process.exit(1); }
+        if (a.startsWith('--') && catFlagNames.has(a.slice(2))) {
+          // 카테고리 플래그: `--dev=rust,go` 또는 bare `--dev`(= 그 대분류 전체).
+          // 레퍼런스(select-workloads.js)와 동일하게 인라인 `=` 문법만 값으로 받는다.
+          opts.categoryFlags[a.slice(2)] = inlineVal !== null ? inlineVal : '';
+        }
+        else if (a.startsWith('--')) { console.error(`Unknown flag: ${a}`); process.exit(1); }
         else if (!opts.tier) opts.tier = a;
     }
+  }
+  // 카테고리 선택 → 워크로드로 해석해 --workload 와 합집합.
+  if (Object.keys(opts.categoryFlags).length > 0) {
+    const sel = resolveSelection(parseCategoryFlags(opts.categoryFlags));
+    const problems = [
+      ...sel.unknownCategories.map((c) => `category: ${c}`),
+      ...sel.unknownSubs.map((s) => `sub-option: ${s}`),
+      ...sel.unknownDetails.map((d) => `detail: ${d}`),
+    ];
+    if (problems.length) {
+      console.error(`Unknown category selection — ${problems.join(', ')}`);
+      console.error(`유효한 플래그: ${[...catFlagNames].map((n) => `--${n}`).join(', ')} (node install.js --list 로 트리 확인)`);
+      process.exit(1);
+    }
+    opts.workload = [...new Set([...opts.workload, ...sel.workloads])];
   }
   if (opts.scope && !['global', 'workspace'].includes(opts.scope)) { console.error(`Invalid --scope: ${opts.scope}`); process.exit(1); }
   if (opts.reviewBackend && !['kiro', 'claude', 'cross'].includes(opts.reviewBackend)) { console.error(`Invalid --review-backend: ${opts.reviewBackend} (use kiro|claude|cross)`); process.exit(1); }

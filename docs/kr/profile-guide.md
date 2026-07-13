@@ -1,46 +1,89 @@
-# 워크로드 가이드
+# 설치 가이드
 
 > 이 문서는 기존 프로파일 기반 모델을 대체합니다. 설치기는 이제 명명된 프로파일이 아니라
-> **티어 × 워크로드**로 자산을 선택합니다. 전체 레퍼런스는 [README](../../README-KR.md)를 참고하세요.
+> **티어 × 카테고리 트리**(대분류 → 중분류 → 소분류)로 자산을 선택하며, 호환성을 위해 저수준
+> **워크로드** 표면을 유지합니다. 전체 레퍼런스는 [README](../../README-KR.md)를 참고하세요.
 
 ## 모델
 
 ```
-node install.js <cli|ide> [--scope global|workspace] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
+node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
 ```
 
 - **티어(tier)** — `cli`(`kiro-cli chat`용: JSON 에이전트, 에이전트 JSON 내부 훅, `skill://` 스킬) 또는 `ide`(Kiro IDE용: Markdown 에이전트, `.kiro/hooks/*.json` v1 JSON 훅, 스티어링).
 - **스코프(scope)** — `global`(`~/.kiro`, CLI 기본) 또는 `workspace`(프로젝트 `.kiro`, IDE 기본).
-- **워크로드(workload)** — 오늘 무슨 작업을 하는가. `core`는 항상 설치되고, 필요한 것을 추가합니다.
+- **카테고리(category)** — 대분류(dev, cloud, ai, data, research, writing) + 중분류 드릴다운(--dev=rust,python) + 소분류 옵션(--dev-apple=core). `core`는 항상 설치되고, 미선택 레벨은 모든 하위 옵션을 기본값으로 사용합니다. 하위 호환성을 위해 `--workload`도 저수준 워크로드 키 직접 지정으로 남아 있습니다.
 
-## 워크로드 목록
+## 카테고리
 
-`core`는 항상 포함됩니다. 추가 워크로드를 이름으로 선택합니다(콤마 구분, 또는 `all`로 `lab` 제외 전체).
+**카테고리 트리**로 선택합니다: 대분류(dev, cloud, ai, data, research, writing) → 중분류 → 소분류(선택). `core`는 항상 설치됩니다.
 
-| 분류 | 워크로드 |
-|------|----------|
-| 언어 | python, rust, go, java, javascript, typescript, node, kotlin, cpp, csharp, php, perl, swift |
-| 특화 | ai-agent, ai, cloud, frontend, mobile, python-data |
-| 데이터베이스 | mysql, postgres, mongodb, dynamodb |
-| 기타 | architecture, writing, domain, obsidian |
-| 특수 | lab (숨김; `--workload lab`로만 설치) |
+| 대분류 | 중분류 | 소분류 | 매핑 워크로드 |
+|--------|--------|--------|------|
+| **dev** | frontend | — | frontend, typescript |
+| | python | — | python |
+| | rust | — | rust |
+| | nodejs | — | node, javascript |
+| | go | — | go |
+| | java | — | java |
+| | kotlin | — | kotlin |
+| | cpp | — | cpp |
+| | csharp | — | csharp |
+| | php | — | php |
+| | perl | — | perl |
+| | apple | core / platform / product | swift |
+| | mobile | — | mobile |
+| | architecture | — | architecture |
+| | domain | — | domain |
+| | obsidian | — | obsidian, frontend |
+| | chrome | — | frontend |
+| | claude | — | ai-agent |
+| **cloud** | infra | — | cloud |
+| | finops | — | finops |
+| | integration | — | cloud |
+| **ai** | llm | — | ai |
+| | agent | — | ai-agent |
+| **data** | duckdb | — | python-data |
+| | python-data | — | python-data, ai |
+| | aws-analytics | — | cloud, python-data |
+| | mysql | — | mysql |
+| | postgres | — | postgres |
+| | mongodb | — | mongodb |
+| | dynamodb | — | dynamodb |
+| | aws-rds | — | mysql, postgres |
+| **research** | websearch | — | research |
+| | report | — | report |
+| **writing** | general | — | writing |
+| | social | voice / content / visual | writing |
 
-언어는 함께 쓰는 경우가 드물어 언어별로 분리했습니다 — `rust`를 골라도 `go` 자산은 끌려오지 않습니다. 자산은 `workloads:` frontmatter가 활성 집합과 교집합일 때 설치됩니다.
+**선택 규칙:**
+- `--category=dev,cloud` — 대분류 전체 선택.
+- `--dev=rust,python` — 중분류 선택(dev 자동 활성화).
+- `--dev-apple=core` — 소분류 선택(dev·apple 자동 활성화).
+- 미선택 레벨은 모든 하위 옵션 기본값.
+- `--workload=<키,...>` — 저수준 워크로드 키 직접 지정(레거시 표면, 카테고리와 합집합).
+- `lab`은 숨김; `--workload=lab`으로만 옵트인.
 
 ## 예시
 
 ```bash
-# Rust 백엔드 서비스, Kiro 네이티브 리뷰
-node install.js cli --scope workspace --workload rust --review-backend kiro
+# Rust 백엔드, Kiro 네이티브 리뷰, 워크스페이스
+node install.js cli --scope workspace --dev=rust --review-backend kiro
 
-# 클라우드 / IaC 작업 (devops + FinOps MCP, Terraform, AWS 스킬)
-node install.js cli --scope global --workload cloud
+# 클라우드 / IaC 작업 (DevOps + FinOps + 데이터 엔지니어링)
+node install.js cli --scope global --category=cloud
 
 # IDE 프로젝트: TypeScript + 프론트엔드
-node install.js ide --workload typescript,frontend
+node install.js ide --dev=frontend,nodejs
 
-# 전체 (lab 제외)
-node install.js cli --scope global --workload all
+# 데이터 엔지니어링: PostgreSQL + AWS 분석
+node install.js cli --scope workspace --data=postgres,aws-analytics
+
+# 여러 전문 영역 조합
+node install.js ide --category=dev,cloud --dev=python --review-backend claude
+
+# 저수준 워크로드 직접 지정 (레거시, 하위 호환성)
+node install.js cli --scope global --workload rust,postgres,cloud
 ```
 
 ## 리뷰 백엔드
@@ -59,10 +102,10 @@ node install.js cli --scope global --workload all
 
 ## 프로파일에서 마이그레이션
 
-| 구 프로파일 명령 | 새 대응 |
-|------------------|---------|
-| `install.js global` | `install.js cli --scope global --workload core` |
-| `install.js developer` | `install.js cli --scope workspace --workload <사용 언어>` |
-| `install.js backend` | `install.js cli --scope workspace --workload python,cloud` 등 |
-| `install.js frontend` | `install.js ide --workload typescript,frontend` |
-| `install.js full` | `install.js cli --scope global --workload all` |
+| 구 프로파일 | 새 대응 |
+|------------|---------|
+| `install.js global` | `install.js cli --scope global --category=core` |
+| `install.js developer` | `install.js cli --scope workspace --dev=<사용 언어>` |
+| `install.js backend` | `install.js cli --scope workspace --category=dev --dev=rust,python,go` |
+| `install.js frontend` | `install.js ide --dev=frontend` |
+| `install.js full` | `install.js cli --scope global --category=dev,cloud,ai,data,research,writing` |

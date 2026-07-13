@@ -38,7 +38,8 @@ const GROUPS = [
   // ── 특화 워크로드 ──
   'ai-agent',    // AI 에이전트/하네스 구축: agent-harness, eval-harness, mcp-server-patterns, agentic-engineering, prompt-optimizer
   'ai',          // LLM/ML 사용: claude-api, bedrock, cost-aware-llm, on-device, pytorch, regex-vs-llm
-  'cloud',       // DevOps/FinOps/Terraform/AWS/Docker/K8s: devops, docker, deployment, terraform-deployment, database-migrations
+  'cloud',       // DevOps/IaC/Terraform/AWS/Docker/K8s: devops, docker, deployment, terraform-deployment, database-migrations
+  'finops',      // 비용: cost-tracking 스킬 + FinOps MCP(aws-pricing, aws-billing-cost-management)
   'frontend',    // UI 프레임워크: react/next/nuxt/vite, liquid-glass, slides, flutter
   'mobile',      // android, compose, swiftui, swift concurrency
   'python-data', // 데이터 분석/ML 파이프라인: duckdb, pandas, mle, clickhouse, pytorch
@@ -51,7 +52,9 @@ const GROUPS = [
 
   // ── 기타 ──
   'architecture',// api-design, adr, blueprint, codebase-onboarding
-  'writing',     // article/content/research/crosspost/slides/humanize
+  'writing',     // article/content/crosspost/slides/humanize — 일반 글쓰기·콘텐츠
+  'research',    // 웹 검색·자료조사: deep-research, market-research (+exa/brave MCP)
+  'report',      // 기술 리포트 작성·검증: tech-writer 스킬 + tech-doc/doc-quality 에이전트 번들
   'domain',      // 물류/제조/에너지/통관 등 비즈니스 도메인
   'obsidian',    // obsidian 플러그인 개발
 
@@ -153,6 +156,7 @@ const RULES = [
   { pattern: /^devops$/i, groups: ['cloud'], kind: 'agent' },
   { pattern: /^docker[-_]/i, groups: ['cloud'] },
   { pattern: /^deployment[-_]/i, groups: ['cloud'] },
+  { pattern: /^cost[-_]tracking$/i, groups: ['finops', 'ai'] },
   { pattern: /^backend[-_]patterns$/i, groups: ['cloud'] },
   { pattern: /^database[-_]migrations$/i, groups: ['cloud', 'mysql', 'postgres'] },
 
@@ -171,17 +175,18 @@ const RULES = [
   { pattern: /^blueprint$/i, groups: ['architecture'] },
   { pattern: /^codebase[-_]onboarding$/i, groups: ['architecture'] },
 
-  // ── Writing ──
+  // ── Writing / Research / Report ──
   { pattern: /^article[-_]/i, groups: ['writing'] },
   { pattern: /^content[-_]engine$/i, groups: ['writing'] },
   { pattern: /^content[-_]creator$/i, groups: ['writing'], kind: 'agent' },
-  // tech-writer 번들 에이전트 (작성/탐지/리뷰/감사)
-  { pattern: /^tech[-_](writer|doc)/i, groups: ['writing'] },
-  { pattern: /^doc[-_](quality|clarity)/i, groups: ['writing'] },
-  { pattern: /^tech[-_]fidelity/i, groups: ['writing'] },
+  // tech-writer 번들 (작성/탐지/리뷰/감사) — 기술 리포트 스위트
+  { pattern: /^tech[-_](writer|doc)/i, groups: ['report'] },
+  { pattern: /^doc[-_](quality|clarity)/i, groups: ['report'] },
+  { pattern: /^tech[-_]fidelity/i, groups: ['report'] },
   { pattern: /^crosspost$/i, groups: ['writing'] },
-  { pattern: /^deep[-_]research$/i, groups: ['writing'] },
-  { pattern: /^market[-_]research$/i, groups: ['writing'] },
+  // 리서치·자료조사 스위트
+  { pattern: /^deep[-_]research$/i, groups: ['research'] },
+  { pattern: /^market[-_]research$/i, groups: ['research'] },
   { pattern: /^investor[-_]/i, groups: ['writing'] },
   { pattern: /^markdown[-_]writing$/i, groups: ['writing'] },
   { pattern: /^video[-_]editing$/i, groups: ['writing'] },

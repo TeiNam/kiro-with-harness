@@ -2,7 +2,7 @@
 name: tech-writer
 description: 기술 문서를 정확하고 명확하고 실행 가능하게 작성·윤문하는 스킬. 개발 가이드·API 문서·README·테크 블로그·기술 리포트를 대상으로, 번역투·hype·모호성을 제거하고 전제조건·코드 예제·용어 일관성·구조를 보강한다.
 origin: harness
-workloads: [writing]
+workloads: [report]
 ---
 
 # 기술 문서 작성·윤문 스킬 (tech-writer)

@@ -1,46 +1,89 @@
-# Workload Guide
+# Installation Guide
 
 > This guide replaces the former profile-based model. The installer now selects assets by
-> **tier × workload**, not by named profiles. See the [README](../../README.md) for the full reference.
+> **tier × category tree** (major category → sub-category → detail option), with a legacy low-level
+> **workload** surface maintained for backward compatibility. See the [README](../../README.md) for the full reference.
 
 ## Model
 
 ```
-node install.js <cli|ide> [--scope global|workspace] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
+node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
 ```
 
 - **Tier** — `cli` (for `kiro-cli chat`: JSON agents, hooks embedded in agent JSON, `skill://` skills) or `ide` (for Kiro IDE: Markdown agents, `.kiro/hooks/*.json` v1 JSON hooks, steering).
 - **Scope** — `global` (`~/.kiro`, CLI default) or `workspace` (project `.kiro`, IDE default).
-- **Workload** — what you are working on today. `core` is always installed; add others as needed.
+- **Category** — major categories (dev, cloud, ai, data, research, writing) + sub-category drill-down (--dev=rust,python) + detail options (--dev-apple=core). `core` is always installed; unselected levels default to all sub-options. For backward compatibility, `--workload` remains available for direct low-level workload key specification.
 
-## Workloads
+## Categories
 
-`core` is always present. Select additional workloads by name (comma-separated, or `all` for every group except `lab`).
+Select by **category tree**: major categories (dev, cloud, ai, data, research, writing), then sub-categories and optional detail levels. `core` is always installed.
 
-| Category | Workloads |
-|----------|-----------|
-| Languages | python, rust, go, java, javascript, typescript, node, kotlin, cpp, csharp, php, perl, swift |
-| Specialized | ai-agent, ai, cloud, frontend, mobile, python-data |
-| Databases | mysql, postgres, mongodb, dynamodb |
-| Other | architecture, writing, domain, obsidian |
-| Special | lab (hidden; opt-in via `--workload lab`) |
+| Major | Sub-Category | Detail | Mapped Workload |
+|-------|--------------|--------|-----------------|
+| **dev** | frontend | — | frontend, typescript |
+| | python | — | python |
+| | rust | — | rust |
+| | nodejs | — | node, javascript |
+| | go | — | go |
+| | java | — | java |
+| | kotlin | — | kotlin |
+| | cpp | — | cpp |
+| | csharp | — | csharp |
+| | php | — | php |
+| | perl | — | perl |
+| | apple | core / platform / product | swift |
+| | mobile | — | mobile |
+| | architecture | — | architecture |
+| | domain | — | domain |
+| | obsidian | — | obsidian, frontend |
+| | chrome | — | frontend |
+| | claude | — | ai-agent |
+| **cloud** | infra | — | cloud |
+| | finops | — | finops |
+| | integration | — | cloud |
+| **ai** | llm | — | ai |
+| | agent | — | ai-agent |
+| **data** | duckdb | — | python-data |
+| | python-data | — | python-data, ai |
+| | aws-analytics | — | cloud, python-data |
+| | mysql | — | mysql |
+| | postgres | — | postgres |
+| | mongodb | — | mongodb |
+| | dynamodb | — | dynamodb |
+| | aws-rds | — | mysql, postgres |
+| **research** | websearch | — | research |
+| | report | — | report |
+| **writing** | general | — | writing |
+| | social | voice / content / visual | writing |
 
-Languages are split per-language because they are rarely combined — selecting `rust` does not pull in `go` assets. An asset is installed when its `workloads:` frontmatter intersects your active set.
+**Selection rules:**
+- `--category=dev,cloud` — select entire major categories.
+- `--dev=rust,python` — select sub-categories (auto-enables dev).
+- `--dev-apple=core` — select detail options (auto-enables dev and apple).
+- Unselected levels default to **all** sub-options.
+- `--workload=<key,...>` — low-level direct workload specification (legacy surface, merges via union with categories).
+- `lab` is hidden; opt-in via `--workload=lab` only.
 
 ## Examples
 
 ```bash
-# Rust backend service, native Kiro review
-node install.js cli --scope workspace --workload rust --review-backend kiro
+# Rust backend, native Kiro review, workspace
+node install.js cli --scope workspace --dev=rust --review-backend kiro
 
-# Cloud / IaC work (devops + FinOps MCP, Terraform, AWS skills)
-node install.js cli --scope global --workload cloud
+# Cloud / IaC work (DevOps + FinOps + data engineering)
+node install.js cli --scope global --category=cloud
 
 # IDE project: TypeScript + frontend
-node install.js ide --workload typescript,frontend
+node install.js ide --dev=frontend,nodejs
 
-# Everything (except lab)
-node install.js cli --scope global --workload all
+# Data engineering: PostgreSQL + AWS analytics
+node install.js cli --scope workspace --data=postgres,aws-analytics
+
+# Multiple specializations
+node install.js ide --category=dev,cloud --dev=python --review-backend claude
+
+# Low-level direct workload (legacy, backward compatible)
+node install.js cli --scope global --workload rust,postgres,cloud
 ```
 
 ## Review backend
@@ -59,10 +102,10 @@ A workspace install inherits (skips) any file byte-identical to one already inst
 
 ## Migrating from profiles
 
-| Old profile command | New equivalent |
-|---------------------|----------------|
-| `install.js global` | `install.js cli --scope global --workload core` |
-| `install.js developer` | `install.js cli --scope workspace --workload <your languages>` |
-| `install.js backend` | `install.js cli --scope workspace --workload python,cloud` (etc.) |
-| `install.js frontend` | `install.js ide --workload typescript,frontend` |
-| `install.js full` | `install.js cli --scope global --workload all` |
+| Old profile | New equivalent |
+|-------------|----------------|
+| `install.js global` | `install.js cli --scope global --category=core` |
+| `install.js developer` | `install.js cli --scope workspace --dev=<your languages>` |
+| `install.js backend` | `install.js cli --scope workspace --category=dev --dev=rust,python,go` |
+| `install.js frontend` | `install.js ide --dev=frontend` |
+| `install.js full` | `install.js cli --scope global --category=dev,cloud,ai,data,research,writing` |
