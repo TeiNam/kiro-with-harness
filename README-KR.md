@@ -7,43 +7,53 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자와 워크로드 선택으로 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. Claude Opus 4.8에 최적화 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 공유 에이전트 협업 가이드(AGENTS.md).
+Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자와 워크로드 선택으로 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. Claude Fable 5(Mythos-class)에 최적화 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 공유 에이전트 협업 가이드(AGENTS.md).
 
 ## 빠른 시작
 
-설치 관리자는 **계층 × 워크로드** 모델을 사용합니다: `cli` 또는 `ide`를 선택한 후 워크로드를 선택하세요.
+설치 관리자는 **계층 × 카테고리 트리** 모델을 사용합니다: `cli` 또는 `ide`를 선택한 후 카테고리를 선택하세요.
 
 ```bash
-# 대화형 설치 (가이드 프롬프트: 티어, scope, 워크로드, 리뷰 백엔드, MCP 프록시)
+# 대화형 설치 (가이드 프롬프트: 티어, scope, 카테고리, 리뷰 백엔드, MCP 프록시)
 node install.js              # 또는: node install.js -i
 
 # CLI 계층: 글로벌 기본 설정 설치 (오케스트레이터 에이전트, 스킬 → ~/.kiro)
-node install.js cli --scope global --workload core
+node install.js cli --scope global --category=core
 
-# CLI 계층: 워크스페이스 설정 설치 (언어 리뷰어, 빌드 해결자 → 프로젝트 .kiro)
-node install.js cli --scope workspace --workload rust,python
+# Rust + Python 개발, 워크스페이스 설치
+node install.js cli --scope workspace --dev=rust,python
 
-# IDE 계층: 프로젝트 설정 설치 (에이전트, 훅, 스티어링 → 프로젝트 .kiro)
-node install.js ide --workload typescript,frontend
+# 프론트엔드 개발 (React/TypeScript)
+node install.js ide --dev=frontend
 
-# 여러 워크로드 설치
-node install.js cli --scope global --workload cloud,rust,go
+# iOS/macOS 개발 (Apple 생태계)
+node install.js cli --scope workspace --dev-apple=core
 
-# 모든 워크로드 설치 (lab 제외)
-node install.js cli --scope global --workload all
+# 클라우드 인프라 작업 (AWS DevOps/IaC/FinOps)
+node install.js cli --scope global --category=cloud
 
-# 사용 가능한 워크로드 나열
+# LLM + 에이전트 구축
+node install.js ide --ai=llm,agent
+
+# 데이터 엔지니어링: 분석 + AWS 레이크하우스
+node install.js cli --scope workspace --data=aws-analytics,postgres
+
+# 카테고리 트리 보기
 node install.js --list
+
+# 저수준: 워크로드 키로 직접 설치 (레거시 표면, 카테고리와 합집합)
+node install.js cli --scope global --workload rust,postgres
 
 # 설치 상태 확인
 node install.js --status
 node install.js --status --scope global
 
 # 파일을 쓰지 않고 미리보기 (모든 명령어에서 작동)
-node install.js cli --scope global --workload core --dry-run
+node install.js cli --scope workspace --dev=rust --dry-run
 ```
 
 > **기본값:** CLI는 기본적으로 글로벌에 설치됩니다(~/.kiro); IDE는 기본적으로 워크스페이스에 설치됩니다(프로젝트 .kiro).
+> **카테고리 선택:** `--category=dev,cloud`는 전체 카테고리를 선택하고, `--dev=rust,python`은 중분류를 선택하며(대분류 자동), `--dev-apple=core`은 소분류를 선택합니다. 미선택 레벨은 모든 하위 옵션을 기본값으로 사용합니다.
 
 ## 설치 계층
 
@@ -72,21 +82,55 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 - 스티어링: 언어 규칙 (fileMatch), 핵심 규칙 (always), 수동 스킬
 - MCP: `.kiro/settings/mcp.json`
 
-## 워크로드 (총 29개)
+## 설치 카테고리 (3단 카테고리 트리)
 
-모든 설치에는 **core**(보편적 규칙, 기본 에이전트)가 포함됩니다. 이름으로 추가 워크로드를 선택하세요.
+설치 관리자는 이제 **카테고리 트리**(대분류 → 중분류 → 소분류)를 통해 설치를 구성하며, 레거시 저수준 워크로드 표면은 호환성을 위해 유지합니다.
 
-| 카테고리 | 워크로드 | 목적 |
-|----------|---------|------|
-| **언어** | python, rust, go, java, javascript, typescript, node, kotlin, cpp, csharp, php, perl, swift | 언어별 규칙, 리뷰어, 빌드 해결자 (필요한 언어만 선택) |
-| **전문** | ai-agent, ai, cloud, frontend, mobile, python-data | 에이전트/하네스 구축; LLM/ML 사용; **cloud = AWS DevOps/FinOps + 데이터 엔지니어링**(SDK boto3/JS v3/CLI v2, S3 Tables/Iceberg/Athena/Spark 레이크하우스, DMS/Glue/Kinesis/MSK/Flink ETL·CDC, RDBMS→S3/OpenSearch 로그 오프로딩, EKS/MSK 최신버전 확인, Terraform); React/Next/Nuxt/Vite; Android/Swift/Compose; DuckDB/pandas/ClickHouse |
-| **데이터베이스** | postgres, mysql, mongodb, dynamodb | DB 특화 규칙 및 리뷰어 |
-| **기타** | architecture, writing, domain, obsidian | API 설계/ADR; 기사/리서치; 비즈니스 도메인; Obsidian 통합 |
-| **특수** | lab | 숨김; `--workload lab`으로만 옵트인 |
+**대분류:** dev, cloud, ai, data, research, writing.
 
-예시:
-- `--workload core,rust,postgres,cloud` — Rust, PostgreSQL, AWS 클라우드 + 데이터 엔지니어링 스킬군.
-- `--workload core,cloud,python-data` — 데이터 플랫폼 집중: AWS SDK/레이크하우스/ETL-CDC/로그 오프로딩 + DuckDB/pandas 분석.
+| 대분류 | 중분류 | 소분류 | 매핑 워크로드 | 목적 |
+|--------|--------|--------|------|----------|
+| **dev** | frontend | — | frontend, typescript | React / Next / Vite / TypeScript |
+| | python | — | python | Django / FastAPI |
+| | rust | — | rust | Rust 백엔드 |
+| | nodejs | — | node, javascript | Node.js / Bun / Prisma |
+| | go | — | go | Go 백엔드 |
+| | java | — | java | Java / Spring / JPA |
+| | kotlin | — | kotlin | Kotlin / Ktor / Exposed |
+| | cpp | — | cpp | C/C++ 시스템 |
+| | csharp | — | csharp | C# 백엔드 |
+| | php | — | php | PHP / Laravel |
+| | perl | — | perl | Perl 스크립트 |
+| | apple | core / platform / product | swift | iOS/macOS (Swift/SwiftUI) |
+| | mobile | — | mobile | Android / Compose / Multiplatform |
+| | architecture | — | architecture | API 설계 / ADR / blueprint |
+| | domain | — | domain | 비즈니스 도메인 (물류·제조·에너지·통관) |
+| | obsidian | — | obsidian, frontend | Obsidian 플러그인 |
+| | chrome | — | frontend | Chrome 확장 (예약 — frontend 스위트) |
+| | claude | — | ai-agent | Claude Code 플러그인 (예약 — ai-agent 스위트) |
+| **cloud** | infra | — | cloud | IaC · EKS · ECS · Lambda · 관측성 |
+| | finops | — | finops | 청구 · 가격 설정 |
+| | integration | — | cloud | SNS · SQS · MQ · Step Functions |
+| **ai** | llm | — | ai | LLM 사용 (Bedrock · Claude API · pytorch) |
+| | agent | — | ai-agent | 에이전트/하네스 구축 (eval · mcp · prompt) |
+| **data** | duckdb | — | python-data | DuckDB 분석 |
+| | python-data | — | python-data, ai | Python 분석 (pandas / pytorch / MLE) |
+| | aws-analytics | — | cloud, python-data | AWS 분석 (Glue · Athena · S3 Tables · Iceberg) |
+| | mysql | — | mysql | MySQL / Aurora MySQL 설계 |
+| | postgres | — | postgres | PostgreSQL / Aurora Postgres 설계 |
+| | mongodb | — | mongodb | MongoDB 설계 |
+| | dynamodb | — | dynamodb | DynamoDB 설계 |
+| | aws-rds | — | mysql, postgres | AWS 관리형 DB (Aurora · RDS) |
+| **research** | websearch | — | research | 웹 검색 · 자료조사 (exa · brave · deep-research) |
+| | report | — | report | 기술 리포트 작성 · 검증 |
+| **writing** | general | — | writing | 일반 글쓰기 (블로깅 · PPT · 창작 · 번역) |
+| | social | voice / content / visual | writing | 소셜 콘텐츠 (LinkedIn 등) |
+
+**사용법:** `--category=dev,cloud`는 대분류 전체를 선택하고, `--dev=rust,python`은 중분류를 선택하며(대분류 자동 활성화), `--dev-apple=core`는 소분류를 선택합니다. 미선택 레벨은 **모든** 하위 옵션을 기본값으로 사용합니다. 필요에 따라 `--review-backend` 및 `--mcp-proxy`(IDE)와 함께 사용합니다.
+
+**클라우드 워크로드 상세:** `cloud` 카테고리는 AWS DevOps(IaC·컨테이너화·관측성)와 통합(메시징)을 다룹니다. FinOps(청구/가격 MCP·비용 추적)는 별도 `finops` 워크로드로 분리되어 `--cloud=finops`로 선택합니다(`--category=cloud`에는 자동 포함). cloud 스위트에는 **데이터 엔지니어링**: S3 Tables / Iceberg / Athena 레이크하우스, DMS/Glue/Kinesis/MSK/Flink ETL & CDC, RDBMS→S3/OpenSearch 로그 오프로딩, EKS/MSK 버전 최신성 확인, Terraform 배포가 포함됩니다([aws-cloud](skills/aws-cloud/SKILL.md), [aws-lakehouse](skills/aws-lakehouse/SKILL.md), [aws-etl-cdc](skills/aws-etl-cdc/SKILL.md), [log-data-offloading](skills/log-data-offloading/SKILL.md), [terraform-deployment](skills/terraform-deployment/SKILL.md) 참고).
+
+**레거시 워크로드 표면:** `--workload=<키,...>|all`은 저수준 직접 워크로드 키 지정을 계속 지원합니다. 카테고리 선택과 합집합됩니다. 특수: `lab`은 `--workload=lab`으로만 옵트인됩니다.
 
 ## 리뷰 백엔드 토글
 
@@ -100,15 +144,16 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 ## 모델
 
-에이전트 모델 할당은 역할 기반이며, **프로바이더 독립적인 세 능력 티어**로 구성됩니다. 각 에이전트 정의의 `model` 필드가 유일한 소스이며, [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js)에서 기록됩니다. 이 하네스는 **Kiro 세 모델에 최적화**되어 있습니다 — **`claude-opus-4.8`**(심층 추론), **`claude-sonnet-5`**(균형, 기본 코딩 티어), **`claude-haiku-4.5`**(비용 최적화). `kiro-cli` 오케스트레이터(설치 시 기본 에이전트로 지정)와 추론 에이전트는 `claude-opus-4.8`에 고정되고, 물량이 많은 코딩 에이전트는 `claude-sonnet-5`, 비용 민감 역할은 `claude-haiku-4.5`를 씁니다.
+에이전트 모델 할당은 역할 기반이며, **프로바이더 독립적인 네 능력 티어**로 구성됩니다. 각 에이전트 정의의 `model` 필드가 유일한 소스이며, [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js)에서 기록됩니다. 이 하네스는 **Kiro 네 모델에 최적화**되어 있습니다 — **`claude-fable-5`**(프런티어, Mythos-class), **`claude-opus-4.8`**(심층 추론), **`claude-sonnet-5`**(균형, 기본 코딩 티어), **`claude-haiku-4.5`**(비용 최적화). `kiro-cli` 오케스트레이터(설치 시 기본 에이전트로 지정)는 `claude-fable-5`에 고정되고, 추론 에이전트는 `claude-opus-4.8`, 물량이 많은 코딩 에이전트는 `claude-sonnet-5`, 비용 민감 역할은 `claude-haiku-4.5`를 씁니다.
 
 | 티어 | 모델 | 에이전트 |
 |------|------|----------|
-| 심층 추론 | `claude-opus-4.8` | kiro-cli, architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| 프런티어 (Mythos-class) | `claude-fable-5` | kiro-cli(오케스트레이터) |
+| 심층 추론 | `claude-opus-4.8` | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
 | 균형 (기본) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, 언어 리뷰어, 빌드 해결자, database-reviewer, e2e-runner, 문서/기술 작성자 |
 | 비용 최적화 | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
-설계 원칙: **Opus는 추론·오케스트레이션, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 라우팅은 에이전트 단위라 역할별로 모델을 섞을 수 있습니다. OpenAI GPT-5.5 / GPT-5.4가 Kiro에서 선택 가능해지면 동일한 티어가 그대로 매핑됩니다(`deep-reasoning → gpt-5.5`, `balanced → gpt-5.4`) — `node scripts/apply-model-policy.js --provider=openai`로 재지정하세요. 전체 배정·훅→티어 가이드·프로바이더 전환 워크플로: [모델 라우팅](docs/kr/model-routing.md).
+설계 원칙: **Fable은 장기 DAG 오케스트레이션, Opus는 추론, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 라우팅은 에이전트 단위라 역할별로 모델을 섞을 수 있습니다. OpenAI GPT-5.5 / GPT-5.4가 Kiro에서 선택 가능해지면 동일한 티어가 그대로 매핑됩니다(`frontier/deep-reasoning → gpt-5.5`, `balanced → gpt-5.4`) — `node scripts/apply-model-policy.js --provider=openai`로 재지정하세요. 전체 배정·훅→티어 가이드·프로바이더 전환 워크플로: [모델 라우팅](docs/kr/model-routing.md).
 
 > **Opus 4.8 가용성:** `claude-opus-4.8`은 **실험적**이며 **us-east-1**과 **eu-central-1**에서만 사용 가능합니다. **Kiro CLI v2.5.0+**가 필요합니다. `claude-opus-4.8`으로 고정된 에이전트는 이전 CLI 버전 또는 지원되지 않는 지역에서 실패합니다 — Kiro CLI를 업그레이드하세요.
 
@@ -172,13 +217,14 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 전체 카탈로그(general / DevOps / FinOps / opt-in: brave-search·sentry·time 포함)와 설정 안내: `docs/kr/mcp-reference.md`.
 
-**중앙 프록시 (`--mcp-proxy`, IDE 티어):** 프록시 가능한 MCP 서버를 로컬 [mcp-proxy](mcp-proxy/README.md) 컨테이너 하나로 모아(`mcp.json`이 `{"type":"http","url":"http://localhost:9090/<서버>/mcp"}` 형태가 됨), 여러 클라이언트가 서버 프로세스를 중복 기동하지 않도록 한다. 설치기는 **컨테이너까지 자동 보장**한다: `docker ps`로 확인해 `mcp-proxy`가 실행 중이 아니면 `mcp-proxy/`에서 `docker compose up -d`, 이미 떠 있으면 스킵. Docker 미설치면 "Docker 설치 후 재실행", 데몬 미실행이면 "데몬 시작 후 재실행"을 안내하며, `--dry-run`·기동 실패는 graceful하게 넘어간다(설치는 계속된다). 자격증명 기반 AWS 서버와 Kiro 내장은 프록시를 거치지 않는다 — [`mcp-proxy/README.md`](mcp-proxy/README.md) 참고.
+**중앙 프록시 (`--mcp-proxy`, IDE 티어):** 프록시 가능한 MCP 서버를 로컬 [mcp-proxy](mcp-proxy/README.md) 컨테이너 하나로 모아(`mcp.json`이 `{"type":"http","url":"http://localhost:9090/<서버>/mcp"}` 형태가 됨), 여러 클라이언트가 서버 프로세스를 중복 기동하지 않도록 한다. 설치기는 **컨테이너까지 자동 보장**한다: `docker ps`로 확인해 `mcp-proxy`가 실행 중이 아니면 `mcp-proxy/`에서 `docker compose up -d`, 이미 떠 있으면 스킵. 또한 활성 워크로드에 맞는 백엔드만 담은 **`config.generated.json`**을 생성해 프록시가 "필요한 것만" 서빙하도록 하며(전체 `config.json`은 템플릿/수동 fallback), 클라이언트 `mcp.json`과 서빙 목록이 정합한다. Docker 미설치면 "Docker 설치 후 재실행", 데몬 미실행이면 "데몬 시작 후 재실행"을 안내하며, `--dry-run`·기동 실패는 graceful하게 넘어간다(설치는 계속된다). 자격증명 기반 AWS 서버와 Kiro 내장은 프록시를 거치지 않는다 — [`mcp-proxy/README.md`](mcp-proxy/README.md) 참고.
 
 ## 프로젝트 구조
 
 ```
 ├── install.js                  # 계층 × 워크로드 설치 관리자
 ├── scripts/lib/
+│   ├── categories.js           # 카테고리 트리 (3단) 및 CLI 플래그 파서
 │   ├── workloads.js            # 워크로드 카탈로그 및 분류
 │   ├── select-assets.js        # 자산 선택 엔진 + review-backend 필터
 │   ├── tiers.js                # CLI/IDE 설치 계획자
@@ -207,12 +253,15 @@ node install.js <tier> [options]
 옵션:
   -i, --interactive              가이드 대화형 설치 (인자 없이 TTY 실행 시 기본)
   --scope <global|workspace>     설치 범위 (기본: CLI는 global, IDE는 workspace)
-  --workload <list|all>          쉼표로 구분한 워크로드 또는 'all' (기본: core만)
+  --category <list>              대분류: dev, cloud, ai, data, research, writing (콤마로 구분; 미선택 = 전체)
+  --<category>= <list>           중분류 선택 (예: --dev=frontend,python; 미선택 = 전체 중분류)
+  --<category>-<sub>= <list>     소분류 옵션 (예: --dev-apple=core; 소분류가 있는 중분류만)
+  --workload <list|all>           저수준: 워크로드 키 직접 지정 (쉼표로 구분 또는 'all'; 레거시 표면, 카테고리와 합집합)
   --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE 전용: mcp.json을 mcp-proxy(:9090) 경유로 구성 + 프록시 컨테이너 자동 기동(미실행 시 docker compose up -d)
   --target <path>                지정 디렉토리에 설치
   --dry-run                      파일을 쓰지 않고 변경 사항 미리보기
-  --list                         모든 워크로드 표시
+  --list                         카테고리 트리 표시
   --status                       설치 상태 표시
 ```
 
@@ -240,3 +289,5 @@ node install.js <tier> [options]
 이 프로젝트는 [Everything Claude Code (ECC)](https://github.com/affaan-m/everything-claude-code)에서 큰 영감을 받았습니다. 많은 규칙, 에이전트 패턴, 스킬 구조가 ECC에서 유래했으며 Kiro IDE의 네이티브 형식(스티어링, 훅, 스킬)에 맞게 조정되었습니다.
 
 `ponytail` 스티어링 규칙(lazy senior dev mode)은 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)에서 가져왔으며, 불필요한 보일러플레이트 대신 최소한의 코드를 지향해 **토큰 사용량을 줄이기 위해** 적용했습니다.
+
+중앙 MCP 프록시는 [tbxark/mcp-proxy](https://github.com/tbxark/mcp-proxy)(MIT License, © TBXark)를 **수정하지 않은 공개 Docker 이미지**(`ghcr.io/tbxark/mcp-proxy`, `v0.43.2` 고정)로 사용합니다. 하네스는 프록시 소스가 아니라 compose 파일·설정·문서만 번들합니다.

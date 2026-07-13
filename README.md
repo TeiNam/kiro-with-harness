@@ -7,43 +7,53 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. Tuned for Claude Opus 4.8 — role-based model routing, DAG-style parallel delegation, and a shared agent collaboration guide (AGENTS.md).
+Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. Tuned for Claude Fable 5 (Mythos-class) — role-based model routing, DAG-style parallel delegation, and a shared agent collaboration guide (AGENTS.md).
 
 ## Quick Start
 
-The installer uses a **tier × workload** model: choose `cli` or `ide`, then select workloads.
+The installer uses a **tier × category tree** model: choose `cli` or `ide`, then select categories.
 
 ```bash
-# Interactive install (guided prompts: tier, scope, workloads, review backend, MCP proxy)
+# Interactive install (guided prompts: tier, scope, categories, review backend, MCP proxy)
 node install.js              # or: node install.js -i
 
 # CLI tier: install global baseline (orchestrator agents, skills → ~/.kiro)
-node install.js cli --scope global --workload core
+node install.js cli --scope global --category=core
 
-# CLI tier: install workspace config (language reviewers, build resolvers → project .kiro)
-node install.js cli --scope workspace --workload rust,python
+# Rust + Python dev, workspace install
+node install.js cli --scope workspace --dev=rust,python
 
-# IDE tier: install project config (agents, hooks, steering → project .kiro)
-node install.js ide --workload typescript,frontend
+# Frontend development (React/TypeScript)
+node install.js ide --dev=frontend
 
-# Install multiple workloads
-node install.js cli --scope global --workload cloud,rust,go
+# iOS/macOS development (Apple ecosystem)
+node install.js cli --scope workspace --dev-apple=core
 
-# Install all workloads (excluding lab)
-node install.js cli --scope global --workload all
+# Cloud infrastructure work (AWS DevOps/IaC/FinOps)
+node install.js cli --scope global --category=cloud
 
-# List available workloads
+# LLM + agent building
+node install.js ide --ai=llm,agent
+
+# Data engineering: analytics + AWS lakehouse
+node install.js cli --scope workspace --data=aws-analytics,postgres
+
+# View the category tree
 node install.js --list
+
+# Low-level: install by workload keys directly (legacy surface, merged with categories)
+node install.js cli --scope global --workload rust,postgres
 
 # Check installation status
 node install.js --status
 node install.js --status --scope global
 
 # Preview without writing (works with any command)
-node install.js cli --scope global --workload core --dry-run
+node install.js cli --scope workspace --dev=rust --dry-run
 ```
 
 > **Defaults:** CLI installs globally by default (~/.kiro); IDE installs workspace by default (project .kiro).
+> **Category selection:** `--category=dev,cloud` selects entire categories; `--dev=rust` picks sub-categories; `--dev-apple=core` drills into detail options. Unselected levels default to all sub-options.
 
 ## Installation Tiers
 
@@ -72,21 +82,55 @@ Installs Markdown agents and separate hook files; skills convert to steering (ma
 - Steering: language rules (fileMatch), core rules (always), manual skills
 - MCP: `.kiro/settings/mcp.json`
 
-## Workloads (29 Total)
+## Installation Categories (3-Tier Category Tree)
 
-All installs include **core** (universal rules, base agents). Select additional workloads by name.
+The installer now organizes installation through a **category tree** (major category → sub-category → detail option), with a legacy low-level workload surface maintained for backward compatibility.
 
-| Category | Workload | Purpose |
-|----------|----------|---------|
-| **Languages** | python, rust, go, java, javascript, typescript, node, kotlin, cpp, csharp, php, perl, swift | Per-language rules, reviewers, build resolvers (select only needed languages) |
-| **Specialized** | ai-agent, ai, cloud, frontend, mobile, python-data | Agent/harness building; LLM/ML use; **cloud = AWS DevOps/FinOps + data engineering** (SDK boto3/JS v3/CLI v2, S3 Tables/Iceberg/Athena/Spark lakehouse, DMS/Glue/Kinesis/MSK/Flink ETL & CDC, RDBMS→S3/OpenSearch log offloading, EKS/MSK version-currency checks, Terraform); React/Next/Nuxt/Vite; Android/Swift/Compose; DuckDB/pandas/ClickHouse |
-| **Databases** | postgres, mysql, mongodb, dynamodb | DB-specific rules and reviewers |
-| **Other** | architecture, writing, domain, obsidian | API design/ADRs; articles/research; business domains; Obsidian integration |
-| **Special** | lab | Hidden; opt-in via `--workload lab` |
+**Major categories:** dev, cloud, ai, data, research, writing.
 
-Examples:
-- `--workload core,rust,postgres,cloud` — Rust, PostgreSQL, and the AWS cloud + data-engineering suite.
-- `--workload core,cloud,python-data` — data platform focus: AWS SDK/lakehouse/ETL-CDC/log-offloading + DuckDB/pandas analytics.
+| Category | Sub-Category | Detail | Mapped Workloads | Purpose |
+|----------|--------------|--------|------------------|---------|
+| **dev** | frontend | — | frontend, typescript | React / Next / Vite / TypeScript |
+| | python | — | python | Django / FastAPI |
+| | rust | — | rust | Rust backend |
+| | nodejs | — | node, javascript | Node.js / Bun / Prisma |
+| | go | — | go | Go backend |
+| | java | — | java | Java / Spring / JPA |
+| | kotlin | — | kotlin | Kotlin / Ktor / Exposed |
+| | cpp | — | cpp | C/C++ system |
+| | csharp | — | csharp | C# backend |
+| | php | — | php | PHP / Laravel |
+| | perl | — | perl | Perl scripting |
+| | apple | core / platform / product | swift | iOS/macOS (Swift/SwiftUI) |
+| | mobile | — | mobile | Android / Compose / Multiplatform |
+| | architecture | — | architecture | API design / ADR / blueprint |
+| | domain | — | domain | Business domains (logistics, manufacturing, energy) |
+| | obsidian | — | obsidian, frontend | Obsidian plugins |
+| | chrome | — | frontend | Chrome extensions (reserved) |
+| | claude | — | ai-agent | Claude Code plugins (reserved) |
+| **cloud** | infra | — | cloud | IaC · EKS · ECS · Lambda · observability |
+| | finops | — | finops | Billing · Pricing |
+| | integration | — | cloud | SNS · SQS · MQ · Step Functions |
+| **ai** | llm | — | ai | LLM use (Bedrock · Claude API · pytorch) |
+| | agent | — | ai-agent | Agent/harness building (eval · mcp · prompt) |
+| **data** | duckdb | — | python-data | DuckDB analysis |
+| | python-data | — | python-data, ai | Python analytics (pandas / pytorch / MLE) |
+| | aws-analytics | — | cloud, python-data | AWS analytics (Glue · Athena · S3 Tables · Iceberg) |
+| | mysql | — | mysql | MySQL / Aurora MySQL schema design |
+| | postgres | — | postgres | PostgreSQL / Aurora Postgres schema design |
+| | mongodb | — | mongodb | MongoDB schema design |
+| | dynamodb | — | dynamodb | DynamoDB design |
+| | aws-rds | — | mysql, postgres | AWS managed DB (Aurora · RDS) |
+| **research** | websearch | — | research | Web search · research (exa · brave · deep-research) |
+| | report | — | report | Tech report writing · verification |
+| **writing** | general | — | writing | General writing (blogging · PPT · creative · translation) |
+| | social | voice / content / visual | writing | Social content (LinkedIn, etc.) |
+
+**Usage:** `--category=dev,cloud` selects entire major categories; `--dev=rust,python` picks sub-categories (auto-enables dev); `--dev-apple=core` picks detail options. Unselected levels default to **all** sub-options. Combine with `--review-backend` and `--mcp-proxy` (IDE) as needed.
+
+**Cloud workload details:** The `cloud` category spans AWS DevOps (IaC, containerization, observability) and integration (messaging); FinOps (Billing/Pricing MCP, cost tracking) is a separate `finops` workload selected via `--cloud=finops` (included automatically with `--category=cloud`). The cloud suite also includes **data engineering**: S3 Tables / Iceberg / Athena lakehouse, DMS/Glue/Kinesis/MSK/Flink ETL & CDC, RDBMS→S3/OpenSearch log offloading, EKS/MSK version-currency checks, Terraform deployment (see [aws-cloud](skills/aws-cloud/SKILL.md), [aws-lakehouse](skills/aws-lakehouse/SKILL.md), [aws-etl-cdc](skills/aws-etl-cdc/SKILL.md), [log-data-offloading](skills/log-data-offloading/SKILL.md), [terraform-deployment](skills/terraform-deployment/SKILL.md)).
+
+**Legacy workload surface:** `--workload=<key,...>|all` remains available for direct low-level workload key specification. It merges with category selections (union). Special: `lab` is opt-in via `--workload=lab` only.
 
 ## Review Backend Toggle
 
@@ -100,15 +144,16 @@ Build agents (build-error-resolver, language build-resolvers, e2e-runner, kiro-c
 
 ## Models
 
-Agent model assignments are role-based, organized into three **provider-agnostic capability tiers**. The `model` field in each agent definition is the single source of truth, written from [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js). The harness is **tuned for three Kiro models** — **`claude-opus-4.8`** (deep reasoning), **`claude-sonnet-5`** (balanced, the default coding tier), and **`claude-haiku-4.5`** (cost-optimized). The `kiro-cli` orchestrator (set as the default agent on install) and reasoning agents are pinned to `claude-opus-4.8`; the high-volume coding agents use `claude-sonnet-5`; cost-sensitive roles use `claude-haiku-4.5`.
+Agent model assignments are role-based, organized into four **provider-agnostic capability tiers**. The `model` field in each agent definition is the single source of truth, written from [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js). The harness is **tuned for four Kiro models** — **`claude-fable-5`** (frontier, Mythos-class), **`claude-opus-4.8`** (deep reasoning), **`claude-sonnet-5`** (balanced, the default coding tier), and **`claude-haiku-4.5`** (cost-optimized). The `kiro-cli` orchestrator (set as the default agent on install) is pinned to `claude-fable-5`; reasoning agents use `claude-opus-4.8`; the high-volume coding agents use `claude-sonnet-5`; cost-sensitive roles use `claude-haiku-4.5`.
 
 | Tier | Model | Agents |
 |------|-------|--------|
-| Deep reasoning | `claude-opus-4.8` | kiro-cli, architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| Frontier (Mythos-class) | `claude-fable-5` | kiro-cli (orchestrator) |
+| Deep reasoning | `claude-opus-4.8` | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
 | Balanced (default) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, language reviewers, build-resolvers, database-reviewer, e2e-runner, doc/tech writers |
 | Cost-optimized | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
-The design principle: **Opus reasons and orchestrates, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** Routing is per-agent, so you can mix models across roles. When OpenAI's GPT-5.5 / GPT-5.4 become selectable in Kiro, the same tiers map to them (`deep-reasoning → gpt-5.5`, `balanced → gpt-5.4`) — run `node scripts/apply-model-policy.js --provider=openai` to retarget. Full details, hook→tier guidance, and the provider-switch workflow: [Model routing](docs/en/model-routing.md).
+The design principle: **Fable orchestrates the long-horizon DAG, Opus reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** Routing is per-agent, so you can mix models across roles. When OpenAI's GPT-5.5 / GPT-5.4 become selectable in Kiro, the same tiers map to them (`frontier/deep-reasoning → gpt-5.5`, `balanced → gpt-5.4`) — run `node scripts/apply-model-policy.js --provider=openai` to retarget. Full details, hook→tier guidance, and the provider-switch workflow: [Model routing](docs/en/model-routing.md).
 
 > **Opus 4.8 availability:** `claude-opus-4.8` is **experimental** and available only in **us-east-1** and **eu-central-1**. It requires **Kiro CLI v2.5.0+**. Agents pinned to `claude-opus-4.8` will fail on older CLI versions or unsupported regions — upgrade Kiro CLI to avoid silent failures.
 
@@ -172,13 +217,14 @@ Curated MCP server catalog installed to `.kiro/settings/mcp.json` (or `~/.kiro/s
 
 Full catalog (general / DevOps / FinOps / opt-in incl. brave-search, sentry, time) and config notes: `docs/en/mcp-reference.md`.
 
-**Central proxy (`--mcp-proxy`, IDE tier):** route proxyable MCP servers through one local [mcp-proxy](mcp-proxy/README.md) container (`mcp.json` entries become `{"type":"http","url":"http://localhost:9090/<server>/mcp"}`), so multiple clients don't each spawn duplicate server processes. The installer also **auto-provisions the container**: it checks `docker ps`, runs `docker compose up -d` in `mcp-proxy/` when `mcp-proxy` isn't running, and skips when it already is. No Docker → it tells you to install Docker and re-run; daemon down → start it and re-run; `--dry-run` and failures degrade gracefully (the install still completes). Credential-backed AWS servers and Kiro built-ins stay off the proxy — see [`mcp-proxy/README.md`](mcp-proxy/README.md).
+**Central proxy (`--mcp-proxy`, IDE tier):** route proxyable MCP servers through one local [mcp-proxy](mcp-proxy/README.md) container (`mcp.json` entries become `{"type":"http","url":"http://localhost:9090/<server>/mcp"}`), so multiple clients don't each spawn duplicate server processes. The installer also **auto-provisions the container**: it checks `docker ps`, runs `docker compose up -d` in `mcp-proxy/` when `mcp-proxy` isn't running, and skips when it already is. It also generates a **workload-filtered `config.generated.json`** so the proxy serves only the backends your active workloads need (the full `config.json` stays as a template/manual fallback), keeping the proxy's served set consistent with the client `mcp.json`. No Docker → it tells you to install Docker and re-run; daemon down → start it and re-run; `--dry-run` and failures degrade gracefully (the install still completes). Credential-backed AWS servers and Kiro built-ins stay off the proxy — see [`mcp-proxy/README.md`](mcp-proxy/README.md).
 
 ## Project Structure
 
 ```
 ├── install.js                  # Tier × workload installer
 ├── scripts/lib/
+│   ├── categories.js           # Category tree (3-tier) and CLI flag parser
 │   ├── workloads.js            # Workload catalog and classification
 │   ├── select-assets.js        # Asset selection engine + review-backend filter
 │   ├── tiers.js                # CLI/IDE install planners
@@ -207,12 +253,15 @@ Tiers:
 Options:
   -i, --interactive              Guided interactive install (also the default with no args on a TTY)
   --scope <global|workspace>     Installation scope (default: global for CLI, workspace for IDE)
-  --workload <list|all>          Comma-separated workloads or 'all' (default: core only)
+  --category <list>              Major categories: dev, cloud, ai, data, research, writing (comma-separated; unselected = all)
+  --<category>= <list>           Sub-category selection (e.g., --dev=frontend,python; unselected = all subs)
+  --<category>-<sub>= <list>     Detail option (e.g., --dev-apple=core; for subs with drill-down only)
+  --workload <list|all>          Low-level: comma-separated workload keys or 'all' (legacy surface, merges with categories via union)
   --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE only: route mcp.json through mcp-proxy (:9090) and auto-start the proxy container (docker compose up -d) if not already running
   --target <path>                Install to specified directory
   --dry-run                      Preview changes without writing
-  --list                         Show all workloads
+  --list                         Show category tree
   --status                       Show installation status
 ```
 
@@ -240,3 +289,5 @@ Korean translations of each live in `docs/kr/`.
 This project was heavily inspired by [Everything Claude Code (ECC)](https://github.com/affaan-m/everything-claude-code). Many of the rules, agent patterns, and skill structures originated from ECC and were adapted for Kiro IDE's native format (steering, hooks, skills).
 
 The `ponytail` steering rule (lazy senior dev mode) is adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail); it is applied to reduce token usage by favoring minimal code over boilerplate (write less, delete more).
+
+The central MCP proxy is [tbxark/mcp-proxy](https://github.com/tbxark/mcp-proxy) (MIT License, © TBXark), used as an **unmodified public Docker image** (`ghcr.io/tbxark/mcp-proxy`, pinned to `v0.43.2`). The harness bundles only a compose file, config, and docs — not the proxy source.
