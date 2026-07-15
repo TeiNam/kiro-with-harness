@@ -3,6 +3,11 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-07-16
+
+### Added
+- **archify 스킬** — 아키텍처·워크플로·시퀀스·데이터플로·라이프사이클 5종 다이어그램을 self-contained HTML(인라인 SVG, 다크/라이트 테마 토글, PNG/JPEG/WebP/SVG 내보내기)로 생성. plain-language 또는 Mermaid(flowchart/sequenceDiagram/stateDiagram) 입력 지원, Node 렌더러 + ajv 스키마 검증. `[architecture, writing]` 워크로드 태그(frontmatter 신설). MIT(Cocoon-AI 기반). skill-catalog(Architecture)·README 반영, 스킬 139 → 140.
+
 ## 2026-07-14
 
 ### Added

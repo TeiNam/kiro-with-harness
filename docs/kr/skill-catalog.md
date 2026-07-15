@@ -1,6 +1,6 @@
 # 스킬(Skill) 카탈로그
 
-도메인별로 정리된 139개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
+도메인별로 정리된 140개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
 
 ## 인프라(Infrastructure)
 
@@ -110,6 +110,7 @@
 | api-design | REST/GraphQL API 설계, 버전 관리, 페이지네이션 |
 | architecture-decision-records | ADR 템플릿, 의사결정 기록 |
 | blueprint | 시스템 블루프린트, 컴포넌트 다이어그램, 데이터 흐름 |
+| archify | 아키텍처/워크플로/시퀀스/데이터플로/라이프사이클 다이어그램을 self-contained HTML로 생성(SVG·테마 토글·PNG/SVG 내보내기); plain-language·Mermaid 입력 |
 | mcp-server-patterns | MCP 서버 구현 패턴 |
 | mcp-builder | MCP 서버 스캐폴딩·강화 — 트랜스포트, 도구/리소스/프롬프트, 입력 검증, Kiro 등록 |
 | codebase-onboarding | 코드베이스 탐색, 의존성 매핑 |

@@ -1,6 +1,6 @@
 # Skill Catalog
 
-139 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
+140 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
 
 ## Infrastructure
 
@@ -110,6 +110,7 @@
 | api-design | REST/GraphQL API design, versioning, pagination |
 | architecture-decision-records | ADR templates, decision logging |
 | blueprint | System blueprint, component diagrams, data flow |
+| archify | Architecture/workflow/sequence/data-flow/lifecycle diagrams as standalone HTML (SVG, theme toggle, PNG/SVG export); plain-language or Mermaid input |
 | mcp-server-patterns | MCP server implementation patterns |
 | mcp-builder | Scaffold and harden MCP servers — transport, tools/resources/prompts, input validation, Kiro registration |
 | codebase-onboarding | Codebase exploration, dependency mapping |
