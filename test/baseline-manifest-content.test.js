@@ -16,7 +16,7 @@
 //      event/action 과 비어 있지 않은 prompt 로 존재한다 (R2.2, R2.3, R3.1).
 //   4) skills/agentic-engineering/SKILL.md 에 DAG/depends_on 병렬 위임 문장 +
 //      컨텍스트 경량화 문장이 둘 다 존재한다 (R1.3).
-//   5) agents/AGENTS.md 에 위임 트리거·peer-reviewer·claude-opus-4.8·claude-haiku-4.5
+//   5) agents/AGENTS.md 에 위임 트리거·peer-reviewer·claude-opus-5·claude-haiku-4.5
 //      토큰이 존재한다 (R4.2).
 //   6) capture-lessons prompt 에 "사용자 확인" 게이트 문구가 존재한다 (R2.4).
 //   7) 글로벌(skills-global)·워크스페이스(steering-quality) 두 모듈의
@@ -172,7 +172,7 @@ test('agents/AGENTS.md에 위임 트리거·peer-reviewer·모델 정책 토큰�
   // peer-reviewer 사용 시점.
   assert.match(text, /peer-reviewer/, 'AGENTS.md는 peer-reviewer 사용 시점을 포함해야 한다');
   // 모델 정책 요약 토큰.
-  assert.match(text, /claude-opus-4\.8/, 'AGENTS.md는 claude-opus-4.8 모델 정책 토큰을 포함해야 한다');
+  assert.match(text, /claude-opus-5/, 'AGENTS.md는 claude-opus-5 모델 정책 토큰을 포함해야 한다');
   assert.match(text, /claude-haiku-4\.5/, 'AGENTS.md는 claude-haiku-4.5 모델 정책 토큰을 포함해야 한다');
 });
 

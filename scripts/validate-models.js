@@ -5,10 +5,10 @@
 //
 // 설계 C3 / R8: lib의 순수 함수를 배선하여 자산을 순회하고 다음을 점검한다.
 //   1) 정책 일치     — 글로벌 CLI 에이전트 8개의 model 필드 (R8.1)
-//   2) 잔존 구식별자 — 전 자산에서 claude-opus-4.7 출현 (경로+행번호) (R8.2)
+//   2) 잔존 구식별자 — 전 자산에서 claude-opus-4.8 출현 (경로+행번호) (R8.2)
 //   3) 정책-필드 정합 — 워크스페이스/IDE 에이전트 분류별 기대값 (R8.5)
 //   4) 역할 쌍 일치   — 워크스페이스↔IDE 동일 역할의 model 식별자 동일성 (R6.5)
-//   5) Peer Agent     — peer-reviewer(존재 시) = claude-opus-4.8 (R9.6)
+//   5) Peer Agent     — peer-reviewer(존재 시) = claude-opus-5 (R9.6)
 //
 // 자산을 절대 수정하지 않으며(R8.4), verdict PASS → exit 0 / FAIL → exit 1.
 // validate-agents.js 컨벤션(동기 fs, 디렉터리 순회, 요약 출력, 이모지)을 따른다.
@@ -63,7 +63,7 @@ const PEER_AGENT_CANDIDATES = [
 ];
 
 // R6 분류 인코딩 — 3-티어 정책(scripts/lib/model-policy.js 가 단일 출처):
-// - deep-reasoning : 오케스트레이션·아키텍처·보안·리서치·데이터 모델링 → claude-opus-4.8
+// - deep-reasoning : 오케스트레이션·아키텍처·보안·리서치·데이터 모델링 → claude-opus-5
 // - balanced       : 코드/언어 리뷰·빌드 리졸버·리팩터·e2e·문서 → claude-sonnet-5
 // - cost-optimized : 번역·글쓰기·콘텐츠 → claude-haiku-4.5
 // 모든 티어는 model 필드를 명시한다(현재 정책에 상속=general 역할은 없음).

@@ -27,7 +27,7 @@
     "web_fetch",
     "web_search"
   ],
-  "model": "claude-opus-4.8",
+  "model": "claude-opus-5",
   "toolsSettings": {
     "execute_bash": {
       "autoAllowReadonly": true,

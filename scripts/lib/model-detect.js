@@ -12,19 +12,20 @@ const { tierIdentifier } = require('./model-policy.js');
 
 /**
  * 모델 정책 상수. 티어별 기대 식별자의 하위호환 별칭(alias)이다.
- * 3-티어 라우팅의 정식 단일 출처는 scripts/lib/model-policy.js 이며,
+ * 4-티어 라우팅의 정식 단일 출처는 scripts/lib/model-policy.js 이며,
  * 아래 값들은 그 anthropic 기본값에서 직접 파생한다(하드코딩 금지 → 드리프트 0).
- *   - Target(=deep-reasoning): claude-opus-4.8
+ *   - Target(=deep-reasoning): claude-opus-5
  *   - Balanced:                claude-sonnet-5
  *   - Cost_Optimized:          claude-haiku-4.5
- * Legacy_Model_Identifier 는 잔존 구식별자 스캔 대상(마이그레이션 흔적)이므로 상수 유지.
+ * Legacy_Model_Identifier 는 잔존 구식별자 스캔 대상(직전 정책 opus-4.8 → opus-5/fable-5
+ * 마이그레이션 흔적)이므로 상수 유지.
  * @type {{ Target_Model_Identifier: string, Balanced_Model_Identifier: string, Cost_Optimized_Model_Identifier: string, Legacy_Model_Identifier: string }}
  */
 const MODEL_POLICY = {
   Target_Model_Identifier: tierIdentifier('deep-reasoning'),
   Balanced_Model_Identifier: tierIdentifier('balanced'),
   Cost_Optimized_Model_Identifier: tierIdentifier('cost-optimized'),
-  Legacy_Model_Identifier: 'claude-opus-4.7',
+  Legacy_Model_Identifier: 'claude-opus-4.8',
 };
 
 /**
@@ -32,7 +33,7 @@ const MODEL_POLICY = {
  * @typedef {Object} ResidualLegacy
  * @property {string} filePath   검출된 파일 경로(호출 측이 주입).
  * @property {number} line       1-기반 행 번호.
- * @property {string} matchedText 매치된 문자열(예: 'claude-opus-4.7').
+ * @property {string} matchedText 매치된 문자열(예: 'claude-opus-4.8').
  */
 
 /**
@@ -45,7 +46,7 @@ const MODEL_POLICY = {
  */
 
 /**
- * 텍스트에서 구식별자(`claude-opus-4.7`)의 모든 출현을 검출한다.
+ * 텍스트에서 구식별자(`claude-opus-4.8`)의 모든 출현을 검출한다.
  *
  * 동작 규칙(설계 C3, R8.2):
  * - 각 출현마다 1-기반 행 번호와 매치 문자열을 보고한다.

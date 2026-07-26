@@ -50,14 +50,20 @@ fi
 echo "=== 3-way cross-review (Kiro + Claude + Codex) ==="
 GATHERED=0
 
+# Codex 모델 고정(기본 gpt-5.6-sol; CODEX_MODEL 환경변수로 오버라이드).
+# 지정 모델이 거부되면 모델 미지정으로 1회 재시도(graceful degradation 유지).
+CODEX_MODEL="${CODEX_MODEL:-gpt-5.6-sol}"
+
 # ── Codex (전용 리뷰어; git 워크트리를 직접 읽고 코드를 인자로 넘기지 않음 = 인젝션-free) ──
 if command -v codex >/dev/null 2>&1; then
   echo
-  echo "── Codex ──"
+  echo "── Codex (${CODEX_MODEL}) ──"
   if [ -n "$BASE" ]; then
-    codex review --base "$BASE" && GATHERED=$((GATHERED + 1)) || echo "codex review 실패 — 건너뜀."
+    { codex review --model "$CODEX_MODEL" --base "$BASE" || codex review --base "$BASE"; } \
+      && GATHERED=$((GATHERED + 1)) || echo "codex review 실패 — 건너뜀."
   else
-    codex review --uncommitted && GATHERED=$((GATHERED + 1)) || echo "codex review 실패 — 건너뜀."
+    { codex review --model "$CODEX_MODEL" --uncommitted || codex review --uncommitted; } \
+      && GATHERED=$((GATHERED + 1)) || echo "codex review 실패 — 건너뜀."
   fi
 else
   echo "── Codex: CLI 미설치 — 건너뜀 ──"

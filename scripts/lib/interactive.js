@@ -110,8 +110,8 @@ async function runInteractiveInstall(io = {}) {
       const fm = await selectOne(ask({
         title: '\n\uc624\ucf00\uc2a4\ud2b8\ub808\uc774\ud130(kiro-cli) frontier \ubaa8\ub378:',
         options: [
-          { id: 'opus48', label: 'opus-4.8 (\uae30\ubcf8 \u00b7 \uc548\uc815 \u00b7 \ub110\ub9ac \uac00\uc6a9)' },
-          { id: 'fable5', label: 'fable-5  (Mythos-class \u2014 claude-fable-5 \uac00\uc6a9 \ud658\uacbd\uc5d0\uc11c\ub9cc)' },
+          { id: 'fable5', label: 'fable-5 (\uae30\ubcf8 \u00b7 Mythos-class \u00b7 \uc815\uc2dd \uac00\uc6a9)' },
+          { id: 'opus5', label: 'opus-5  (\ud3f4\ubc31 \u2014 claude-fable-5 \ubbf8\uac00\uc6a9 \ud658\uacbd\uc6a9)' },
         ],
       }));
       if (!fm) return null;
@@ -138,7 +138,7 @@ async function runInteractiveInstall(io = {}) {
     say(`  scope         : ${scope}`);
     say(`  workloads     : ${sel.workloads.join(', ')}`);
     say(`  review-backend: ${reviewBackend}`);
-    if (frontierModel) say(`  frontier model: ${frontierModel === 'fable5' ? 'claude-fable-5' : 'claude-opus-4.8'}`);
+    if (frontierModel) say(`  frontier model: ${frontierModel === 'opus5' ? 'claude-opus-5' : 'claude-fable-5'}`);
     if (tier === 'ide') say(`  mcp-proxy     : ${mcpProxy ? 'on' : 'off'}`);
     say('');
 

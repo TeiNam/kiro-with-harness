@@ -31,7 +31,7 @@ const tiers = require(path.join(HARNESS_ROOT, 'scripts/lib/tiers'));
 const { runInteractiveInstall } = require(path.join(HARNESS_ROOT, 'scripts/lib/interactive'));
 const { ensureMcpProxy } = require(path.join(HARNESS_ROOT, 'scripts/lib/mcp-proxy'));
 const { buildProxyConfig } = require(path.join(HARNESS_ROOT, 'scripts/lib/proxy-config'));
-const { tierIdentifier, frontierUpgradeIdentifier } = require(path.join(HARNESS_ROOT, 'scripts/lib/model-policy'));
+const { tierIdentifier, frontierFallbackIdentifier } = require(path.join(HARNESS_ROOT, 'scripts/lib/model-policy'));
 
 let DRY_RUN = false;
 const MANIFEST_FILE = '.harness-manifest.json';
@@ -167,15 +167,15 @@ function dedupAgainstGlobal(ops, scope) {
 /**
  * 설치 시 오케스트레이터(kiro-cli)의 frontier 모델을 결정한다.
  * Kiro CLI 는 사용 가능 모델을 비대화형으로 조회할 수 없어(자동 감지 불가) 명시 선택한다.
- *   - 'fable5'|'fable'      → claude-fable-5 로 승격(가용 환경)
- *   - 'opus48'|'auto'|null  → baseline claude-opus-4.8(안전 기본)
+ *   - 'opus5'|'opus'         → claude-opus-5 폴백(fable-5 미가용 환경)
+ *   - 'fable5'|'auto'|null   → 기본 claude-fable-5(Mythos-class, 정식 가용)
  * @param {string|null} sel --frontier-model 값
  * @returns {string} 모델 식별자
  */
 function resolveFrontierModel(sel) {
   const v = String(sel || 'auto').toLowerCase();
-  if (['fable5', 'fable', 'fable-5', 'claude-fable-5'].includes(v)) return frontierUpgradeIdentifier();
-  return tierIdentifier('frontier'); // baseline (opus-4.8)
+  if (['opus5', 'opus', 'opus-5', 'claude-opus-5'].includes(v)) return frontierFallbackIdentifier();
+  return tierIdentifier('frontier'); // 기본 (fable-5)
 }
 
 /** kiro-cli(오케스트레이터) 설치 op 의 model 필드를 결정된 frontier 모델로 치환(치환 시 true). */
@@ -226,8 +226,8 @@ function runInstall(opts) {
   const frontierModel = resolveFrontierModel(opts.frontierModel);
   if (hasOrchestrator) {
     patchOrchestratorModel(plan.ops, frontierModel);
-    const upgraded = frontierModel === frontierUpgradeIdentifier();
-    console.log(`orchestrator(kiro-cli) frontier model: ${frontierModel} ${upgraded ? '(upgraded)' : '(baseline)'}`);
+    const fallback = frontierModel === frontierFallbackIdentifier();
+    console.log(`orchestrator(kiro-cli) frontier model: ${frontierModel} ${fallback ? '(fallback)' : '(default)'}`);
   }
 
   // 글로벌↔워크스페이스 중복 제거: 워크스페이스 설치 시 글로벌에 이미 있는 동일 파일은 상속(스킵)
@@ -339,7 +339,7 @@ function printIntro() {
     '',
     '  옵션:',
     '    --review-backend kiro|claude|cross  리뷰 백엔드(기본 claude=peer-reviewer→claude -p; cross=claude+codex 3-way + cross-review.sh 온디맨드)',
-    '    --frontier-model opus48|fable5      오케스트레이터(kiro-cli) frontier 모델(기본 opus-4.8; fable5=claude-fable-5 가용 환경에서 승격)',
+    '    --frontier-model fable5|opus5       오케스트레이터(kiro-cli) frontier 모델(기본 fable-5; opus5=claude-opus-5 폴백, fable-5 미가용 환경용)',
     '    --mcp-proxy                    IDE 티어: mcp.json을 mcp-proxy(:9090) 경유로 생성 + 프록시 컨테이너 자동 보장(없으면 docker compose up -d, 있으면 스킵). mcp-proxy/README.md',
     '    --target <path>                워크스페이스 설치 위치(기본 cwd)',
     '    --dry-run                      변경 미리보기',
@@ -403,7 +403,7 @@ function parseArgs(argv) {
   }
   if (opts.scope && !['global', 'workspace'].includes(opts.scope)) { console.error(`Invalid --scope: ${opts.scope}`); process.exit(1); }
   if (opts.reviewBackend && !['kiro', 'claude', 'cross'].includes(opts.reviewBackend)) { console.error(`Invalid --review-backend: ${opts.reviewBackend} (use kiro|claude|cross)`); process.exit(1); }
-  if (opts.frontierModel && !['opus48', 'opus', 'opus-4.8', 'fable5', 'fable', 'fable-5', 'auto'].includes(String(opts.frontierModel).toLowerCase())) { console.error(`Invalid --frontier-model: ${opts.frontierModel} (use opus48|fable5|auto)`); process.exit(1); }
+  if (opts.frontierModel && !['opus5', 'opus', 'opus-5', 'fable5', 'fable', 'fable-5', 'auto'].includes(String(opts.frontierModel).toLowerCase())) { console.error(`Invalid --frontier-model: ${opts.frontierModel} (use fable5|opus5|auto)`); process.exit(1); }
   return opts;
 }
 

@@ -41,7 +41,7 @@
   "resources": [
     "skill://~/.kiro/skills/**/SKILL.md"
   ],
-  "model": "claude-opus-4.8",
+  "model": "claude-opus-5",
   "mcpServers": {
     "terraform": {
       "command": "docker",

@@ -7,7 +7,8 @@
  * 에이전트별 모델 배정을 하나의 선언적 정책으로 모은다. 모든 역할(role)을 능력
  * 티어(capability tier)에 매핑하고, 각 티어를 프로바이더별 모델 식별자에 매핑한다.
  * 하네스는 Claude-first 이므로 anthropic 이 기본 프로바이더다. openai 열은
- * GPT-5.5 / GPT-5.4 가 Kiro 에 붙었을 때를 대비한 forward-looking 매핑이다.
+ * Kiro 에서 선택 가능한 GPT-5.6 3종(gpt-5.6 / gpt-5.6-mini / gpt-5.6-nano) 매핑이며
+ * `apply-model-policy.js --provider=openai` 로 전환한다.
  *
  * ── 능력 티어(capability tiers) ──────────────────────────────────────────
  *   - frontier       : 프런티어 장기(long-horizon) 에이전틱 작업 — 며칠 단위 자율
@@ -26,7 +27,7 @@
  *
  * 주의(모델 식별자): Kiro 는 model 값을 모델 서비스가 반환하는 ID 와 대조하며,
  * 알 수 없는 ID 는 경고와 함께 기본 모델로 조용히 폴백한다. 신규 식별자
- * (claude-sonnet-5, gpt-5.5, gpt-5.4)는 배포 시점의 정확한 ID 로 확인해야 한다.
+ * (claude-fable-5, claude-opus-5, gpt-5.6 계열)는 배포 시점의 정확한 ID 로 확인해야 한다.
  */
 
 /** 기본 프로바이더 — 하네스는 Claude 를 기준으로 튜닝되어 있다. */
@@ -43,23 +44,23 @@ const PROVIDERS = ['anthropic', 'openai'];
 const TIERS = {
   frontier: {
     description:
-      'Frontier orchestration tier (orchestrator only). Baseline is claude-opus-4.8 ' +
-      '(widely available); upgrades to the Mythos-class claude-fable-5 when it is ' +
-      'available in the install environment — install with --frontier-model=fable5 ' +
-      '(or pick it in the interactive installer). See FRONTIER_UPGRADE.',
+      'Frontier orchestration tier (orchestrator only). Default is the Mythos-class ' +
+      'claude-fable-5 (now generally available in Kiro); environments without it can ' +
+      'fall back to claude-opus-5 — install with --frontier-model=opus5 ' +
+      '(or pick it in the interactive installer). See FRONTIER_FALLBACK.',
     providers: {
-      // 안전 기본값 — 널리 가용한 opus-4.8. fable-5 미가용 환경에서도 동작한다.
-      // fable-5 승격은 설치 시 명시 선택(FRONTIER_UPGRADE)으로 이뤄진다.
-      anthropic: 'claude-opus-4.8',
-      openai: 'gpt-5.5',
+      // 기본값 — Mythos-class fable-5(정식 가용). 미가용 환경은 설치 시
+      // 명시 선택(FRONTIER_FALLBACK, --frontier-model=opus5)으로 opus-5 폴백.
+      anthropic: 'claude-fable-5',
+      openai: 'gpt-5.6',
     },
   },
   'deep-reasoning': {
     description:
       'Multi-step reasoning: orchestration, architecture, security judgment, root-cause analysis, research synthesis, complex data modeling.',
     providers: {
-      anthropic: 'claude-opus-4.8',
-      openai: 'gpt-5.5',
+      anthropic: 'claude-opus-5',
+      openai: 'gpt-5.6',
     },
   },
   balanced: {
@@ -67,7 +68,7 @@ const TIERS = {
       'High-volume coding workhorse: code/language review, build-error resolution, refactor, e2e, documentation. Balances speed, cost, and coding ability.',
     providers: {
       anthropic: 'claude-sonnet-5',
-      openai: 'gpt-5.4',
+      openai: 'gpt-5.6-mini',
     },
   },
   'cost-optimized': {
@@ -75,10 +76,9 @@ const TIERS = {
       'Simple, high-throughput, low-judgment work: translation, classification, basic content generation.',
     providers: {
       anthropic: 'claude-haiku-4.5',
-      // OpenAI 는 현재 GPT-5.5/5.4 두 티어만 공개됐다(경량 GPT-5.x 미확인). 확인된
-      // 두 식별자만 사용하며, cost-optimized 는 더 저렴한 GPT-5.4 를 재사용한다.
-      // 경량 GPT-5.x 가 출시되면 여기만 교체하면 된다.
-      openai: 'gpt-5.4',
+      // GPT-5.6 은 gpt-5.6 / gpt-5.6-mini / gpt-5.6-nano 3종이 모두 선택 가능하다.
+      // cost-optimized 는 최저가 경량 티어인 nano 를 쓴다.
+      openai: 'gpt-5.6-nano',
     },
   },
 };
@@ -87,14 +87,14 @@ const TIERS = {
 const TIER_IDS = Object.keys(TIERS);
 
 /**
- * frontier 승격(upgrade) 모델 — 설치 환경에 사용 가능하면 오케스트레이터를 baseline
- * (frontier.providers)에서 이 모델로 올린다. Kiro CLI 는 사용 가능 모델을 비대화형으로
- * 조회하는 명령이 없어(자동 감지 불가) 설치 시 명시 선택한다: `--frontier-model=fable5`
+ * frontier 폴백(fallback) 모델 — 설치 환경에 fable-5 가 없으면 오케스트레이터를 기본
+ * (frontier.providers)에서 이 모델로 내린다. Kiro CLI 는 사용 가능 모델을 비대화형으로
+ * 조회하는 명령이 없어(자동 감지 불가) 설치 시 명시 선택한다: `--frontier-model=opus5`
  * 또는 대화형 설치의 오케스트레이터 모델 프롬프트. 미가용 모델을 지정하더라도 Kiro 가
  * 경고와 함께 chat.defaultModel 로 폴백하므로 안전하다.
  * @type {Record<string,string>}
  */
-const FRONTIER_UPGRADE = { anthropic: 'claude-fable-5', openai: 'gpt-5.5' };
+const FRONTIER_FALLBACK = { anthropic: 'claude-opus-5', openai: 'gpt-5.6' };
 
 /**
  * 명시적으로 배정되지 않은 역할의 기본 티어.
@@ -109,12 +109,12 @@ const DEFAULT_TIER = 'balanced';
  */
 const ROLE_TIERS = {
   // ── frontier (오케스트레이터 전용) ──
-  // baseline claude-opus-4.8(널리 가용). 설치 환경에 claude-fable-5(Mythos-class)가 있으면
-  // `--frontier-model=fable5`(또는 대화형)로 승격한다 — Fable 5 의 강점(장기 자율 오케스트레이션·
-  // 광폭 병렬 위임·자가 검증)이 오케스트레이터 역할과 정확히 맞기 때문이다.
+  // 기본 claude-fable-5(Mythos-class, 정식 가용) — Fable 5 의 강점(장기 자율 오케스트레이션·
+  // 광폭 병렬 위임·자가 검증)이 오케스트레이터 역할과 정확히 맞는다. fable-5 미가용 환경은
+  // `--frontier-model=opus5`(또는 대화형)로 claude-opus-5 폴백.
   'kiro-cli': 'frontier', // 오케스트레이터: 병렬 DAG 위임 조율
 
-  // ── deep-reasoning (claude-opus-4.8) ──
+  // ── deep-reasoning (claude-opus-5) ──
   architect: 'deep-reasoning', // 시스템 설계·트레이드오프
   'security-reviewer': 'deep-reasoning', // OWASP·auth·취약점 판단
   'deep-researcher': 'deep-reasoning', // 다중 출처 종합
@@ -175,12 +175,12 @@ function tierIdentifier(tier, provider = DEFAULT_PROVIDER) {
 }
 
 /**
- * frontier 승격 모델 식별자. 설치 시 오케스트레이터를 이 값으로 올린다(가용 환경).
+ * frontier 폴백 모델 식별자. fable-5 미가용 환경에서 오케스트레이터를 이 값으로 내린다.
  * @param {string} [provider] 프로바이더(기본: anthropic).
- * @returns {string} 승격 모델 식별자(예: claude-fable-5).
+ * @returns {string} 폴백 모델 식별자(예: claude-opus-5).
  */
-function frontierUpgradeIdentifier(provider = DEFAULT_PROVIDER) {
-  return FRONTIER_UPGRADE[provider] || FRONTIER_UPGRADE[DEFAULT_PROVIDER];
+function frontierFallbackIdentifier(provider = DEFAULT_PROVIDER) {
+  return FRONTIER_FALLBACK[provider] || FRONTIER_FALLBACK[DEFAULT_PROVIDER];
 }
 
 /**
@@ -205,11 +205,11 @@ module.exports = {
   TIER_IDS,
   DEFAULT_TIER,
   ROLE_TIERS,
-  FRONTIER_UPGRADE,
+  FRONTIER_FALLBACK,
   classifyRole,
   providersFor,
   tierIdentifier,
   identifierForRole,
-  frontierUpgradeIdentifier,
+  frontierFallbackIdentifier,
   isKnownProvider,
 };

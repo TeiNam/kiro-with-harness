@@ -8,7 +8,7 @@
 //
 // 검증 항목:
 //   1) JSON 유효성 — JSON.parse가 구문 오류 없이 성공 (R9.6, R9.1)
-//   2) model === claude-opus-4.8 — 모델 정책 적용 (R9.6, R8.1)
+//   2) model === claude-opus-5 — 모델 정책 적용 (R9.6, R8.1)
 //   3) allowedCommands가 `claude( .*)?` 패턴을 포함 (R9.3)
 //   4) deniedCommands가 안전 목록(rm/sudo/파괴적 git)을 유지 (R9.3)
 //   5) validate-agents.js가 peer-reviewer를 오류·경고 없이 통과 (R9.1, R9.6)
@@ -23,7 +23,7 @@ const ROOT = path.join(__dirname, '..');
 const PEER_REVIEWER_PATH = path.join(ROOT, 'agents', 'cli', 'global', 'peer-reviewer.json');
 
 // 설계 C4 / 모델 정책에서 확정된 기대값.
-const EXPECTED_MODEL = 'claude-opus-4.8';
+const EXPECTED_MODEL = 'claude-opus-5';
 const EXPECTED_ALLOWED_PATTERN = 'claude( .*)?';
 // deniedCommands가 반드시 유지해야 하는 안전 목록(rm/sudo/파괴적 git).
 const REQUIRED_DENIED = [
@@ -54,7 +54,7 @@ test('peer-reviewer.json은 구문 오류 없이 파싱되는 유효한 JSON이�
   assert.doesNotThrow(() => JSON.parse(raw), 'JSON.parse가 구문 오류 없이 성공해야 한다');
 });
 
-test('peer-reviewer의 model은 claude-opus-4.8이다 (R9.6, R8.1)', () => {
+test('peer-reviewer의 model은 claude-opus-5이다 (R9.6, R8.1)', () => {
   const agent = loadAgent();
   assert.strictEqual(agent.model, EXPECTED_MODEL);
 });

@@ -101,7 +101,7 @@ function findTopLevelModelKeyStart(text) {
  *   트레일링 콤마를 보존한다.
  *
  * @param {string} rawText  원본 파일 텍스트.
- * @param {string} newModel 적용할 모델 식별자(예: 'claude-opus-4.8').
+ * @param {string} newModel 적용할 모델 식별자(예: 'claude-opus-5').
  * @returns {EditResult} 변환 결과.
  */
 function applyModelToAgentJson(rawText, newModel) {
