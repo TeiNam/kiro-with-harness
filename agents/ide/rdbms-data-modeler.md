@@ -1,7 +1,7 @@
 ---
 name: rdbms-data-modeler
 description: RDBMS data modeling specialist. Designs tables, columns, indexes, and relationships from requirements by applying normalization principles up to Third Normal Form (3NF). MUST confirm the target DB (Aurora MySQL / MySQL Community / Aurora PostgreSQL / PostgreSQL Community) before any modeling work, then applies the matching guideline skill (`mysql-guideline` / `postgres-guideline`). Use for new table design, ERD authoring, schema migration design, and normalization / denormalization decisions.
-model: claude-opus-4.8
+model: claude-opus-5
 tools: ["read", "write"]
 ---
 

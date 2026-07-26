@@ -19,7 +19,7 @@
   "resources": [
     "skill://~/.kiro/skills/**/SKILL.md"
   ],
-  "model": "claude-opus-4.8",
+  "model": "claude-fable-5",
   "mcpServers": {},
   "hooks": {
     "preToolUse": [

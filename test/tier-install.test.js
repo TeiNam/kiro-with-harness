@@ -205,7 +205,7 @@ test('e2e: 매니페스트에 sourceVersion 기록 + --status 가 버전/outdate
   }
 });
 
-test('e2e: --frontier-model 이 오케스트레이터(kiro-cli) 모델을 결정 (기본 opus-4.8, fable5 승격)', () => {
+test('e2e: --frontier-model 이 오케스트레이터(kiro-cli) 모델을 결정 (기본 fable-5, opus5 폴백)', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kh-fm-'));
   try {
     const env = { ...process.env, HOME: home };
@@ -214,22 +214,22 @@ test('e2e: --frontier-model 이 오케스트레이터(kiro-cli) 모델을 결정
     const modelOf = () => JSON.parse(fs.readFileSync(kiroCli, 'utf8')).model;
     const run = (extra) => spawnSync('node', [path.join(ROOT, 'install.js'), 'cli', '--scope=global', '--workload=core', ...extra], { cwd: ROOT, encoding: 'utf8', timeout: 60000, env });
 
-    // 기본(플래그 없음) → baseline claude-opus-4.8
+    // 기본(플래그 없음) → 기본 claude-fable-5
     const r1 = run([]);
     assert.strictEqual(r1.status, 0, `default install exit 0 (${r1.stderr})`);
-    assert.strictEqual(modelOf(), 'claude-opus-4.8', '기본은 baseline opus-4.8');
-    assert.strictEqual(JSON.parse(fs.readFileSync(manifest, 'utf8')).frontierModel, 'claude-opus-4.8');
-
-    // --frontier-model=fable5 → claude-fable-5 승격
-    const r2 = run(['--frontier-model=fable5']);
-    assert.strictEqual(r2.status, 0, `fable5 install exit 0 (${r2.stderr})`);
-    assert.strictEqual(modelOf(), 'claude-fable-5', 'fable5 → claude-fable-5 승격');
+    assert.strictEqual(modelOf(), 'claude-fable-5', '기본은 claude-fable-5');
     assert.strictEqual(JSON.parse(fs.readFileSync(manifest, 'utf8')).frontierModel, 'claude-fable-5');
 
-    // --frontier-model=opus48 → 다시 baseline
-    const r3 = run(['--frontier-model=opus48']);
+    // --frontier-model=opus5 → claude-opus-5 폴백
+    const r2 = run(['--frontier-model=opus5']);
+    assert.strictEqual(r2.status, 0, `opus5 install exit 0 (${r2.stderr})`);
+    assert.strictEqual(modelOf(), 'claude-opus-5', 'opus5 → claude-opus-5 폴백');
+    assert.strictEqual(JSON.parse(fs.readFileSync(manifest, 'utf8')).frontierModel, 'claude-opus-5');
+
+    // --frontier-model=fable5 → 다시 기본
+    const r3 = run(['--frontier-model=fable5']);
     assert.strictEqual(r3.status, 0);
-    assert.strictEqual(modelOf(), 'claude-opus-4.8', 'opus48 → baseline');
+    assert.strictEqual(modelOf(), 'claude-fable-5', 'fable5 → 기본');
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }

@@ -17,8 +17,8 @@
  * 사용법:
  *   node scripts/apply-model-policy.js [--provider=anthropic|openai] [--dry-run]
  *
- *   --provider  적용할 프로바이더(기본: anthropic). openai 는 GPT-5.5/5.4 가
- *               Kiro 에 붙었을 때를 위한 forward-looking 옵션이다.
+ *   --provider  적용할 프로바이더(기본: anthropic). openai 는 GPT-5.6 3종(gpt-5.6/mini/nano)이
+ *               Kiro 에서 선택 가능해 현행 전환 옵션이다.
  *   --dry-run   파일을 쓰지 않고 변경 예정만 출력한다.
  *
  * 종료 코드: 0(성공) / 1(오류·파싱 실패 등).

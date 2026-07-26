@@ -1,29 +1,29 @@
 # Model Routing
 
-The harness assigns each agent a model by **capability tier**, not by hand-picking a model per file. Tiers are **provider-agnostic**: the same tiers map to Claude identifiers today and to OpenAI GPT identifiers when they land in Kiro. The single source of truth is [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js).
+The harness assigns each agent a model by **capability tier**, not by hand-picking a model per file. Tiers are **provider-agnostic**: the same tiers map to Claude identifiers (the default) and to the OpenAI GPT-5.6 identifiers. The single source of truth is [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js).
 
 ## Capability Tiers
 
-| Tier | Claude (default) | OpenAI (forward-looking) | Use for |
-|------|------------------|--------------------------|---------|
-| **frontier** | `claude-opus-4.8` (baseline) → `claude-fable-5` (upgrade) | `gpt-5.5` | Orchestrator only. Baseline is opus-4.8 (widely available); upgrades to Mythos-class fable-5 when available — install with `--frontier-model=fable5` |
-| **deep-reasoning** | `claude-opus-4.8` | `gpt-5.5` | Orchestration, architecture, security judgment, root-cause analysis, research synthesis, complex data modeling |
-| **balanced** | `claude-sonnet-5` | `gpt-5.4` | High-volume coding workhorse: code/language review, build-error resolution, refactor, e2e, documentation |
-| **cost-optimized** | `claude-haiku-4.5` | `gpt-5.4` | Simple, high-throughput, low-judgment work: translation, classification, basic content |
+| Tier | Claude (default) | OpenAI | Use for |
+|------|------------------|--------|---------|
+| **frontier** | `claude-fable-5` (default) → `claude-opus-5` (fallback) | `gpt-5.6` | Orchestrator only. Default is the Mythos-class fable-5 (now generally available); fall back to opus-5 where fable-5 is unavailable — install with `--frontier-model=opus5` |
+| **deep-reasoning** | `claude-opus-5` | `gpt-5.6` | Orchestration, architecture, security judgment, root-cause analysis, research synthesis, complex data modeling |
+| **balanced** | `claude-sonnet-5` | `gpt-5.6-mini` | High-volume coding workhorse: code/language review, build-error resolution, refactor, e2e, documentation |
+| **cost-optimized** | `claude-haiku-4.5` | `gpt-5.6-nano` | Simple, high-throughput, low-judgment work: translation, classification, basic content |
 
-The design principle: **the orchestrator runs the frontier tier (opus-4.8 by default, fable-5 when available), Opus reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** `balanced` (Sonnet 5) is the default tier — most agents are coding agents, so any role not explicitly listed falls to balanced.
+The design principle: **the orchestrator runs the frontier tier (fable-5 by default, opus-5 as the fallback), Opus 5 reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** `balanced` (Sonnet 5) is the default tier — most agents are coding agents, so any role not explicitly listed falls to balanced.
 
 ## Per-Agent Assignment
 
 | Tier | Agents |
 |------|--------|
-| **frontier** (baseline `claude-opus-4.8`, upgrade `claude-fable-5`) | kiro-cli (orchestrator) |
-| **deep-reasoning** (`claude-opus-4.8`) | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| **frontier** (default `claude-fable-5`, fallback `claude-opus-5`) | kiro-cli (orchestrator) |
+| **deep-reasoning** (`claude-opus-5`) | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
 | **balanced** (`claude-sonnet-5`) | code-reviewer, refactor-cleaner, all language reviewers (python, rust, go, java, kotlin, cpp, typescript, flutter), database-reviewer, all build-resolvers (build-error-resolver, cpp, go, java, kotlin, pytorch, rust), e2e-runner, doc agents (tech-doc-writer, tech-writer-monolith, doc-clarity-reviewer, doc-quality-detector, tech-fidelity-auditor) |
 | **cost-optimized** (`claude-haiku-4.5`) | translator-docs, article-writer, content-creator |
 
 Why these splits:
-- **kiro-cli is the frontier tier** — baseline `claude-opus-4.8` (widely available), upgradable to the Mythos-class `claude-fable-5` at install time (`--frontier-model=fable5` or the interactive installer) when it is available in your environment. The orchestrator's job is exactly what the Mythos-class model is built for: long-horizon autonomous work, wide parallel sub-agent delegation, and self-verification — the single highest-leverage seat and the only frontier occupant, so the fable-5 premium (when chosen) applies to one agent, not the fleet. Kiro CLI exposes no non-interactive model-list command, so the upgrade is an explicit install choice; an unavailable model falls back to `chat.defaultModel`.
+- **kiro-cli is the frontier tier** — the Mythos-class `claude-fable-5` by default (now generally available in Kiro), with `claude-opus-5` as the install-time fallback (`--frontier-model=opus5` or the interactive installer) for environments that can't serve fable-5. The orchestrator's job is exactly what the Mythos-class model is built for: long-horizon autonomous work, wide parallel sub-agent delegation, and self-verification — the single highest-leverage seat and the only frontier occupant, so the fable-5 premium applies to one agent, not the fleet. Kiro CLI exposes no non-interactive model-list command, so the fallback is an explicit install choice; an unavailable model falls back to `chat.defaultModel`.
 - **security-reviewer stays on Opus** while the generic **code-reviewer moves to Sonnet** — security judgment benefits from deeper reasoning; routine quality review is Sonnet's sweet spot and far higher volume.
 - **rdbms-data-modeler stays on Opus** — 3NF normalization and physical-schema trade-offs are genuine reasoning, unlike per-language review.
 - **peer-reviewer stays on Opus** — it coordinates a cross-model second opinion (Claude Code `claude -p` + Codex `codex`, a Kiro + Claude + Codex 3-way), which should come from the strongest tier to be worth the round-trip.
@@ -39,7 +39,7 @@ node scripts/apply-model-policy.js --dry-run
 # Apply the Claude (anthropic) mapping — the default
 node scripts/apply-model-policy.js
 
-# Forward-looking: retarget every agent to the OpenAI tier identifiers
+# Retarget every agent to the OpenAI (GPT-5.6) tier identifiers
 node scripts/apply-model-policy.js --provider=openai --dry-run
 node scripts/apply-model-policy.js --provider=openai
 ```
@@ -56,18 +56,19 @@ node scripts/validate-models.js   # or: npm run validate:models
 
 Kiro validates the `model` value against the IDs its model service returns. **An unknown ID silently falls back to the default model with a warning** — so a wrong string means an agent quietly runs on the wrong model.
 
-- The harness uses **dotted** identifiers: `claude-opus-4.8`, `claude-sonnet-5`, `claude-haiku-4.5`.
-- Anthropic's canonical API/Bedrock IDs use **hyphens** for minor versions: `claude-opus-4-8`, `claude-haiku-4-5`. `claude-sonnet-5` is a major-only release, so both conventions collapse to the same string (no ambiguity there).
-- OpenAI uses **dot** notation natively: `gpt-5.5`, `gpt-5.4`.
+- The harness uses **dotted** identifiers: `claude-fable-5`, `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4.5`.
+- Anthropic's canonical API/Bedrock IDs use **hyphens** for minor versions: `claude-haiku-4-5`. `claude-fable-5`, `claude-opus-5`, and `claude-sonnet-5` are major-only releases, so both conventions collapse to the same string (no ambiguity there).
+- OpenAI uses **dot** notation natively: `gpt-5.6`, `gpt-5.6-mini`, `gpt-5.6-nano`.
 - **Confirm each identifier with `/model` in an active Kiro session before relying on it.** If your Kiro build expects the hyphenated minor-version form, update `TIERS` in `model-policy.js` and re-run the applier.
 
 ## Kiro Availability (matters because `balanced` is the default tier)
 
-The tier values are Anthropic model names; their **availability inside Kiro** differs, and an unavailable model silently falls back to the session default. As of 2026-07-11 ([kiro.dev/docs/models](https://kiro.dev/docs/models)):
+The tier values are Anthropic model names; their **availability inside Kiro** differs, and an unavailable model silently falls back to the session default. As of 2026-07-26 ([kiro.dev/docs/models](https://kiro.dev/docs/models)):
 
 | Model | Kiro status | Regions | Plans |
 |-------|-------------|---------|-------|
-| `claude-opus-4.8` | Active | us-east-1, eu-central-1 | Pro / Pro+ / Power |
+| `claude-fable-5` | Active (GA) | us-east-1, eu-central-1 | Pro / Pro+ / Power |
+| `claude-opus-5` | Active | us-east-1, eu-central-1 | Pro / Pro+ / Power |
 | `claude-sonnet-5` | **Experimental** | **us-east-1 only** | Pro / Pro+ / Power (not Free) |
 | `claude-haiku-4.5` | Active | us-east-1, eu-central-1 | broad |
 
@@ -86,13 +87,13 @@ IDE hooks (`.kiro/hooks/*.json`, v1 format) trigger agent actions via `askAgent`
 
 For heavyweight review that must run on a specific tier regardless of the session model, delegate from the hook prompt to a named agent (e.g., `security-reviewer` for a security pass) rather than relying on the session model.
 
-## OpenAI GPT-5.5 / GPT-5.4 Forward Plan
+## OpenAI GPT-5.6 (selectable now)
 
-When GPT-5.5 and GPT-5.4 become selectable in Kiro:
+All three GPT-5.6 variants (`gpt-5.6`, `gpt-5.6-mini`, `gpt-5.6-nano`) are selectable in Kiro. To retarget the fleet:
 
-1. Confirm the exact identifiers with `/model`.
-2. If they differ from `gpt-5.5` / `gpt-5.4`, update the `openai` column in `TIERS` (`model-policy.js`).
+1. Confirm the exact identifiers with `/model` (naming may differ per Kiro build).
+2. If they differ from `gpt-5.6` / `gpt-5.6-mini` / `gpt-5.6-nano`, update the `openai` column in `TIERS` (`model-policy.js`).
 3. Run `node scripts/apply-model-policy.js --provider=openai` to retarget all agents, or run it per project to mix providers across workspaces.
-4. `deep-reasoning → gpt-5.5`, `balanced → gpt-5.4`. `cost-optimized` reuses `gpt-5.4` until a lighter GPT-5.x tier is published; swap that one line when it is.
+4. The mapping: `frontier / deep-reasoning → gpt-5.6`, `balanced → gpt-5.6-mini`, `cost-optimized → gpt-5.6-nano`.
 
-Mixing is intentional: because routing is per-agent, you can keep orchestration/security on Claude Opus while running the high-volume `balanced` coding agents on GPT-5.4 (or vice versa) — whatever the benchmarks and pricing favor at the time.
+Mixing is intentional: because routing is per-agent, you can keep orchestration/security on Claude (fable-5/Opus 5) while running the high-volume `balanced` coding agents on GPT-5.6-mini (or vice versa) — whatever the benchmarks and pricing favor at the time.

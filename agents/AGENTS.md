@@ -13,9 +13,9 @@
 
 역할을 능력 티어에 매핑하고, 티어를 모델 식별자에 매핑한다. 단일 출처는 `scripts/lib/model-policy.js`이며, 자세한 배정·전환은 `docs/kr/model-routing.md`를 참조한다.
 
-- `claude-opus-4.8` → `claude-fable-5` (frontier) — 오케스트레이터(kiro-cli) 전용. 기본 opus-4.8(널리 가용), 설치 시 가용하면 fable-5(Mythos-class)로 승격(`--frontier-model=fable5` 또는 대화형).
-- `claude-opus-4.8` (deep-reasoning) — 아키텍처·보안·근본 원인 분석·리서치 종합 등 추론 중심 작업(architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler).
+- `claude-fable-5` (frontier) — 오케스트레이터(kiro-cli) 전용. 기본 fable-5(Mythos-class, 정식 가용), fable-5 미서빙 환경은 설치 시 `claude-opus-5`로 폴백(`--frontier-model=opus5` 또는 대화형).
+- `claude-opus-5` (deep-reasoning) — 아키텍처·보안·근본 원인 분석·리서치 종합 등 추론 중심 작업(architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler).
 - `claude-sonnet-5` (balanced, 기본 티어) — 코드/언어 리뷰·빌드 오류 해결·리팩터·e2e·문서 등 코딩 주력. 명시되지 않은 역할은 이 티어로 떨어진다.
 - `claude-haiku-4.5` (cost-optimized) — 번역·문서·분류 등 비용 최적화 작업.
 
-OpenAI GPT가 Kiro에 붙으면 frontier/deep-reasoning→`gpt-5.5`, balanced→`gpt-5.4`로 매핑한다(예정). 프로바이더 전환: `node scripts/apply-model-policy.js --provider=openai`.
+OpenAI GPT-5.6 3종이 Kiro에서 선택 가능하다: frontier/deep-reasoning→`gpt-5.6`, balanced→`gpt-5.6-mini`, cost-optimized→`gpt-5.6-nano`. 프로바이더 전환: `node scripts/apply-model-policy.js --provider=openai`.

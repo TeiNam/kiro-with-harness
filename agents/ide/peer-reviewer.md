@@ -1,7 +1,7 @@
 ---
 name: peer-reviewer
 description: Cross-model peer review/discussion agent. Gathers independent second opinions from terminal Claude Code (claude -p) and Codex CLI (codex review / codex exec), then synthesizes a Kiro + Claude + Codex 3-way review. Each backend degrades gracefully when unavailable. Use when cross-model review, design discussion, or independent cross-checking is needed.
-model: claude-opus-4.8
+model: claude-opus-5
 tools: ["read", "write", "shell"]
 ---
 

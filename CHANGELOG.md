@@ -3,6 +3,13 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-07-26
+
+### Changed
+- **모델 정책 업그레이드 — frontier `claude-fable-5` 기본 + deep-reasoning `claude-opus-5`** — fable-5 정식 가용·opus-5 출시에 맞춰 SSOT(`model-policy.js`) 갱신: frontier 티어 기본을 `claude-opus-4.8`→`claude-fable-5`로, deep-reasoning을 `claude-opus-4.8`→`claude-opus-5`로 교체. `FRONTIER_UPGRADE`(승격)를 `FRONTIER_FALLBACK`(폴백, `claude-opus-5`)으로 의미 반전(`frontierFallbackIdentifier`). `--frontier-model` 값은 `fable5`(기본)|`opus5`|`auto`로 변경(`opus48` 제거), 대화형 설치 프롬프트도 fable-5 기본으로 갱신. `apply-model-policy.js`로 에이전트 13종 재기록(frontier 1 + deep-reasoning 12).
+- **OpenAI GPT-5.6 3종 매핑** — Kiro에서 gpt-5.6 전 변형이 선택 가능해짐에 따라 openai 열을 현행화: frontier/deep-reasoning→`gpt-5.6`, balanced→`gpt-5.6-mini`, cost-optimized→`gpt-5.6-nano`(기존 forward-looking gpt-5.5/5.4 대체). `--provider=openai` 전환은 이제 예정이 아닌 현행 기능.
+- `model-detect.js` Legacy 식별자를 `claude-opus-4.7`→`claude-opus-4.8`로 교체(이번 마이그레이션의 잔존 스캔 대상). README(en/kr)·model-routing(en/kr)·profile-guide(en/kr)·AGENTS.md 모델 정책 서술 갱신.
+
 ## 2026-07-16
 
 ### Added

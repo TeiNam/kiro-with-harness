@@ -2,7 +2,7 @@
 
 // Property 4(구식별자 검출 완전성) 속성 기반 테스트.
 // 검증 대상: scripts/lib/model-detect.js 의 detectLegacyIdentifiers(text, filePath)
-// 구식별자(legacy identifier) = MODEL_POLICY.Legacy_Model_Identifier = 'claude-opus-4.7'
+// 구식별자(legacy identifier) = MODEL_POLICY.Legacy_Model_Identifier = 'claude-opus-4.8'
 
 const test = require('node:test');
 const assert = require('node:assert');
@@ -13,7 +13,7 @@ const {
   detectLegacyIdentifiers,
 } = require('../scripts/lib/model-detect.js');
 
-const LEGACY = MODEL_POLICY.Legacy_Model_Identifier; // 'claude-opus-4.7'
+const LEGACY = MODEL_POLICY.Legacy_Model_Identifier; // 'claude-opus-4.8'
 
 // ---------------------------------------------------------------------------
 // 생성기(generator) 보조 함수
@@ -100,13 +100,14 @@ test('빈 문자열은 0건을 보고한다', () => {
 });
 
 test('구식별자가 없는 텍스트는 0건을 보고한다', () => {
-  const text = 'claude-opus-4.8\nclaude-haiku-4.5\nno match here';
+  const text = 'claude-opus-5\nclaude-haiku-4.5\nno match here';
   assert.deepStrictEqual(detectLegacyIdentifiers(text, 'x.txt'), []);
 });
 
 test('점(dot)은 문자 그대로 매치된다 — 유사 문자열은 매치되지 않는다', () => {
-  // 'claude-opus-4X7'(임의 문자) 및 'claude-opus-457'(점 없음)은 매치 금지.
-  const text = 'claude-opus-4X7\nclaude-opus-457\nclaude-opus-4.8';
+  // 'claude-opus-4X8'(임의 문자) 및 'claude-opus-458'(점 없음)은 매치 금지.
+  // 직전 세대 구식별자였던 'claude-opus-4.7'도 현재 스캔 대상이 아니다.
+  const text = 'claude-opus-4X8\nclaude-opus-458\nclaude-opus-4.7';
   assert.deepStrictEqual(detectLegacyIdentifiers(text, 'x.txt'), []);
 });
 

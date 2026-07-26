@@ -7,7 +7,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. Tuned for Kiro's frontier tier — Claude Opus 4.8 (default), Fable 5 (Mythos-class) opt-in — with role-based model routing, DAG-style parallel delegation, and a shared agent collaboration guide (AGENTS.md).
+Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. Tuned for Kiro's frontier tier — Fable 5 (Mythos-class, default), Opus 5 fallback — with role-based model routing, DAG-style parallel delegation, and a shared agent collaboration guide (AGENTS.md).
 
 ## Quick Start
 
@@ -20,8 +20,8 @@ node install.js              # or: node install.js -i
 # CLI tier: install global baseline (orchestrator agents, skills → ~/.kiro)
 node install.js cli --scope global
 
-# Orchestrator on Fable 5 (Mythos-class) where available — default is opus-4.8
-node install.js cli --scope global --frontier-model=fable5
+# Orchestrator fallback to Opus 5 where Fable 5 isn't served — default is fable-5
+node install.js cli --scope global --frontier-model=opus5
 
 # Rust + Python dev, workspace install
 node install.js cli --scope workspace --dev=rust,python
@@ -147,18 +147,18 @@ Build agents (build-error-resolver, language build-resolvers, e2e-runner, kiro-c
 
 ## Models
 
-Agent model assignments are role-based, organized into four **provider-agnostic capability tiers**. The `model` field in each agent definition is the single source of truth, written from [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js). The harness is **tuned for four Kiro models** — **`claude-fable-5`** (frontier, Mythos-class), **`claude-opus-4.8`** (deep reasoning), **`claude-sonnet-5`** (balanced, the default coding tier), and **`claude-haiku-4.5`** (cost-optimized). The `kiro-cli` orchestrator (set as the default agent on install) defaults to `claude-opus-4.8` and upgrades to `claude-fable-5` at install time when it is available (`--frontier-model=fable5` or the interactive installer); reasoning agents use `claude-opus-4.8`; the high-volume coding agents use `claude-sonnet-5`; cost-sensitive roles use `claude-haiku-4.5`.
+Agent model assignments are role-based, organized into four **provider-agnostic capability tiers**. The `model` field in each agent definition is the single source of truth, written from [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js). The harness is **tuned for four Kiro models** — **`claude-fable-5`** (frontier, Mythos-class), **`claude-opus-5`** (deep reasoning), **`claude-sonnet-5`** (balanced, the default coding tier), and **`claude-haiku-4.5`** (cost-optimized). The `kiro-cli` orchestrator (set as the default agent on install) defaults to `claude-fable-5` and falls back to `claude-opus-5` where fable-5 isn't served (`--frontier-model=opus5` or the interactive installer); reasoning agents use `claude-opus-5`; the high-volume coding agents use `claude-sonnet-5`; cost-sensitive roles use `claude-haiku-4.5`.
 
 | Tier | Model | Agents |
 |------|-------|--------|
-| Frontier | `claude-opus-4.8` (baseline) → `claude-fable-5` (upgrade) | kiro-cli (orchestrator) |
-| Deep reasoning | `claude-opus-4.8` | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| Frontier | `claude-fable-5` (default) → `claude-opus-5` (fallback) | kiro-cli (orchestrator) |
+| Deep reasoning | `claude-opus-5` | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
 | Balanced (default) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, language reviewers, build-resolvers, database-reviewer, e2e-runner, doc/tech writers |
 | Cost-optimized | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
-The design principle: **the orchestrator runs the frontier tier (opus-4.8 by default, fable-5 when available), Opus reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** Routing is per-agent, so you can mix models across roles. When OpenAI's GPT-5.5 / GPT-5.4 become selectable in Kiro, the same tiers map to them (`frontier/deep-reasoning → gpt-5.5`, `balanced → gpt-5.4`) — run `node scripts/apply-model-policy.js --provider=openai` to retarget. Full details, hook→tier guidance, and the provider-switch workflow: [Model routing](docs/en/model-routing.md).
+The design principle: **the orchestrator runs the frontier tier (fable-5 by default, opus-5 fallback), Opus 5 reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** Routing is per-agent, so you can mix models across roles. All three OpenAI GPT-5.6 variants are selectable in Kiro; the same tiers map to them (`frontier/deep-reasoning → gpt-5.6`, `balanced → gpt-5.6-mini`, `cost-optimized → gpt-5.6-nano`) — run `node scripts/apply-model-policy.js --provider=openai` to retarget. Full details, hook→tier guidance, and the provider-switch workflow: [Model routing](docs/en/model-routing.md).
 
-> **Opus 4.8 availability:** `claude-opus-4.8` is **experimental** and available only in **us-east-1** and **eu-central-1**. It requires **Kiro CLI v2.5.0+**. Agents pinned to `claude-opus-4.8` will fail on older CLI versions or unsupported regions — upgrade Kiro CLI to avoid silent failures.
+> **Frontier model availability:** `claude-fable-5` and `claude-opus-5` are served in **us-east-1** and **eu-central-1** and require a recent Kiro CLI. Agents pinned to an unserved model silently fall back to `chat.defaultModel` with a warning — confirm with `/model` and keep Kiro CLI up to date.
 
 > **Model ID format:** Kiro validates `model` against the IDs its model service returns; an unknown ID silently falls back to the default model with a warning. Confirm the exact identifier with `/model` in an active chat session before pinning.
 
@@ -263,7 +263,7 @@ Options:
   --<category>-<sub>= <list>     Detail option (e.g., --dev-apple=core; for subs with drill-down only)
   --workload <list|all>          Low-level: comma-separated workload keys or 'all' (legacy surface, merges with categories via union)
   --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
-  --frontier-model <opus48|fable5> Orchestrator (kiro-cli) frontier model (default: opus-4.8; fable5 = claude-fable-5 where available)
+  --frontier-model <fable5|opus5> Orchestrator (kiro-cli) frontier model (default: fable-5; opus5 = claude-opus-5 fallback where fable-5 isn't served)
   --mcp-proxy                    IDE only: route mcp.json through mcp-proxy (:9090) and auto-start the proxy container (docker compose up -d) if not already running
   --target <path>                Install to specified directory
   --dry-run                      Preview changes without writing
@@ -281,7 +281,7 @@ Full guides live under `docs/` — English in `docs/en/`, Korean in `docs/kr/`.
 | [Hook reference](docs/en/hook-reference.md) | IDE 1.0 v1 JSON hook format, triggers, the installed hook set |
 | [Agent Focus Mode](docs/en/agent-focus-mode.md) | IDE 1.0 Agent Focus Mode (experimental) — parallel sessions & workflow picker mapped to harness agents/orchestration |
 | [MCP reference](docs/en/mcp-reference.md) | Curated MCP catalog (built-in / general / DevOps / FinOps / opt-in) |
-| [Model routing](docs/en/model-routing.md) | 3-tier model policy (Opus/Sonnet/Haiku), per-agent assignment, hook→tier guidance, OpenAI GPT-5.5/5.4 forward plan |
+| [Model routing](docs/en/model-routing.md) | 4-tier model policy (Fable/Opus/Sonnet/Haiku), per-agent assignment, hook→tier guidance, OpenAI GPT-5.6 provider switch |
 | [Skill catalog](docs/en/skill-catalog.md) | The 140 skills by domain |
 | [Creating skills](docs/en/creating-skills.md) | Authoring + registering a skill via `workloads:` frontmatter |
 | [Claude vs Kiro](docs/en/claude-vs-kiro.md) | Claude Code vs Kiro CLI vs Kiro IDE — feature-by-feature differences (official-docs-based) |

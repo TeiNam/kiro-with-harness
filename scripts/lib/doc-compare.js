@@ -44,7 +44,7 @@ const FIELD_NAMES = [
   'includePowers',
 ];
 
-// 모델 식별자 패턴: claude-<family>-<버전...> (예: claude-opus-4.8, claude-haiku-4.5,
+// 모델 식별자 패턴: claude-<family>-<버전...> (예: claude-fable-5, claude-haiku-4.5,
 // claude-haiku-4-5-20251001, claude-sonnet-4-6). 점/하이픈/영숫자 버전 표기를 모두 포괄한다.
 const MODEL_ID_RE = /claude-[a-z]+-\d[\w.-]*/g;
 

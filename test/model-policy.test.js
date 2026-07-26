@@ -87,17 +87,17 @@ test('classifyRole: balanced 역할 및 미등록 역할 기본값', () => {
 // ---------------------------------------------------------------------------
 
 test('tierIdentifier: anthropic 기본 식별자', () => {
-  assert.strictEqual(tierIdentifier('frontier'), 'claude-opus-4.8');
-  assert.strictEqual(tierIdentifier('deep-reasoning'), 'claude-opus-4.8');
+  assert.strictEqual(tierIdentifier('frontier'), 'claude-fable-5');
+  assert.strictEqual(tierIdentifier('deep-reasoning'), 'claude-opus-5');
   assert.strictEqual(tierIdentifier('balanced'), 'claude-sonnet-5');
   assert.strictEqual(tierIdentifier('cost-optimized'), 'claude-haiku-4.5');
 });
 
-test('tierIdentifier: openai 식별자(예정)', () => {
-  assert.strictEqual(tierIdentifier('frontier', 'openai'), 'gpt-5.5');
-  assert.strictEqual(tierIdentifier('deep-reasoning', 'openai'), 'gpt-5.5');
-  assert.strictEqual(tierIdentifier('balanced', 'openai'), 'gpt-5.4');
-  assert.strictEqual(tierIdentifier('cost-optimized', 'openai'), 'gpt-5.4');
+test('tierIdentifier: openai 식별자(GPT-5.6 3종)', () => {
+  assert.strictEqual(tierIdentifier('frontier', 'openai'), 'gpt-5.6');
+  assert.strictEqual(tierIdentifier('deep-reasoning', 'openai'), 'gpt-5.6');
+  assert.strictEqual(tierIdentifier('balanced', 'openai'), 'gpt-5.6-mini');
+  assert.strictEqual(tierIdentifier('cost-optimized', 'openai'), 'gpt-5.6-nano');
 });
 
 test('tierIdentifier: 알 수 없는 티어/프로바이더는 throw', () => {
@@ -106,12 +106,12 @@ test('tierIdentifier: 알 수 없는 티어/프로바이더는 throw', () => {
 });
 
 test('identifierForRole: 역할 → 식별자(프로바이더별)', () => {
-  assert.strictEqual(identifierForRole('kiro-cli'), 'claude-opus-4.8');
-  assert.strictEqual(identifierForRole('architect'), 'claude-opus-4.8');
+  assert.strictEqual(identifierForRole('kiro-cli'), 'claude-fable-5');
+  assert.strictEqual(identifierForRole('architect'), 'claude-opus-5');
   assert.strictEqual(identifierForRole('code-reviewer'), 'claude-sonnet-5');
   assert.strictEqual(identifierForRole('translator-docs'), 'claude-haiku-4.5');
-  assert.strictEqual(identifierForRole('code-reviewer', 'openai'), 'gpt-5.4');
-  assert.strictEqual(identifierForRole('kiro-cli', 'openai'), 'gpt-5.5');
+  assert.strictEqual(identifierForRole('code-reviewer', 'openai'), 'gpt-5.6-mini');
+  assert.strictEqual(identifierForRole('kiro-cli', 'openai'), 'gpt-5.6');
 });
 
 test('isKnownProvider', () => {
@@ -145,12 +145,12 @@ test('apply main: --dry-run 은 자산을 쓰지 않고 exit 0', () => {
   }
 });
 
-test('frontierUpgradeIdentifier: fable-5 승격 식별자이며 baseline(opus-4.8)과 구분된다', () => {
-  const { frontierUpgradeIdentifier, FRONTIER_UPGRADE, tierIdentifier } = require('../scripts/lib/model-policy');
-  assert.strictEqual(frontierUpgradeIdentifier(), 'claude-fable-5');
-  assert.strictEqual(frontierUpgradeIdentifier('anthropic'), 'claude-fable-5');
-  assert.strictEqual(frontierUpgradeIdentifier('openai'), 'gpt-5.5');
-  assert.strictEqual(FRONTIER_UPGRADE.anthropic, 'claude-fable-5');
-  // frontier baseline(opus-4.8)과 upgrade(fable-5)는 서로 달라야 한다(승격의 의미).
-  assert.notStrictEqual(tierIdentifier('frontier'), frontierUpgradeIdentifier());
+test('frontierFallbackIdentifier: opus-5 폴백 식별자이며 기본(fable-5)과 구분된다', () => {
+  const { frontierFallbackIdentifier, FRONTIER_FALLBACK, tierIdentifier } = require('../scripts/lib/model-policy');
+  assert.strictEqual(frontierFallbackIdentifier(), 'claude-opus-5');
+  assert.strictEqual(frontierFallbackIdentifier('anthropic'), 'claude-opus-5');
+  assert.strictEqual(frontierFallbackIdentifier('openai'), 'gpt-5.6');
+  assert.strictEqual(FRONTIER_FALLBACK.anthropic, 'claude-opus-5');
+  // frontier 기본(fable-5)과 폴백(opus-5)은 서로 달라야 한다(폴백의 의미).
+  assert.notStrictEqual(tierIdentifier('frontier'), frontierFallbackIdentifier());
 });
