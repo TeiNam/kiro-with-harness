@@ -9,6 +9,7 @@
 - **모델 정책 업그레이드 — frontier `claude-fable-5` 기본 + deep-reasoning `claude-opus-5`** — fable-5 정식 가용·opus-5 출시에 맞춰 SSOT(`model-policy.js`) 갱신: frontier 티어 기본을 `claude-opus-4.8`→`claude-fable-5`로, deep-reasoning을 `claude-opus-4.8`→`claude-opus-5`로 교체. `FRONTIER_UPGRADE`(승격)를 `FRONTIER_FALLBACK`(폴백, `claude-opus-5`)으로 의미 반전(`frontierFallbackIdentifier`). `--frontier-model` 값은 `fable5`(기본)|`opus5`|`auto`로 변경(`opus48` 제거), 대화형 설치 프롬프트도 fable-5 기본으로 갱신. `apply-model-policy.js`로 에이전트 13종 재기록(frontier 1 + deep-reasoning 12).
 - **OpenAI GPT-5.6 3종 매핑** — Kiro에서 gpt-5.6 전 변형이 선택 가능해짐에 따라 openai 열을 현행화: frontier/deep-reasoning→`gpt-5.6`, balanced→`gpt-5.6-mini`, cost-optimized→`gpt-5.6-nano`(기존 forward-looking gpt-5.5/5.4 대체). `--provider=openai` 전환은 이제 예정이 아닌 현행 기능.
 - `model-detect.js` Legacy 식별자를 `claude-opus-4.7`→`claude-opus-4.8`로 교체(이번 마이그레이션의 잔존 스캔 대상). README(en/kr)·model-routing(en/kr)·profile-guide(en/kr)·AGENTS.md 모델 정책 서술 갱신.
+- **cross-review Codex 모델 고정** — `peer-reviewer`(CLI/IDE)와 `cross-review.sh`의 Codex 호출을 `--model gpt-5.6-sol`로 고정. 스크립트는 `CODEX_MODEL` 환경변수 오버라이드를 지원하고, 지정 모델 거부 시 모델 미지정으로 1회 재시도(graceful degradation 유지). Kiro 네이티브 GPT 에이전트 쌍 대신 기존 외부 CLI 경유 구조를 유지하기로 결정(교차 하네스 다양성 보존). hook-reference(en/kr) 갱신.
 
 ## 2026-07-16
 
