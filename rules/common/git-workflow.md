@@ -1,5 +1,59 @@
 # Git Workflow
 
+## Pipeline (always this order)
+
+There is exactly **one** way to land a code change: `branch → commit → push → PR → merge`.
+"It's a small change", "it's docs only", "I'm already on main" are not exceptions.
+
+```bash
+git switch -c <type>/<slug>          # 1. feat/, fix/, refactor/, docs/, chore/ …
+git commit -m "<type>: <description>" # 2. commit (one or many)
+git push -u origin <branch>          # 3. push
+gh pr create --fill                  # 4. PR (write the body per the rules below)
+gh pr merge --squash --delete-branch # 5. merge + branch cleanup
+git switch main && git pull          # 6. sync local
+```
+
+**Never commit or push directly to the default branch (`main`/`master`).** If work
+already started on main, move it before committing: `git switch -c <branch>`.
+
+When the user asks for only **part** of the pipeline ("commit this", "push it",
+"open a PR"), carry on through the remaining steps. If there is a reason to stop
+partway (waiting on review, checking CI), say the reason in one line.
+
+### Exceptions (direct push allowed)
+
+- The user explicitly said "directly to main"
+- Release tag pushes (`git push --tags`)
+- Local-only repos with no remote
+
+**Enforcement gate.** The harness installs a `pre-push-guard` hook that detects a
+push targeting the default branch and blocks it (`exit 2`) with the pipeline
+instructions. Deliberate direct pushes set `KIRO_ALLOW_MAIN_PUSH=1`. The IDE tier
+ships the same gate as the `git-pipeline-guard` hook.
+
+## Version Bump (before the commit that lands a PR)
+
+Run `npm run bump` before committing. It classifies the change **by size** against the
+last bump and applies the level:
+
+| Size | Level | Trigger |
+|------|-------|---------|
+| Large PR | `minor` | asset add/remove under `agents/`·`skills/`, **or** ≥10 changed files, **or** ≥300 churn |
+| One or two small edits | `patch` | anything else that changed |
+| Nothing changed | none | no bump |
+
+```bash
+npm run bump -- --dry-run       # verdict only
+npm run bump                    # apply (package.json + package-lock, no git tag)
+npm run bump -- --level=minor   # override the verdict
+```
+
+Why this is enforced rather than remembered: `install.js` records `package.json`'s
+version as `sourceVersion` in the install manifest and `--status` compares it to decide
+`outdated`. If the version never moves, `compareSemver` always returns 0 and every
+install reads "up to date" no matter how much the source changed.
+
 ## Commit Messages
 
 Write clear, descriptive commit messages:

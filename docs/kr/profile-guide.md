@@ -7,12 +7,12 @@
 ## 모델
 
 ```
-node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--frontier-model fable5|opus5] [--dry-run]
+node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
 ```
 
 - **티어(tier)** — `cli`(`kiro-cli chat`용: JSON 에이전트, 에이전트 JSON 내부 훅, `skill://` 스킬) 또는 `ide`(Kiro IDE용: Markdown 에이전트, `.kiro/hooks/*.json` v1 JSON 훅, 스티어링).
 - **스코프(scope)** — `global`(`~/.kiro`, CLI 기본) 또는 `workspace`(프로젝트 `.kiro`, IDE 기본).
-- **카테고리(category)** — 대분류(dev, cloud, ai, data, research, writing) + 중분류 드릴다운(--dev=rust,python) + 소분류 옵션(--dev-apple=core). `core`는 항상 설치되고, 미선택 레벨은 모든 하위 옵션을 기본값으로 사용합니다. 하위 호환성을 위해 `--workload`도 저수준 워크로드 키 직접 지정으로 남아 있습니다.
+- **카테고리(category)** — 대분류(dev, cloud, ai, data, research, writing) + 중분류 드릴다운(--dev=rust,python). `core`는 항상 설치되고, 미선택 레벨은 모든 하위 옵션을 기본값으로 사용합니다. 하위 호환성을 위해 `--workload`도 저수준 워크로드 키 직접 지정으로 남아 있습니다.
 
 ## 카테고리
 
@@ -31,7 +31,7 @@ node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<cat
 | | csharp | — | csharp |
 | | php | — | php |
 | | perl | — | perl |
-| | apple | core / platform / product | swift |
+| | apple | — | swift |
 | | mobile | — | mobile |
 | | architecture | — | architecture |
 | | domain | — | domain |
@@ -59,10 +59,9 @@ node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<cat
 **선택 규칙:**
 - `--category=dev,cloud` — 대분류 전체 선택.
 - `--dev=rust,python` — 중분류 선택(dev 자동 활성화).
-- `--dev-apple=core` — 소분류 선택(dev·apple 자동 활성화).
+- `--dev=apple` — Apple 플랫폼 선택(드릴다운 없음; [swift]로 매핑).
 - 미선택 레벨은 모든 하위 옵션 기본값.
 - `--workload=<키,...>` — 저수준 워크로드 키 직접 지정(레거시 표면, 카테고리와 합집합).
-- `lab`은 숨김; `--workload=lab`으로만 옵트인.
 
 ## 예시
 
@@ -96,15 +95,14 @@ node install.js cli --scope global --workload rust,postgres,cloud
 
 프로그래밍·빌드·오케스트레이터 에이전트는 이 토글과 무관하게 항상 Kiro 네이티브입니다.
 
-## Frontier 모델 (오케스트레이터)
+## 오케스트레이터 모델
 
-`kiro-cli` 오케스트레이터(CLI global 전용)는 기본으로 Mythos-class **`claude-fable-5`**를 씁니다 — 이제 Kiro에서 정식 가용합니다. 환경이 fable-5를 서빙할 수 없으면 설치 시 폴백하세요:
+`kiro-cli` 오케스트레이터(CLI global 전용)는 **deep-reasoning 능력 티어**로 배정되며, 기본으로 **`claude-opus-5`**를 씁니다. 더 깊은 추론이 필요하면 티어를 바꾸지 말고 추론 effort를 올리세요:
 
-- `--frontier-model=fable5`(또는 생략 / `auto`) — 기본 `claude-fable-5`
-- `--frontier-model=opus5` — 오케스트레이터를 `claude-opus-5` 폴백으로 고정
-- 대화형 설치는 CLI global 설치에서 오케스트레이터 모델을 묻습니다.
+- `kiro-cli chat --effort max` — 현 세션의 최대 추론 effort 활성화
+- `kiro-cli settings chat.modelDefaults` — 모델 기본값 영구 커스터마이즈
 
-Kiro CLI는 사용 가능 모델을 비대화형으로 조회하는 명령이 없어 선택은 명시적입니다 — **자동 감지는 없습니다**. 선택은 매니페스트(`frontierModel`)에 기록되고 `--status`로 표시됩니다. 환경이 서빙할 수 없는 모델을 골라도 Kiro가 경고 후 `chat.defaultModel`로 폴백하므로 하드 실패하지 않습니다.
+상세한 모델 라우팅 정책, 에이전트 전체 티어 배정, 프로바이더별 매핑은 [모델 라우팅](model-routing.md)을 참조하세요.
 
 ## 글로벌 ↔ 워크스페이스 상속
 

@@ -128,4 +128,4 @@ Common sources of duplicate context:
 
 - [The Longform Guide](https://x.com/affaanmustafa/status/2014040193557471352) — Token optimization section
 - Memory persistence hooks — For state that survives compaction
-- `continuous-learning` skill — Extracts patterns before session ends
+- `lessons-learned` skill — Capture a one-line lesson before compacting away the context that produced it

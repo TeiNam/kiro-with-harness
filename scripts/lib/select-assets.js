@@ -56,7 +56,7 @@ function readWorkloadsFrontmatter(filePath) {
   return null;
 }
 
-function listSkillAssets(root) {
+function listSkillAssets(root = ROOT) {
   const dir = path.join(root, 'skills');
   if (!fs.existsSync(dir)) return [];
   const out = [];

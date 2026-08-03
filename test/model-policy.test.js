@@ -36,8 +36,8 @@ test('기본값: provider=anthropic, tier=balanced', () => {
   assert.ok(PROVIDERS.includes('openai'));
 });
 
-test('TIER_IDS 는 정확히 4개 티어(frontier 포함)이며 각 티어는 anthropic·openai 식별자를 갖는다', () => {
-  assert.deepStrictEqual(TIER_IDS, ['frontier', 'deep-reasoning', 'balanced', 'cost-optimized']);
+test('TIER_IDS 는 정확히 3개 티어(천장=deep-reasoning)이며 각 티어는 anthropic·openai 식별자를 갖는다', () => {
+  assert.deepStrictEqual(TIER_IDS, ['deep-reasoning', 'balanced', 'cost-optimized']);
   for (const tier of TIER_IDS) {
     const p = providersFor(tier);
     for (const provider of PROVIDERS) {
@@ -57,8 +57,9 @@ test('ROLE_TIERS 의 모든 값은 유효한 TIER_ID 다', () => {
 // classifyRole — 역할 → 티어
 // ---------------------------------------------------------------------------
 
-test('classifyRole: frontier 역할(오케스트레이터 전용)', () => {
-  assert.strictEqual(classifyRole('kiro-cli'), 'frontier');
+test('classifyRole: 오케스트레이터는 천장 티어(deep-reasoning) — 그 위 티어는 없다', () => {
+  assert.strictEqual(classifyRole('kiro-cli'), 'deep-reasoning');
+  assert.ok(!TIER_IDS.includes('frontier'), 'frontier 티어는 제거되었다');
 });
 
 test('classifyRole: deep-reasoning 역할', () => {
@@ -87,14 +88,12 @@ test('classifyRole: balanced 역할 및 미등록 역할 기본값', () => {
 // ---------------------------------------------------------------------------
 
 test('tierIdentifier: anthropic 기본 식별자', () => {
-  assert.strictEqual(tierIdentifier('frontier'), 'claude-fable-5');
   assert.strictEqual(tierIdentifier('deep-reasoning'), 'claude-opus-5');
   assert.strictEqual(tierIdentifier('balanced'), 'claude-sonnet-5');
   assert.strictEqual(tierIdentifier('cost-optimized'), 'claude-haiku-4.5');
 });
 
 test('tierIdentifier: openai 식별자(GPT-5.6 3종)', () => {
-  assert.strictEqual(tierIdentifier('frontier', 'openai'), 'gpt-5.6');
   assert.strictEqual(tierIdentifier('deep-reasoning', 'openai'), 'gpt-5.6');
   assert.strictEqual(tierIdentifier('balanced', 'openai'), 'gpt-5.6-mini');
   assert.strictEqual(tierIdentifier('cost-optimized', 'openai'), 'gpt-5.6-nano');
@@ -106,7 +105,7 @@ test('tierIdentifier: 알 수 없는 티어/프로바이더는 throw', () => {
 });
 
 test('identifierForRole: 역할 → 식별자(프로바이더별)', () => {
-  assert.strictEqual(identifierForRole('kiro-cli'), 'claude-fable-5');
+  assert.strictEqual(identifierForRole('kiro-cli'), 'claude-opus-5');
   assert.strictEqual(identifierForRole('architect'), 'claude-opus-5');
   assert.strictEqual(identifierForRole('code-reviewer'), 'claude-sonnet-5');
   assert.strictEqual(identifierForRole('translator-docs'), 'claude-haiku-4.5');
@@ -145,12 +144,45 @@ test('apply main: --dry-run 은 자산을 쓰지 않고 exit 0', () => {
   }
 });
 
-test('frontierFallbackIdentifier: opus-5 폴백 식별자이며 기본(fable-5)과 구분된다', () => {
-  const { frontierFallbackIdentifier, FRONTIER_FALLBACK, tierIdentifier } = require('../scripts/lib/model-policy');
-  assert.strictEqual(frontierFallbackIdentifier(), 'claude-opus-5');
-  assert.strictEqual(frontierFallbackIdentifier('anthropic'), 'claude-opus-5');
-  assert.strictEqual(frontierFallbackIdentifier('openai'), 'gpt-5.6');
-  assert.strictEqual(FRONTIER_FALLBACK.anthropic, 'claude-opus-5');
-  // frontier 기본(fable-5)과 폴백(opus-5)은 서로 달라야 한다(폴백의 의미).
-  assert.notStrictEqual(tierIdentifier('frontier'), frontierFallbackIdentifier());
+// ---------------------------------------------------------------------------
+// effort 사다리 — 천장 티어 위로 가는 대신 티어 안에서 올린다
+// ---------------------------------------------------------------------------
+
+test('EFFORT_LADDER: 낮은 것부터 정렬되어 있고 max 가 최상단', () => {
+  const { EFFORT_LADDER } = require('../scripts/lib/model-policy');
+  assert.deepStrictEqual(EFFORT_LADDER, ['low', 'medium', 'high', 'xhigh', 'max']);
+  assert.strictEqual(EFFORT_LADDER[EFFORT_LADDER.length - 1], 'max');
+});
+
+test('effortForRole: 오케스트레이터는 max, 판정 비싼 역할은 xhigh, 기계적 역할은 low', () => {
+  const { effortForRole, DEFAULT_EFFORT } = require('../scripts/lib/model-policy');
+  assert.strictEqual(effortForRole('kiro-cli'), 'max');
+  for (const r of ['architect', 'security-reviewer', 'peer-reviewer']) {
+    assert.strictEqual(effortForRole(r), 'xhigh', r);
+  }
+  assert.strictEqual(effortForRole('refactor-cleaner'), 'low');
+  // 미지정 역할은 기본값
+  assert.strictEqual(effortForRole('code-reviewer'), DEFAULT_EFFORT);
+  assert.strictEqual(effortForRole('nonexistent-agent'), DEFAULT_EFFORT);
+});
+
+test('escalateEffort: 한 칸 올리고, 최상단(max)에서는 null — 그 지점이 cross-family 신호', () => {
+  const { escalateEffort } = require('../scripts/lib/model-policy');
+  assert.strictEqual(escalateEffort('high'), 'xhigh');
+  assert.strictEqual(escalateEffort('xhigh'), 'max');
+  assert.strictEqual(escalateEffort('max'), null, 'max 위는 없다 — 옆(cross-family)으로 간다');
+  assert.throws(() => escalateEffort('turbo'), /Unknown effort/);
+});
+
+test('CROSS_FAMILY: 핸드오프 기준·하네스 잔류 기준·유일한 독자 금지 철칙을 담는다', () => {
+  const { CROSS_FAMILY } = require('../scripts/lib/model-policy');
+  assert.ok(CROSS_FAMILY.surfaces.includes('peer-reviewer'), 'peer-reviewer 가 cross-family 표면');
+  assert.ok(CROSS_FAMILY.handoff.length >= 4, '핸드오프 기준 4개 이상');
+  assert.ok(CROSS_FAMILY.keepInHarness.length >= 3, '하네스 잔류 기준 3개 이상');
+  assert.match(CROSS_FAMILY.rule, /유일한 독자/, '유일한 독자 금지 철칙이 명문화되어 있다');
+});
+
+test('천장 원칙: deep-reasoning 이 TIER_IDS 의 첫 원소이며 그 위 티어가 없다', () => {
+  assert.strictEqual(TIER_IDS[0], 'deep-reasoning');
+  assert.strictEqual(classifyRole('kiro-cli'), TIER_IDS[0], '오케스트레이터가 천장에 앉는다');
 });

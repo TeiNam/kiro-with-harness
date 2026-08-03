@@ -89,6 +89,10 @@ const IDE_HOOKS = [
     prompt: '이번 작업에서 반복 가능한 교정 사항(동일 유형의 리뷰 지적, 빌드 실패 패턴, 사용자 정정)이 있었는지 식별하라. 있다면 .kiro/steering/lessons-learned.md에 추가할 한 줄 교훈을 제안하라. 사용자 자산 수정 전 반드시 사용자 확인을 받아라. 교훈이 없으면 조용히 종료하라.',
   },
   {
+    id: 'git-pipeline-guard', name: 'Git Pipeline Guard (default-branch push gate)', event: 'preToolUse', matcher: 'shell', action: 'askAgent',
+    prompt: '이 도구 실행이 `git push`인지 먼저 판별하라. 아니면 아무 작업도 하지 말고 즉시 진행하라(보고 생략).\\n\\n`git push`라면 대상 브랜치가 기본 브랜치인지 판정한다: `git symbolic-ref --short refs/remotes/origin/HEAD`(없으면 실재하는 main/master). 명령에 refspec이 없으면 대상은 현재 브랜치(`git rev-parse --abbrev-ref HEAD`)다.\\n\\n대상이 기본 브랜치면 **차단하고** 파이프라인을 안내하라: `git switch -c <type>/<slug>` → `git push -u origin <branch>` → `gh pr create --fill` → `gh pr merge --squash --delete-branch`. 이미 기본 브랜치에서 커밋했다면 커밋을 새 브랜치로 옮기라고 안내한다.\\n\\n예외(차단하지 않음): 태그 전용 푸시(`--tags`), 브랜치 삭제(`--delete`/`-d`), 원격이 없는 로컬 전용 레포, 사용자가 "main에 직접"이라고 명시한 경우. 대상이 기본 브랜치가 아니면 조용히 진행하라.',
+  },
+  {
     id: 'changelog-on-commit', name: 'Update CHANGELOG (date-organized) on commit', event: 'preToolUse', matcher: 'shell', action: 'askAgent',
     prompt: '이 도구 실행이 `git commit`인지 먼저 판별하라. 커밋이 아니면 아무 작업도 하지 말고 즉시 진행하라(보고 생략).\n\n커밋이 맞다면, 커밋이 실행되기 전에:\n1. 스테이징 범위를 파악한다: `git diff --cached --stat`. 이번 커밋이 CHANGELOG/문서만 바꾸는 커밋이면 아무 것도 하지 말고 진행한다(루프 방지).\n2. 저장소 루트에 CHANGELOG.md가 없으면 아무 것도 하지 말고 진행한다(자동 생성하지 않음).\n3. CHANGELOG.md가 있으면 **날짜별로** 유지한다: `date +%F`로 오늘 날짜를 구해 최상단에 `## YYYY-MM-DD` 섹션이 없으면 추가하고 그 아래 이번 스테이징된 변경을 Added/Changed/Fixed/Removed로 분류해 한 줄로 기록한다. 같은 날짜 섹션이 있으면 항목만 덧붙인다(섹션 중복 생성 금지).\n4. README.md(있으면 README-KR.md도)는 이번 변경으로 부정확해진 부분만 갱신한다.\n5. 변경한 CHANGELOG/README를 `git add`로 스테이징해 이번 커밋에 포함시킨다. 별도 커밋이나 --amend는 하지 말 것.\n6. 이미 최신이면 변경 없이 진행한다.',
   },
@@ -173,11 +177,14 @@ function planCli(selection, { root = ROOT } = {}) {
   const ponytail = readSource(root, 'rules/common/ponytail.md');
   if (ponytail) ops.push({ type: 'content', destRel: 'steering/ponytail.md', content: stripFrontmatter(ponytail) + '\n', label: 'ponytail' });
 
-  // 5) 오케스트레이터(kiro-cli) 선택 시: pre-write-guard 훅 스크립트 설치 + 기본 에이전트 지정
+  // 5) 오케스트레이터(kiro-cli) 선택 시: 훅 스크립트 설치 + 기본 에이전트 지정
   if (selection.agents.some((a) => a.name === 'kiro-cli')) {
-    const guardSrc = path.join(root, 'agents/cli/hooks/pre-write-guard.sh');
-    if (fs.existsSync(guardSrc)) {
-      ops.push({ type: 'copy', src: guardSrc, destRel: 'hooks/pre-write-guard.sh', label: 'hook pre-write-guard' });
+    // preToolUse 훅 스크립트 — 에이전트 JSON 의 hooks.preToolUse 가 이 경로를 참조한다.
+    for (const h of ['pre-write-guard.sh', 'pre-push-guard.sh']) {
+      const src = path.join(root, 'agents/cli/hooks', h);
+      if (fs.existsSync(src)) {
+        ops.push({ type: 'copy', src, destRel: `hooks/${h}`, label: `hook ${h.replace(/\.sh$/, '')}` });
+      }
     }
     postInstall.push('kiro-cli agent set-default kiro-cli');
   }

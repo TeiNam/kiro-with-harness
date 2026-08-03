@@ -2,6 +2,7 @@
 name: obsidian-plugin-dev
 description: |
   Obsidian plugin development best practices guide. Covers TypeScript, i18n multilingual support, and Chromium optimization for a complete plugin development workflow. Use this skill whenever the user mentions Obsidian plugin creation, development, modification, or publishing. Actively apply this skill to all requests containing keywords such as "obsidian plugin", "plugin development", "BRAT", "obsidian API", "plugin publishing", or "community plugin".
+origin: harness
 workloads: [frontend, obsidian]
 ---
 

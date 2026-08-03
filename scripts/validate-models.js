@@ -578,12 +578,7 @@ function printWsIdeSummary(wsIde) {
   };
 
   summarize(
-    'frontier agents (orchestrator)',
-    `model=${tierIdentifier('frontier', DEFAULT_PROVIDER)}`,
-    byClass.frontier
-  );
-  summarize(
-    'deep-reasoning agents',
+    'deep-reasoning agents (ceiling tier: orchestrator/architect/security/research)',
     `model=${tierIdentifier('deep-reasoning', DEFAULT_PROVIDER)}`,
     byClass['deep-reasoning']
   );

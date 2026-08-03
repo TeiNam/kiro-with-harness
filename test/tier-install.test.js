@@ -205,31 +205,31 @@ test('e2e: 매니페스트에 sourceVersion 기록 + --status 가 버전/outdate
   }
 });
 
-test('e2e: --frontier-model 이 오케스트레이터(kiro-cli) 모델을 결정 (기본 fable-5, opus5 폴백)', () => {
+test('e2e: 오케스트레이터(kiro-cli) 모델은 정책 천장 티어로 고정되고 effort 안내가 출력된다', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'kh-fm-'));
   try {
     const env = { ...process.env, HOME: home };
     const kiroCli = path.join(home, '.kiro', 'agents', 'kiro-cli.json');
     const manifest = path.join(home, '.kiro', '.harness-manifest.json');
+    const { tierIdentifier, effortForRole } = require('../scripts/lib/model-policy');
+    const ceiling = tierIdentifier('deep-reasoning');
     const modelOf = () => JSON.parse(fs.readFileSync(kiroCli, 'utf8')).model;
     const run = (extra) => spawnSync('node', [path.join(ROOT, 'install.js'), 'cli', '--scope=global', '--workload=core', ...extra], { cwd: ROOT, encoding: 'utf8', timeout: 60000, env });
 
-    // 기본(플래그 없음) → 기본 claude-fable-5
     const r1 = run([]);
-    assert.strictEqual(r1.status, 0, `default install exit 0 (${r1.stderr})`);
-    assert.strictEqual(modelOf(), 'claude-fable-5', '기본은 claude-fable-5');
-    assert.strictEqual(JSON.parse(fs.readFileSync(manifest, 'utf8')).frontierModel, 'claude-fable-5');
+    assert.strictEqual(r1.status, 0, `install exit 0 (${r1.stderr})`);
+    assert.strictEqual(modelOf(), ceiling, `오케스트레이터는 천장 티어 모델(${ceiling})`);
+    assert.strictEqual(JSON.parse(fs.readFileSync(manifest, 'utf8')).orchestratorModel, ceiling);
 
-    // --frontier-model=opus5 → claude-opus-5 폴백
+    // effort 안내: 실행 가능한 settings 명령을 그대로 보여준다(에이전트 JSON 필드가 아니므로).
+    assert.match(r1.stdout, /ceiling tier: deep-reasoning/, '천장 티어임을 출력');
+    assert.match(r1.stdout, /chat\.modelDefaults/, 'effort 설정 명령을 안내');
+    assert.ok(r1.stdout.includes(`"effort":"${effortForRole('kiro-cli')}"`), '권장 effort 값을 안내');
+    assert.match(r1.stdout, /cross-family/, 'max 위는 옆(cross-family)임을 안내');
+
+    // 제거된 플래그는 거부된다 — 조용히 무시되면 사용자가 잘못된 기대를 갖는다.
     const r2 = run(['--frontier-model=opus5']);
-    assert.strictEqual(r2.status, 0, `opus5 install exit 0 (${r2.stderr})`);
-    assert.strictEqual(modelOf(), 'claude-opus-5', 'opus5 → claude-opus-5 폴백');
-    assert.strictEqual(JSON.parse(fs.readFileSync(manifest, 'utf8')).frontierModel, 'claude-opus-5');
-
-    // --frontier-model=fable5 → 다시 기본
-    const r3 = run(['--frontier-model=fable5']);
-    assert.strictEqual(r3.status, 0);
-    assert.strictEqual(modelOf(), 'claude-fable-5', 'fable5 → 기본');
+    assert.notStrictEqual(r2.status, 0, '--frontier-model 은 제거되어 거부되어야 한다');
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }

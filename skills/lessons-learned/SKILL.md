@@ -1,6 +1,6 @@
 ---
 name: lessons-learned
-description: Lightweight learning log that accumulates one-line lessons extracted from repeated corrections in a single file. When the same review findings, build failure patterns, or user corrections repeat, this prevents making the same mistake twice across sessions. Lighter than /learn (pattern→skill extraction), more explicit than continuous-learning-v2's instinct (automatic observation).
+description: Lightweight learning log that accumulates one-line lessons extracted from repeated corrections in a single file. When the same review findings, build failure patterns, or user corrections repeat, this prevents making the same mistake twice across sessions. Lighter than pattern-to-skill extraction, and explicit rather than automatic — a lesson is written only when a correction actually repeated.
 inclusion: manual
 workloads: [core]
 origin: harness
@@ -18,7 +18,6 @@ Pull in this steering manually (or via the `capture-lessons` hook suggestion flo
 |-----------|--------|--------|------|
 | **lessons-learned** (this skill) | Lightweight | One-line lessons (accumulated in one file) | When repeated corrections appear |
 | `/learn` | Medium | 1 skill file/pattern | When a non-obvious problem is solved |
-| `continuous-learning-v2` (instinct) | Automatic | instinct → `/promote`·`/evolve` | Continuous observation |
 
 When lessons repeat stably, **promote to steering rules** — that's the final stage.
 

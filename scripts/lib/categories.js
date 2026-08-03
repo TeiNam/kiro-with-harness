@@ -16,7 +16,6 @@
  * CLI 표면 (레퍼런스와 동일):
  *   --category=dev,cloud               대분류
  *   --dev=frontend,python              중분류
- *   --dev-apple=core,platform          중분류 레벨 소분류 (dev.apple)
  *   --writing-social=voice,content     중분류 레벨 소분류 (writing.social)
  *
  * 매핑 원칙: leaf 는 "라벨이 약속한 자산을 포함하는 기존 워크로드 집합"으로
@@ -67,15 +66,12 @@ const CATEGORIES = [
       {
         id: 'apple',
         label: 'Apple 플랫폼 (iOS/macOS — Swift/SwiftUI)',
-        // 수렴: Kiro 는 apple-core/platform/product 세분화 태그가 없어
-        // 세 소분류 모두 swift 스위트로 수렴한다(자산 태깅이 잘게 되면 좁힌다).
+        // 세분화(detailOptions)를 두지 않는다. 이전에는 core/platform/product 세
+        // 소분류가 있었지만 셋 다 ['swift'] 로 수렴해 선택이 아무 차이를 만들지 않았고,
+        // 'product'(App Store/성장/법무)는 존재하지 않는 자산을 약속했다. 라벨이
+        // 약속한 것을 자산이 뒷받침하지 못하면 세분화를 두지 않는다.
         // swift 자산은 [mobile, swift] 겸용 태그라 swift 만으로 전부 잡힌다.
-        detailQuestion: '어느 영역? (여러 개 선택 가능)',
-        detailOptions: [
-          { id: 'core', label: '핵심 개발 (Swift/SwiftUI/동시성/테스트)', workloads: ['swift'] },
-          { id: 'platform', label: '플랫폼 특화 (actor/persistence/DI)', workloads: ['swift'] },
-          { id: 'product', label: '제품 · 운영 (App Store/성장/법무)', workloads: ['swift'] },
-        ],
+        workloads: ['swift'],
       },
       { id: 'mobile', label: '모바일 · Android (Compose / Multiplatform)', workloads: ['mobile'] },
       { id: 'architecture', label: '설계 · 아키텍처 (API design / ADR / blueprint)', workloads: ['architecture'] },
@@ -237,14 +233,14 @@ function resolveSelection({ categories = [], subSelections = {}, detailSelection
  *
  *   --category=dev,cloud              대분류
  *   --dev=frontend,python             중분류
- *   --dev-apple=core,platform         중분류 레벨 소분류 (dev.apple)
+ *   --writing-social=voice,content    중분류 레벨 소분류 (writing.social)
  *   --writing-social=voice,content    중분류 레벨 소분류 (writing.social)
  *
  * 소분류 플래그만 주면 해당 중분류를 자동 선택한다(편의). 단 `--category=dev`
  * 로 대분류를 명시했으면 "전체 중분류" 의도이므로 좁히지 않는다(소분류는 그
  * 브랜치에만 적용).
  *
- * @param {Record<string,string|string[]>} flags  예: { category:'dev', dev:'rust', 'dev-apple':'core' }
+ * @param {Record<string,string|string[]>} flags  예: { category:'dev', dev:'rust', 'writing-social':'voice' }
  */
 function parseCliFlags(flags) {
   const split = (v) => (Array.isArray(v) ? v : String(v || '').split(',')).map((s) => s.trim()).filter(Boolean);
@@ -263,7 +259,7 @@ function parseCliFlags(flags) {
       ensureCategory(cat.id);
     }
 
-    // 소분류 플래그: `--<catId>-<subId>=...` (예: --dev-apple=core)
+    // 소분류 플래그: `--<catId>-<subId>=...` (예: --writing-social=voice)
     for (const sub of cat.subOptions || []) {
       if (!sub.detailOptions || !sub.detailOptions.length) continue;
       const detailFlag = flags[`${cat.id}-${sub.id}`];
@@ -317,14 +313,14 @@ function treeDrift() {
 }
 
 /**
- * 트리 self-check ②: 트리 전체 선택 = GROUPS − lab (core 포함).
+ * 트리 self-check ②: 트리 전체 선택 = GROUPS (예외 없음) (core 포함).
  * 어떤 워크로드도 트리에서 도달 불가능하면 안 된다(커버리지).
  * @returns {{ covered: string[], missing: string[] }}
  */
 function treeCoverage() {
   const covered = new Set(['core']);
   eachLeaf((_p, workloads) => { for (const w of workloads) covered.add(w); });
-  const expected = GROUPS.filter((g) => g !== 'lab');
+  const expected = GROUPS; // 모든 워크로드가 트리에서 도달 가능해야 한다(예외 없음)
   const missing = expected.filter((g) => !covered.has(g));
   return { covered: [...covered].sort(), missing };
 }

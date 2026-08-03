@@ -57,7 +57,7 @@ Kiro IDE 훅은 `.kiro/hooks/*.json`에 정의되는 **v1 JSON** 이벤트 기�
 
 ## 설치되는 훅 (IDE 티어)
 
-IDE 티어는 `scripts/lib/tiers.js`(`IDE_HOOKS`)에 정의된 최적화 세트를 설치합니다. 모두 워크로드 독립적이며 agent 액션을 사용합니다.
+IDE 티어는 `scripts/lib/tiers.js`(`IDE_HOOKS`)에 정의된 최적화 세트로 5개의 훅을 설치합니다. 모두 워크로드 독립적이며 agent 액션을 사용합니다. (`scripts/validate-counts.js`가 이 숫자를 설치 계획과 대조하므로 조용히 드리프트할 수 없습니다.)
 
 ### pre-write-guard
 - 트리거: `PreToolUse`, 매처 `write`
@@ -75,6 +75,13 @@ IDE 티어는 `scripts/lib/tiers.js`(`IDE_HOOKS`)에 정의된 최적화 세트�
 - 액션: agent
 - 반복 가능한 교정(반복되는 리뷰 지적, 빌드 실패 패턴, 사용자 정정)을 감지해 `.kiro/steering/lessons-learned.md`에 추가할 한 줄 교훈을 제안. 사용자 자산 수정 전 확인 필수, 없으면 조용히 종료. 자기 진화 루프의 일부.
 
+### git-pipeline-guard
+- 트리거: `PreToolUse`, 매처 `shell`
+- 액션: agent
+- 셸 호출이 `git push`인지, 그 대상이 기본 브랜치인지 판정합니다(`git symbolic-ref --short refs/remotes/origin/HEAD`, 없으면 실재하는 `main`/`master`. refspec이 없으면 대상은 현재 브랜치). 기본 브랜치 푸시는 **차단**하고 파이프라인을 그대로 안내합니다: `git switch -c <type>/<slug>` → `git push -u origin <branch>` → `gh pr create --fill` → `gh pr merge --squash --delete-branch`.
+- 예외(차단하지 않음): 태그 전용 푸시(`--tags`), 브랜치 삭제(`--delete`/`-d`), 원격이 없는 로컬 전용 레포, 사용자가 "main에 직접"이라고 명시한 경우. 기본 브랜치가 아닌 푸시는 조용히 통과합니다.
+- CLI 티어는 결정적 등가물 `pre-push-guard.sh`(`exit 2`, 우회는 `KIRO_ALLOW_MAIN_PUSH=1`)를 배치합니다. 정책 본문: `rules/common/git-workflow.md`.
+
 ### changelog-on-commit
 - 트리거: `PreToolUse`, 매처 `shell`
 - 액션: agent
@@ -85,7 +92,14 @@ IDE 티어는 `scripts/lib/tiers.js`(`IDE_HOOKS`)에 정의된 최적화 세트�
 - **비활성화**: 훅 파일에서 `"enabled": false` 설정, `.kiro/hooks/`의 `.json` 파일 삭제, 또는 설치 명령에서 해당 워크로드 제외.
 - **커스텀 훅 추가**: 위 v1 스키마에 따라 `.kiro/hooks/<name>.json`을 생성하거나, 명령 팔레트 → "Kiro: Open Kiro Hook UI" → 자연어로 설명.
 
-> **CLI 티어 참고**: CLI 티어(`kiro-cli chat`)는 이 파일들을 쓰지 않습니다. 훅을 에이전트 JSON(`hooks` 필드)에 임베드하고, `kiro-cli.json`이 참조하는 결정적 `pre-write-guard.sh`(exit 2)를 함께 배치합니다.
+> **CLI 티어 참고**: CLI 티어(`kiro-cli chat`)는 이 파일들을 쓰지 않습니다. 훅을 에이전트 JSON(`hooks` 필드)에 임베드하고, CLI 훅 스크립트 2종을 결정적 게이트(`exit 2`)로 배치하며 `kiro-cli.json`의 preToolUse 훅 2개가 이를 참조합니다:
+>
+> | 스크립트 | matcher | 차단 조건 |
+> |---------|---------|----------|
+> | `pre-write-guard.sh` | `fs_write` | 하드코딩된 시크릿, 800줄 초과 콘텐츠 |
+> | `pre-push-guard.sh` | `execute_bash` | 기본 브랜치를 대상으로 하는 `git push` (우회: `KIRO_ALLOW_MAIN_PUSH=1`) |
+>
+> `cross-review.sh`는 훅이 **아닙니다** — 온디맨드 스크립트(아래 참조)이므로 이 카운트에 포함되지 않습니다.
 
 ## 온디맨드 3-way 교차 리뷰 (`--review-backend cross`)
 

@@ -13,7 +13,7 @@
  *   node install.js ide  [--workload a,b] [--review-backend kiro|claude|cross] [--target <path>] [--dry-run]
  *   node install.js --list                          # 워크로드 목록
  *   node install.js --status [--scope global|workspace] [--target <path>]
- *   node install.js --workload all ...              # 모든 워크로드(메뉴 비노출 lab 제외)
+ *   node install.js --workload all ...              # core 를 제외한 모든 워크로드
  *
  * CLI 기본 scope=global(~/.kiro), IDE 기본 scope=workspace(<project>/.kiro).
  * review-backend 기본 claude(리뷰는 peer-reviewer→claude -p 라우팅). 프로그래밍 에이전트는 항상 Kiro 네이티브.
@@ -31,7 +31,7 @@ const tiers = require(path.join(HARNESS_ROOT, 'scripts/lib/tiers'));
 const { runInteractiveInstall } = require(path.join(HARNESS_ROOT, 'scripts/lib/interactive'));
 const { ensureMcpProxy } = require(path.join(HARNESS_ROOT, 'scripts/lib/mcp-proxy'));
 const { buildProxyConfig } = require(path.join(HARNESS_ROOT, 'scripts/lib/proxy-config'));
-const { tierIdentifier, frontierFallbackIdentifier } = require(path.join(HARNESS_ROOT, 'scripts/lib/model-policy'));
+const { tierIdentifier, effortForRole } = require(path.join(HARNESS_ROOT, 'scripts/lib/model-policy'));
 
 let DRY_RUN = false;
 const MANIFEST_FILE = '.harness-manifest.json';
@@ -99,8 +99,17 @@ function cleanManaged(kiroRoot) {
   return removed;
 }
 
+/**
+ * 설치 루트를 결정한다.
+ * `--target` 은 **스코프와 무관하게** 우선한다 — global 에서 이를 무시하면 테스트나
+ * 미리보기 의도로 `--target` 을 준 실행이 조용히 사용자의 실제 `~/.kiro` 를 덮는다
+ * (실제로 이 버그로 한 번 덮였다). global 은 target 자체를, workspace 는 그 아래
+ * `.kiro` 를 쓴다 — global 의 target 은 "이 경로가 곧 .kiro 루트"라는 의미다.
+ * @param {'global'|'workspace'} scope
+ * @param {string|null} target --target 값(절대경로) 또는 null
+ */
 function resolveKiroRoot(scope, target) {
-  if (scope === 'global') return path.join(os.homedir(), '.kiro');
+  if (scope === 'global') return target || path.join(os.homedir(), '.kiro');
   return path.join(target || process.cwd(), '.kiro');
 }
 
@@ -163,22 +172,32 @@ function dedupAgainstGlobal(ops, scope) {
   return { ops: kept, inherited };
 }
 
-// ── 오케스트레이터 frontier 모델 ────────────────────────────
+// ── 오케스트레이터 모델·effort ──────────────────────────────
 /**
- * 설치 시 오케스트레이터(kiro-cli)의 frontier 모델을 결정한다.
- * Kiro CLI 는 사용 가능 모델을 비대화형으로 조회할 수 없어(자동 감지 불가) 명시 선택한다.
- *   - 'opus5'|'opus'         → claude-opus-5 폴백(fable-5 미가용 환경)
- *   - 'fable5'|'auto'|null   → 기본 claude-fable-5(Mythos-class, 정식 가용)
- * @param {string|null} sel --frontier-model 값
+ * 오케스트레이터(kiro-cli) 모델은 정책의 천장 티어(deep-reasoning)로 고정된다.
+ * Opus 5 위의 상위 티어를 찾지 않는다 — 더 깊은 추론은 (1) 같은 티어에서 effort 를
+ * 올려서 (2) 그다음은 위가 아니라 옆(다른 모델 패밀리)으로 얻는다.
  * @returns {string} 모델 식별자
  */
-function resolveFrontierModel(sel) {
-  const v = String(sel || 'auto').toLowerCase();
-  if (['opus5', 'opus', 'opus-5', 'claude-opus-5'].includes(v)) return frontierFallbackIdentifier();
-  return tierIdentifier('frontier'); // 기본 (fable-5)
+function orchestratorModel() {
+  return tierIdentifier('deep-reasoning');
 }
 
-/** kiro-cli(오케스트레이터) 설치 op 의 model 필드를 결정된 frontier 모델로 치환(치환 시 true). */
+/**
+ * 오케스트레이터 effort 안내. effort 는 에이전트 JSON 필드가 아니라 세션/설정 레벨
+ * 손잡이라(`--effort`, `chat.modelDefaults`) 설치기가 대신 써줄 수 없다 — 실행할
+ * 명령을 그대로 보여준다.
+ * @param {string} model 오케스트레이터 모델 식별자
+ */
+function printEffortHint(model) {
+  const effort = effortForRole('kiro-cli');
+  console.log(`  effort: 천장 티어 위로는 티어가 아니라 effort 를 올립니다 (권장: ${effort}).`);
+  console.log(`    kiro-cli settings chat.modelDefaults '{"${model}":{"output_config":{"effort":"${effort}"}}}'`);
+  console.log(`    세션 단위: kiro-cli chat --effort ${effort}`);
+  console.log('    그 위는 없습니다 — 다음은 옆(cross-family)입니다: peer-reviewer 에이전트.');
+}
+
+/** kiro-cli(오케스트레이터) 설치 op 의 model 필드를 정책 천장 모델로 치환(치환 시 true). */
 function patchOrchestratorModel(ops, model) {
   let patched = false;
   for (const op of ops) {
@@ -196,7 +215,7 @@ function patchOrchestratorModel(ops, model) {
 // ── 워크로드 정규화 ─────────────────────────────────────────
 function resolveWorkloads(list) {
   if (list.length === 1 && list[0] === 'all') {
-    return GROUPS.filter((g) => g !== 'core' && g !== 'lab');
+    return GROUPS.filter((g) => g !== 'core');
   }
   validateGroups(list, '--workload');
   return list;
@@ -221,13 +240,13 @@ function runInstall(opts) {
   selection.mcp = selectMcpServers({ root: HARNESS_ROOT, activeGroups: selection.activeGroups, useProxy });
   const plan = tiers.plan(tier, selection, { root: HARNESS_ROOT });
 
-  // 오케스트레이터(kiro-cli) frontier 모델 결정 + 설치 op model 치환 (CLI 티어 전용)
+  // 오케스트레이터(kiro-cli) 모델 = 정책 천장 티어 + 설치 op model 치환 (CLI 티어 전용)
   const hasOrchestrator = selection.agents.some((a) => a.name === 'kiro-cli');
-  const frontierModel = resolveFrontierModel(opts.frontierModel);
+  const orchModel = orchestratorModel();
   if (hasOrchestrator) {
-    patchOrchestratorModel(plan.ops, frontierModel);
-    const fallback = frontierModel === frontierFallbackIdentifier();
-    console.log(`orchestrator(kiro-cli) frontier model: ${frontierModel} ${fallback ? '(fallback)' : '(default)'}`);
+    patchOrchestratorModel(plan.ops, orchModel);
+    console.log(`orchestrator(kiro-cli) model: ${orchModel} (ceiling tier: deep-reasoning)`);
+    printEffortHint(orchModel);
   }
 
   // 글로벌↔워크스페이스 중복 제거: 워크스페이스 설치 시 글로벌에 이미 있는 동일 파일은 상속(스킵)
@@ -243,7 +262,7 @@ function runInstall(opts) {
   const tracked = new Set();
   console.log('');
   executePlan(plan, kiroRoot, tracked);
-  writeManifest(kiroRoot, tracked, { tier, scope, workloads, reviewBackend, mcpProxy: useProxy, ...(hasOrchestrator ? { frontierModel } : {}) });
+  writeManifest(kiroRoot, tracked, { tier, scope, workloads, reviewBackend, mcpProxy: useProxy, ...(hasOrchestrator ? { orchestratorModel: orchModel } : {}) });
   runPostInstall(plan.postInstall);
 
   // IDE + --mcp-proxy: 워크로드로 필터한 프록시 config 생성 후 mcp-proxy 컨테이너 보장
@@ -284,7 +303,6 @@ function listWorkloads() {
       }
     }
   }
-  console.log('\n  특수: lab (메뉴 비노출, --workload=lab 로만)');
   console.log('  저수준: --workload=<키,...> 로 워크로드 키 직접 지정도 가능 (기존 표면 유지)\n');
   console.log('사용: node install.js cli --category=cloud --dev=rust  |  node install.js ide --data=postgres\n');
 }
@@ -299,7 +317,7 @@ function showStatus(opts) {
     console.log('  (no harness manifest — not installed)\n');
     return;
   }
-  console.log(`  tier: ${m.tier || '?'}  workloads: [${(m.workloads || []).join(',') || 'core'}]  review-backend: ${m.reviewBackend || '?'}${m.mcpProxy ? '  mcp-proxy: on' : ''}${m.frontierModel ? `  frontier: ${m.frontierModel}` : ''}`);
+  console.log(`  tier: ${m.tier || '?'}  workloads: [${(m.workloads || []).join(',') || 'core'}]  review-backend: ${m.reviewBackend || '?'}${m.mcpProxy ? '  mcp-proxy: on' : ''}${m.orchestratorModel ? `  orchestrator: ${m.orchestratorModel}` : ''}`);
   console.log(`  managed files: ${m.managedFiles.length}`);
   if (m.installedAt) console.log(`  installed at: ${m.installedAt}`);
   // 설치 버전 vs 현재 소스 버전 — outdated(갱신 필요) 판정
@@ -334,18 +352,21 @@ function printIntro() {
     '  카테고리 선택 (대분류 → 중분류 → 소분류):',
     '    --category=dev,cloud,ai,data,research,writing   대분류 (전체 하위 포함)',
     '    --dev=frontend,rust --data=postgres             중분류',
-    '    --dev-apple=core --writing-social=voice         소분류 (3단)',
+    '    --writing-social=voice                          소분류 (3단; 세분화가 있는 중분류만)',
     '    --workload=<키,...> | all                       워크로드 키 직접 지정(저수준)',
     '',
     '  옵션:',
     '    --review-backend kiro|claude|cross  리뷰 백엔드(기본 claude=peer-reviewer→claude -p; cross=claude+codex 3-way + cross-review.sh 온디맨드)',
-    '    --frontier-model fable5|opus5       오케스트레이터(kiro-cli) frontier 모델(기본 fable-5; opus5=claude-opus-5 폴백, fable-5 미가용 환경용)',
     '    --mcp-proxy                    IDE 티어: mcp.json을 mcp-proxy(:9090) 경유로 생성 + 프록시 컨테이너 자동 보장(없으면 docker compose up -d, 있으면 스킵). mcp-proxy/README.md',
-    '    --target <path>                워크스페이스 설치 위치(기본 cwd)',
+    '    --target <path>                설치 위치. global=이 경로가 곧 .kiro 루트(기본 ~/.kiro), workspace=이 경로 아래 .kiro(기본 cwd)',
     '    --dry-run                      변경 미리보기',
     '',
     '  node install.js --list      카테고리 트리 목록',
     '  node install.js --status    설치 상태',
+    '',
+    '  플러그인 (Claude Code 플러그인 → Kiro 자산):',
+    '    node scripts/install-plugins.js --list    처리 방식 확인(네트워크 없음)',
+    '    node scripts/install-plugins.js --apply   ~/.kiro/skills 로 설치(기본 dry-run). plugins/README.md',
     '',
     '  대화형 설치: 인자 없이 실행(TTY)하거나 `node install.js -i`',
     '',
@@ -354,7 +375,7 @@ function printIntro() {
 
 // ── CLI 파싱 ───────────────────────────────────────────────
 function parseArgs(argv) {
-  const opts = { tier: null, scope: null, workload: [], reviewBackend: null, target: null, dryRun: false, list: false, status: false, intro: false, mcpProxy: false, interactive: false, frontierModel: null, categoryFlags: {} };
+  const opts = { tier: null, scope: null, workload: [], reviewBackend: null, target: null, dryRun: false, list: false, status: false, intro: false, mcpProxy: false, interactive: false, categoryFlags: {} };
   const catFlagNames = categoryFlagNames(); // 'category' + 대분류 + 소분류 플래그 (categories.js)
   const args = argv.slice(2);
   if (args.length === 0) opts.intro = true;
@@ -369,7 +390,6 @@ function parseArgs(argv) {
       case '--scope': opts.scope = next(); break;
       case '--workload': case '--workloads': opts.workload = String(next() || '').split(',').map((s) => s.trim()).filter(Boolean); break;
       case '--review-backend': opts.reviewBackend = next(); break;
-      case '--frontier-model': opts.frontierModel = next(); break;
       case '--mcp-proxy': opts.mcpProxy = true; break;
       case '-i': case '--interactive': opts.interactive = true; break;
       case '--target': opts.target = path.resolve(next()); break;
@@ -403,7 +423,6 @@ function parseArgs(argv) {
   }
   if (opts.scope && !['global', 'workspace'].includes(opts.scope)) { console.error(`Invalid --scope: ${opts.scope}`); process.exit(1); }
   if (opts.reviewBackend && !['kiro', 'claude', 'cross'].includes(opts.reviewBackend)) { console.error(`Invalid --review-backend: ${opts.reviewBackend} (use kiro|claude|cross)`); process.exit(1); }
-  if (opts.frontierModel && !['opus5', 'opus', 'opus-5', 'fable5', 'fable', 'fable-5', 'auto'].includes(String(opts.frontierModel).toLowerCase())) { console.error(`Invalid --frontier-model: ${opts.frontierModel} (use fable5|opus5|auto)`); process.exit(1); }
   return opts;
 }
 

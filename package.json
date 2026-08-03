@@ -1,13 +1,17 @@
 {
   "name": "kiro-with-harness",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Kiro Harness — 프로필 기반 설치기와 steering·hook·agent·skill·MCP 자산 모음",
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test": "node --test",
+    "test": "node scripts/validate-agents.js && node scripts/validate-models.js && node scripts/validate-baseline.js && node scripts/validate-counts.js && node --test",
     "validate:agents": "node scripts/validate-agents.js",
-    "validate:models": "node scripts/validate-models.js"
+    "validate:models": "node scripts/validate-models.js",
+    "validate:counts": "node scripts/validate-counts.js",
+    "test:unit": "node --test",
+    "bump": "node scripts/bump-version.js",
+    "plugins": "node scripts/install-plugins.js --list"
   },
   "devDependencies": {
     "fast-check": "4.8.0"

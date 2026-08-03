@@ -7,12 +7,12 @@
 ## Model
 
 ```
-node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--frontier-model fable5|opus5] [--dry-run]
+node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
 ```
 
 - **Tier** — `cli` (for `kiro-cli chat`: JSON agents, hooks embedded in agent JSON, `skill://` skills) or `ide` (for Kiro IDE: Markdown agents, `.kiro/hooks/*.json` v1 JSON hooks, steering).
 - **Scope** — `global` (`~/.kiro`, CLI default) or `workspace` (project `.kiro`, IDE default).
-- **Category** — major categories (dev, cloud, ai, data, research, writing) + sub-category drill-down (--dev=rust,python) + detail options (--dev-apple=core). `core` is always installed; unselected levels default to all sub-options. For backward compatibility, `--workload` remains available for direct low-level workload key specification.
+- **Category** — major categories (dev, cloud, ai, data, research, writing) + sub-category drill-down (--dev=rust,python). `core` is always installed; unselected levels default to all sub-options. For backward compatibility, `--workload` remains available for direct low-level workload key specification.
 
 ## Categories
 
@@ -31,7 +31,7 @@ Select by **category tree**: major categories (dev, cloud, ai, data, research, w
 | | csharp | — | csharp |
 | | php | — | php |
 | | perl | — | perl |
-| | apple | core / platform / product | swift |
+| | apple | — | swift |
 | | mobile | — | mobile |
 | | architecture | — | architecture |
 | | domain | — | domain |
@@ -59,10 +59,9 @@ Select by **category tree**: major categories (dev, cloud, ai, data, research, w
 **Selection rules:**
 - `--category=dev,cloud` — select entire major categories.
 - `--dev=rust,python` — select sub-categories (auto-enables dev).
-- `--dev-apple=core` — select detail options (auto-enables dev and apple).
+- `--dev=apple` — select apple platform (no sub-drill; maps to [swift]).
 - Unselected levels default to **all** sub-options.
 - `--workload=<key,...>` — low-level direct workload specification (legacy surface, merges via union with categories).
-- `lab` is hidden; opt-in via `--workload=lab` only.
 
 ## Examples
 
@@ -96,15 +95,14 @@ node install.js cli --scope global --workload rust,postgres,cloud
 
 Programming, build, and orchestrator agents are always Kiro-native regardless of this toggle.
 
-## Frontier model (orchestrator)
+## Orchestrator model
 
-The `kiro-cli` orchestrator (CLI global only) defaults to the Mythos-class **`claude-fable-5`** — now generally available in Kiro. If your environment can't serve fable-5, fall back at install time:
+The `kiro-cli` orchestrator (CLI global only) is assigned the **deep-reasoning capability tier**, which defaults to **`claude-opus-5`**. To request deeper reasoning when needed, adjust the reasoning effort—don't change the tier:
 
-- `--frontier-model=fable5` (or omit / `auto`) — default `claude-fable-5`
-- `--frontier-model=opus5` — pin the orchestrator to the `claude-opus-5` fallback
-- The interactive installer asks for the orchestrator model on CLI global installs.
+- `kiro-cli chat --effort max` — enable maximum reasoning effort for the current session
+- `kiro-cli settings chat.modelDefaults` — customize model defaults persistently
 
-Kiro CLI has no non-interactive model-list command, so the choice is explicit — there is **no auto-detection**. The selection is recorded in the manifest (`frontierModel`) and shown by `--status`. If you pick a model your environment can't serve, Kiro warns and falls back to `chat.defaultModel`, so it never hard-fails.
+For detailed model routing policy, tier assignments across agents, and provider-specific mappings, see [Model routing](model-routing.md).
 
 ## Global ↔ workspace inheritance
 

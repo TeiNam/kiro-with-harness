@@ -54,7 +54,6 @@ test('해피패스(ide): tier·scope·workload·review·proxy·confirm → 정�
     workload: ['core', 'postgres'],
     reviewBackend: 'claude',
     mcpProxy: true,
-    frontierModel: null,
     target: null,
     dryRun: false,
   });
@@ -71,7 +70,6 @@ test('3단 드릴다운: dev › apple › core 소분류 → swift 워크로드
   await tick(); press(input, ...Array(11).fill('down'), 'space', 'return');
   await tick(); press(input, 'space', 'return');           // 소분류(dev.apple): core 체크(커서 0)
   await tick(); press(input, 'return');                    // review: claude
-  await tick(); press(input, 'return');                    // frontier: fable5(기본, cli global)
   await tick(); press(input, 'return');                    // confirm: install
 
   const opts = await p;
@@ -86,7 +84,6 @@ test('cli 티어는 mcp-proxy 를 묻지 않는다(mcpProxy=false, core만)', as
   await tick(); press(input, 'return');   // scope: default global(cli)
   await tick(); press(input, 'return');   // categories: 미선택 → core만
   await tick(); press(input, 'return');   // review: claude
-  await tick(); press(input, 'return');   // frontier: fable5(기본, cli global)
   // proxy 단계 없음(cli) → 바로 confirm
   await tick(); press(input, 'return');   // confirm: install
 
@@ -94,7 +91,6 @@ test('cli 티어는 mcp-proxy 를 묻지 않는다(mcpProxy=false, core만)', as
   assert.strictEqual(opts.tier, 'cli');
   assert.strictEqual(opts.scope, 'global');
   assert.strictEqual(opts.mcpProxy, false, 'cli 는 mcp-proxy 미프롬프트 → false');
-  assert.strictEqual(opts.frontierModel, 'fable5', 'cli global 은 frontier 모델을 묻고 기본 fable5');
   assert.deepStrictEqual(opts.workload, ['core']);
 });
 
@@ -105,7 +101,6 @@ test('dryRun/target 이 opts 로 전달된다', async () => {
   await tick(); press(input, 'return');   // scope global
   await tick(); press(input, 'return');   // categories none
   await tick(); press(input, 'return');   // review claude
-  await tick(); press(input, 'return');   // frontier fable5(cli global)
   await tick(); press(input, 'return');   // confirm install
   const opts = await p;
   assert.strictEqual(opts.dryRun, true);
@@ -126,20 +121,50 @@ test('확인 단계에서 취소 선택 → null', async () => {
   await tick(); press(input, 'return');        // scope global
   await tick(); press(input, 'return');        // categories none
   await tick(); press(input, 'return');        // review claude
-  await tick(); press(input, 'return');        // frontier fable5(cli global)
   await tick(); press(input, 'down', 'return'); // confirm: cancel 선택
   assert.strictEqual(await p, null);
 });
 
-test('cli global: frontier 모델 opus5 선택 → frontierModel=opus5', async () => {
+
+// ── 미선택=전체 가시화 ───────────────────────────────────────
+// "중분류 미선택 = 전체"는 조용히 넓어진다(dev 하나만 골라도 20 워크로드). 프롬프트를
+// 늘리지 않고 (a) 확장 사실을 그 자리에서, (b) 실제 설치량을 요약에서 보여주는지 확인한다.
+
+test('중분류 미선택 시 전체 확장 사실을 알린다 + 요약에 설치 자산 수가 나온다', async () => {
   const input = makeInput();
-  const p = runInteractiveInstall({ input, output: makeOutput() });
-  await tick(); press(input, 'return');         // tier cli
-  await tick(); press(input, 'return');         // scope global
-  await tick(); press(input, 'return');         // categories none → core
-  await tick(); press(input, 'return');         // review claude
-  await tick(); press(input, 'down', 'return'); // frontier: opus5 폴백(커서 down)
-  await tick(); press(input, 'return');         // confirm install
+  const output = makeOutput();
+  const p = runInteractiveInstall({ input, output });
+
+  await tick(); press(input, 'return');            // tier: cli
+  await tick(); press(input, 'return');            // scope: global
+  await tick(); press(input, 'space', 'return');   // 대분류: dev 체크(커서 0)
+  await tick(); press(input, 'return');            // 중분류: 미선택 확정 → 전체
+  await tick(); press(input, 'return');            // review: claude
+  await tick(); press(input, 'return');            // confirm: install
+
   const opts = await p;
-  assert.strictEqual(opts.frontierModel, 'opus5', 'opus5 폴백 선택이 opts 로 전달');
+  assert.ok(opts, '설치 진행');
+  assert.ok(opts.workload.length > 10, `미선택은 전체로 확장된다 (실제 ${opts.workload.length})`);
+
+  assert.match(output.buf, /미선택 — \[.*\] 전체 \d+개 항목이 포함됩니다/, '확장 사실을 그 자리에서 알린다');
+  assert.match(output.buf, new RegExp(`workloads\\s+: ${opts.workload.length}개`), '요약에 워크로드 개수');
+  assert.match(output.buf, /설치 자산\s+: 스킬 \d+\/\d+ · 에이전트 \d+/, '요약에 설치될 자산 수(전체 대비)');
+});
+
+test('중분류를 명시 선택하면 확장 경고가 나오지 않는다 (경고의 변별력)', async () => {
+  const input = makeInput();
+  const output = makeOutput();
+  const p = runInteractiveInstall({ input, output });
+
+  await tick(); press(input, 'return');                        // tier: cli
+  await tick(); press(input, 'return');                        // scope: global
+  await tick(); press(input, 'space', 'return');               // 대분류: dev
+  await tick(); press(input, 'down', 'down', 'space', 'return'); // 중분류: rust 명시 선택
+  await tick(); press(input, 'return');                        // review: claude
+  await tick(); press(input, 'return');                        // confirm: install
+
+  const opts = await p;
+  assert.deepStrictEqual(opts.workload, ['core', 'rust'], '고른 것만 설치된다');
+  assert.doesNotMatch(output.buf, /미선택 — \[/, '명시 선택에는 경고가 없다');
+  assert.match(output.buf, /설치 자산\s+: 스킬 \d+\/\d+/, '요약은 항상 설치량을 보여준다');
 });

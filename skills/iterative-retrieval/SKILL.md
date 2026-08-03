@@ -208,5 +208,5 @@ When retrieving context for this task:
 ## Related
 
 - [The Longform Guide](https://x.com/affaanmustafa/status/2014040193557471352) - Subagent orchestration section
-- `continuous-learning` skill - For patterns that improve over time
+- `lessons-learned` skill - Records a one-line lesson when the same retrieval mistake repeats
 - Agent definitions bundled with this harness (manual install path: `agents/`)
