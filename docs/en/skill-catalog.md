@@ -1,6 +1,6 @@
 # Skill Catalog
 
-140 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
+138 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
 
 ## Infrastructure
 
@@ -120,13 +120,11 @@
 
 | Skill | Description |
 |-------|-------------|
-| continuous-learning-v2 | Continuous learning loops, feedback integration |
 | strategic-compact | Context compaction strategies for long sessions |
 | context-budget | Token budget management, context window optimization |
 | agentic-engineering | Agentic coding patterns, tool use, planning |
 | agentic-loops | Loop engineering for Kiro `/goal`, review loops, DAG delegation; evidence-based completion |
 | ai-first-engineering | AI-first development workflows |
-| enterprise-agent-ops | Enterprise agent operations, governance, monitoring |
 | documentation-lookup | Documentation search and retrieval patterns |
 
 ## Workflow Skills

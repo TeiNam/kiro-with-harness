@@ -7,21 +7,18 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. Tuned for Kiro's frontier tier — Fable 5 (Mythos-class, default), Opus 5 fallback — with role-based model routing, DAG-style parallel delegation, and a shared agent collaboration guide (AGENTS.md).
+Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. Tuned for Kiro's ceiling tier — Opus 5, with escalation by **effort** rather than by tier, then sideways to a different model family — with role-based model routing, DAG-style parallel delegation, an enforced git pipeline, and a shared agent collaboration guide (AGENTS.md).
 
 ## Quick Start
 
 The installer uses a **tier × category tree** model: choose `cli` or `ide`, then select categories.
 
 ```bash
-# Interactive install (guided prompts: tier, scope, categories, review backend, orchestrator model, MCP proxy)
+# Interactive install (guided prompts: tier, scope, categories, review backend, MCP proxy)
 node install.js              # or: node install.js -i
 
 # CLI tier: install global baseline (orchestrator agents, skills → ~/.kiro)
 node install.js cli --scope global
-
-# Orchestrator fallback to Opus 5 where Fable 5 isn't served — default is fable-5
-node install.js cli --scope global --frontier-model=opus5
 
 # Rust + Python dev, workspace install
 node install.js cli --scope workspace --dev=rust,python
@@ -30,7 +27,7 @@ node install.js cli --scope workspace --dev=rust,python
 node install.js ide --dev=frontend
 
 # iOS/macOS development (Apple ecosystem)
-node install.js cli --scope workspace --dev-apple=core
+node install.js cli --scope workspace --dev=apple
 
 # Cloud infrastructure work (AWS DevOps/IaC/FinOps)
 node install.js cli --scope global --category=cloud
@@ -56,7 +53,7 @@ node install.js cli --scope workspace --dev=rust --dry-run
 ```
 
 > **Defaults:** CLI installs globally by default (~/.kiro); IDE installs workspace by default (project .kiro).
-> **Category selection:** `--category=dev,cloud` selects entire categories; `--dev=rust` picks sub-categories; `--dev-apple=core` drills into detail options. Unselected levels default to all sub-options.
+> **Category selection:** `--category=dev,cloud` selects entire categories; `--dev=rust` picks sub-categories; `--writing-social=voice` drills into detail options (only `writing.social` has them). Unselected levels default to all sub-options.
 
 ## Installation Tiers
 
@@ -104,7 +101,7 @@ The installer now organizes installation through a **category tree** (major cate
 | | csharp | — | csharp | C# backend |
 | | php | — | php | PHP / Laravel |
 | | perl | — | perl | Perl scripting |
-| | apple | core / platform / product | swift | iOS/macOS (Swift/SwiftUI) |
+| | apple | — | swift | iOS/macOS (Swift/SwiftUI) |
 | | mobile | — | mobile | Android / Compose / Multiplatform |
 | | architecture | — | architecture | API design / ADR / blueprint |
 | | domain | — | domain | Business domains (logistics, manufacturing, energy) |
@@ -129,11 +126,11 @@ The installer now organizes installation through a **category tree** (major cate
 | **writing** | general | — | writing | General writing (blogging · PPT · creative · translation) |
 | | social | voice / content / visual | writing | Social content (LinkedIn, etc.) |
 
-**Usage:** `--category=dev,cloud` selects entire major categories; `--dev=rust,python` picks sub-categories (auto-enables dev); `--dev-apple=core` picks detail options. Unselected levels default to **all** sub-options. Combine with `--review-backend` and `--mcp-proxy` (IDE) as needed.
+**Usage:** `--category=dev,cloud` selects entire major categories; `--dev=rust,python` picks sub-categories (auto-enables dev); `--writing-social=voice` picks detail options where a sub-category has them. Unselected levels default to **all** sub-options. Combine with `--review-backend` and `--mcp-proxy` (IDE) as needed.
 
 **Cloud workload details:** The `cloud` category spans AWS DevOps (IaC, containerization, observability) and integration (messaging); FinOps (Billing/Pricing MCP, cost tracking) is a separate `finops` workload selected via `--cloud=finops` (included automatically with `--category=cloud`). The cloud suite also includes **data engineering**: S3 Tables / Iceberg / Athena lakehouse, DMS/Glue/Kinesis/MSK/Flink ETL & CDC, RDBMS→S3/OpenSearch log offloading, EKS/MSK version-currency checks, Terraform deployment (see [aws-cloud](skills/aws-cloud/SKILL.md), [aws-lakehouse](skills/aws-lakehouse/SKILL.md), [aws-etl-cdc](skills/aws-etl-cdc/SKILL.md), [log-data-offloading](skills/log-data-offloading/SKILL.md), [terraform-deployment](skills/terraform-deployment/SKILL.md)).
 
-**Legacy workload surface:** `--workload=<key,...>|all` remains available for direct low-level workload key specification. It merges with category selections (union). Special: `lab` is opt-in via `--workload=lab` only.
+**Legacy workload surface:** `--workload=<key,...>|all` remains available for direct low-level workload key specification. It merges with category selections (union). There is no hidden/isolated workload key — every workload is reachable from the category tree, and `scripts/lib/categories.js` has a coverage test that fails if one isn't.
 
 ## Review Backend Toggle
 
@@ -147,18 +144,26 @@ Build agents (build-error-resolver, language build-resolvers, e2e-runner, kiro-c
 
 ## Models
 
-Agent model assignments are role-based, organized into four **provider-agnostic capability tiers**. The `model` field in each agent definition is the single source of truth, written from [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js). The harness is **tuned for four Kiro models** — **`claude-fable-5`** (frontier, Mythos-class), **`claude-opus-5`** (deep reasoning), **`claude-sonnet-5`** (balanced, the default coding tier), and **`claude-haiku-4.5`** (cost-optimized). The `kiro-cli` orchestrator (set as the default agent on install) defaults to `claude-fable-5` and falls back to `claude-opus-5` where fable-5 isn't served (`--frontier-model=opus5` or the interactive installer); reasoning agents use `claude-opus-5`; the high-volume coding agents use `claude-sonnet-5`; cost-sensitive roles use `claude-haiku-4.5`.
+Agent model assignments are role-based, organized into three **provider-agnostic capability tiers**. The `model` field in each agent definition is the single source of truth, written from [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js). The harness is **tuned for three Kiro models** — **`claude-opus-5`** (deep reasoning, the ceiling), **`claude-sonnet-5`** (balanced, the default coding tier), and **`claude-haiku-4.5`** (cost-optimized). The `kiro-cli` orchestrator (set as the default agent on install) runs at the ceiling tier alongside the reasoning agents; the high-volume coding agents use `claude-sonnet-5`; cost-sensitive roles use `claude-haiku-4.5`.
 
 | Tier | Model | Agents |
 |------|-------|--------|
-| Frontier | `claude-fable-5` (default) → `claude-opus-5` (fallback) | kiro-cli (orchestrator) |
-| Deep reasoning | `claude-opus-5` | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| Deep reasoning (ceiling) | `claude-opus-5` | kiro-cli (orchestrator), architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
 | Balanced (default) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, language reviewers, build-resolvers, database-reviewer, e2e-runner, doc/tech writers |
 | Cost-optimized | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
-The design principle: **the orchestrator runs the frontier tier (fable-5 by default, opus-5 fallback), Opus 5 reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** Routing is per-agent, so you can mix models across roles. All three OpenAI GPT-5.6 variants are selectable in Kiro; the same tiers map to them (`frontier/deep-reasoning → gpt-5.6`, `balanced → gpt-5.6-mini`, `cost-optimized → gpt-5.6-nano`) — run `node scripts/apply-model-policy.js --provider=openai` to retarget. Full details, hook→tier guidance, and the provider-switch workflow: [Model routing](docs/en/model-routing.md).
+The design principle: **Opus 5 orchestrates and reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** Routing is per-agent, so you can mix models across roles. All three OpenAI GPT-5.6 variants are selectable in Kiro; the same tiers map to them (`deep-reasoning → gpt-5.6`, `balanced → gpt-5.6-mini`, `cost-optimized → gpt-5.6-nano`) — run `node scripts/apply-model-policy.js --provider=openai` to retarget. Full details, hook→tier guidance, and the provider-switch workflow: [Model routing](docs/en/model-routing.md).
 
-> **Frontier model availability:** `claude-fable-5` and `claude-opus-5` are served in **us-east-1** and **eu-central-1** and require a recent Kiro CLI. Agents pinned to an unserved model silently fall back to `chat.defaultModel` with a warning — confirm with `/model` and keep Kiro CLI up to date.
+### Opus 5 is the ceiling — escalate inward, then sideways
+
+There is no tier above `claude-opus-5`. When a task needs more than the top tier is producing, the harness escalates in two directions instead of reaching for a bigger model:
+
+1. **Inward — raise effort within the tier.** `low` → `medium` → `high` → `xhigh` → `max`. Same model, larger reasoning budget, cheaper than a tier jump. Kiro exposes this as `kiro-cli chat --effort <level>` and `kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'`. The installer prints the exact command (effort is a session/settings knob, not an agent-config field). Recommended: orchestrator `max`; architect / security-reviewer / peer-reviewer `xhigh`; mechanical roles `low`.
+2. **Sideways — a different model family.** At `max` there is nothing above. Re-prompting the same family cannot break correlated blind spots (same training, same failure modes), so the remaining axis is a different family: the `peer-reviewer` agent (terminal `claude -p` + `codex`) and, with `--review-backend cross`, `bash .kiro/hooks/cross-review.sh`. Hand off where **independence** or **grind** is the value — adversarial review of code this fleet wrote, tie-breaking two disagreeing attempts, large mechanical edits, a second diagnosis when stuck. Keep in the harness anything needing steering rules, skills, workload tags, tool orchestration, or Korean output.
+
+> **The rule that makes the sideways axis pay off:** never let an external family be the *only* reader of something that matters. A finding only it reports still needs confirmation against the actual code; findings both families flag independently are the high-confidence ones. `cross-review.sh` prints this at the end of every run and, before the review, extracts the **blast radius** — files that did *not* change but should be reviewed anyway, via reverse `require`/`import` references and historical co-change.
+
+> **Model availability:** `claude-opus-5` is served in **us-east-1** and **eu-central-1** and requires a recent Kiro CLI. Agents pinned to an unserved model silently fall back to `chat.defaultModel` with a warning — confirm with `/model` and keep Kiro CLI up to date.
 
 > **Model ID format:** Kiro validates `model` against the IDs its model service returns; an unknown ID silently falls back to the default model with a warning. Confirm the exact identifier with `/model` in an active chat session before pinning.
 
@@ -182,12 +187,13 @@ The design principle: **the orchestrator runs the frontier tier (fable-5 by defa
 
 ### Hooks
 
-**CLI tier**: hooks embedded in agent JSON (not separate files).
+**CLI tier**: hooks embedded in agent JSON (not separate files), backed by 2 deterministic gate scripts — `pre-write-guard.sh` (`fs_write`: secrets, oversized writes) and `pre-push-guard.sh` (`execute_bash`: default-branch push, bypass `KIRO_ALLOW_MAIN_PUSH=1`). `cross-review.sh` is an on-demand script, not a hook.
 
 **IDE tier** (`.kiro/hooks/`): optimized set of event-driven automations:
 - pre-write-guard: size limit, secret detection, doc-location check
 - review-on-stop: post-task code review
-- capture-lessons: self-evolution feedback loop
+- capture-lessons: feed a one-line lesson into `lessons-learned.md` when a correction repeats
+- git-pipeline-guard: block `git push` to the default branch and spell out branch → commit → push → PR → merge
 - changelog-on-commit: maintain a date-organized CHANGELOG (`## YYYY-MM-DD`) on git commit
 
 ### Steering
@@ -197,12 +203,12 @@ The design principle: **the orchestrator runs the frontier tier (fable-5 by defa
 **IDE tier** (`.kiro/steering/`):
 - Always-on: coding style, security, testing, git workflow, patterns, performance
 - FileMatch: language-specific rules loaded per file type
-- Manual: skills loaded on demand (140 total; workload-tagged for selective inclusion)
+- Manual: skills loaded on demand (138 total; workload-tagged for selective inclusion)
 
 ### Skills
 
-140 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
-- Core: context budget, strategic compact, agentic engineering, lessons learned
+138 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
+- Core: context budget, strategic compact, agentic engineering, lessons learned, git workflow, verification loop
 - Infrastructure: Docker, deployment, database migrations, backend patterns
 - Databases: PostgreSQL, MySQL, MongoDB, DynamoDB (+ rdbms-naming, mongodb-patterns)
 - Cloud / Data: aws-cloud, aws-sdk-patterns (boto3/JS v3/CLI v2), aws-lakehouse (S3 Tables/Iceberg/Athena/Spark), aws-etl-cdc (DMS/Glue/Kinesis/MSK/Flink), log-data-offloading (RDBMS→S3/OpenSearch), infra-version-currency (EKS/MSK latest-version checks), terraform-deployment
@@ -239,9 +245,12 @@ Full catalog (general / DevOps / FinOps / opt-in incl. brave-search, sentry, tim
 │   ├── cli/                    # CLI agents (global + workspace)
 │   ├── ide/                    # IDE agents (Markdown)
 │   └── AGENTS.md               # Shared agent collaboration guide
-├── skills/                     # 140 skill packages (workload-tagged)
+├── skills/                     # 138 skill packages (workload-tagged)
+├── plugins/
+│   ├── catalog.json            # Claude-plugin → Kiro asset bridge catalog (SSOT)
+│   └── README.md               # Per-plugin verdicts and porting rules
 ├── mcp-configs/                # MCP server configurations
-├── scripts/                    # Validation utilities (validate-agents.js, validate-models.js)
+├── scripts/                    # Validation utilities (validate-agents.js, validate-models.js, validate-counts.js)
 ├── docs/                       # Guides (English + Korean)
 └── .kiro/                      # This project's own Kiro config
 ```
@@ -260,10 +269,9 @@ Options:
   --scope <global|workspace>     Installation scope (default: global for CLI, workspace for IDE)
   --category <list>              Major categories: dev, cloud, ai, data, research, writing (comma-separated; unselected = all)
   --<category>= <list>           Sub-category selection (e.g., --dev=frontend,python; unselected = all subs)
-  --<category>-<sub>= <list>     Detail option (e.g., --dev-apple=core; for subs with drill-down only)
+  --<category>-<sub>= <list>     Detail option (e.g., --writing-social=voice; for subs with drill-down only)
   --workload <list|all>          Low-level: comma-separated workload keys or 'all' (legacy surface, merges with categories via union)
   --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
-  --frontier-model <fable5|opus5> Orchestrator (kiro-cli) frontier model (default: fable-5; opus5 = claude-opus-5 fallback where fable-5 isn't served)
   --mcp-proxy                    IDE only: route mcp.json through mcp-proxy (:9090) and auto-start the proxy container (docker compose up -d) if not already running
   --target <path>                Install to specified directory
   --dry-run                      Preview changes without writing
@@ -280,9 +288,10 @@ Full guides live under `docs/` — English in `docs/en/`, Korean in `docs/kr/`.
 | [Workload guide](docs/en/profile-guide.md) | Tier × workload model, install flags, profile migration |
 | [Hook reference](docs/en/hook-reference.md) | IDE 1.0 v1 JSON hook format, triggers, the installed hook set |
 | [Agent Focus Mode](docs/en/agent-focus-mode.md) | IDE 1.0 Agent Focus Mode (experimental) — parallel sessions & workflow picker mapped to harness agents/orchestration |
+| [Plugins](plugins/README.md) | Claude Code plugins mapped onto Kiro (bridge / external-cli / native / incompatible) |
 | [MCP reference](docs/en/mcp-reference.md) | Curated MCP catalog (built-in / general / DevOps / FinOps / opt-in) |
-| [Model routing](docs/en/model-routing.md) | 4-tier model policy (Fable/Opus/Sonnet/Haiku), per-agent assignment, hook→tier guidance, OpenAI GPT-5.6 provider switch |
-| [Skill catalog](docs/en/skill-catalog.md) | The 140 skills by domain |
+| [Model routing](docs/en/model-routing.md) | 3-tier model policy (Opus/Sonnet/Haiku), the Opus-5 ceiling + effort/cross-family escalation, per-agent assignment, hook→tier guidance, OpenAI GPT-5.6 provider switch |
+| [Skill catalog](docs/en/skill-catalog.md) | The 138 skills by domain |
 | [Creating skills](docs/en/creating-skills.md) | Authoring + registering a skill via `workloads:` frontmatter |
 | [Claude vs Kiro](docs/en/claude-vs-kiro.md) | Claude Code vs Kiro CLI vs Kiro IDE — feature-by-feature differences (official-docs-based) |
 | [Migration from Claude](docs/en/migration-from-claude.md) | Converting a Claude Code setup to Kiro |

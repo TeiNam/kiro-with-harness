@@ -350,15 +350,13 @@
     },
     {
       "id": "steering-quality",
-      "description": "Quality/automation skills (manual) — continuous learning, lessons-learned log, strategic compact, context budget, agentic engineering, AI-first, enterprise ops, doc-lookup",
+      "description": "Quality/automation skills (manual) — lessons-learned log, strategic compact, context budget, agentic engineering, AI-first, doc-lookup",
       "sources": [
-        { "from": "skills/continuous-learning-v2/SKILL.md", "output": "continuous-learning.md", "inclusion": "manual" },
         { "from": "skills/lessons-learned/SKILL.md", "output": "lessons-learned.md", "inclusion": "manual" },
         { "from": "skills/strategic-compact/SKILL.md", "output": "strategic-compact.md", "inclusion": "manual" },
         { "from": "skills/context-budget/SKILL.md", "output": "context-budget.md", "inclusion": "manual" },
         { "from": "skills/agentic-engineering/SKILL.md", "output": "agentic-engineering.md", "inclusion": "manual" },
         { "from": "skills/ai-first-engineering/SKILL.md", "output": "ai-first-engineering.md", "inclusion": "manual" },
-        { "from": "skills/enterprise-agent-ops/SKILL.md", "output": "enterprise-agent-ops.md", "inclusion": "manual" },
         { "from": "skills/documentation-lookup/SKILL.md", "output": "documentation-lookup.md", "inclusion": "manual" }
       ],
       "outputDir": ".kiro/steering",

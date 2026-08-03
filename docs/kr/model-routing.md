@@ -1,32 +1,87 @@
 # 모델 라우팅(Model Routing)
 
-하네스는 파일마다 모델을 손으로 고르는 대신, 각 에이전트를 **능력 티어(capability tier)**로 배정한다. 티어는 **프로바이더 독립적(provider-agnostic)**이다 — 동일한 티어가 Claude 식별자(기본)와 OpenAI GPT-5.6 식별자에 모두 매핑된다. 단일 출처(SSOT)는 [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js)다.
+하네스는 파일마다 모델을 손으로 고르는 대신, 각 에이전트를 **능력 티어(capability tier)**로 배정한다. 이는 **3-티어** 정책이며, 티어는 **프로바이더 독립적(provider-agnostic)**이다 — 동일한 티어가 Claude 식별자(기본)와 OpenAI GPT-5.6 식별자에 모두 매핑된다. 단일 출처(SSOT)는 [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js)다.
+
+**Opus 5가 천장(ceiling)이다.** 그 위의 티어는 없다. 최상위 티어가 충분한 결과를 내지 못할 때, 두 방향으로만 확대한다 — **내향**(티어 내에서 노력 증가)과 **횡향**(다른 모델 가족). [천장 위: 노력, 그 다음 크로스 패밀리](#천장-위-노력-그-다음-크로스-패밀리) 참조.
 
 ## 능력 티어
 
 | 티어 | Claude (기본) | OpenAI | 용도 |
 |------|---------------|--------|------|
-| **frontier** | `claude-fable-5`(기본) → `claude-opus-5`(폴백) | `gpt-5.6` | 오케스트레이터 전용. 기본은 Mythos-class fable-5(정식 가용), fable-5 미가용 환경은 opus-5로 폴백 — `--frontier-model=opus5`로 설치 |
-| **deep-reasoning** | `claude-opus-5` | `gpt-5.6` | 오케스트레이션, 아키텍처, 보안 판단, 근본 원인 분석, 리서치 종합, 복잡한 데이터 모델링 |
+| **deep-reasoning** (천장) | `claude-opus-5` | `gpt-5.6` | 오케스트레이션, 아키텍처, 보안 판단, 근본 원인 분석, 리서치 종합, 복잡한 데이터 모델링, 장기 자율 실행 |
 | **balanced** | `claude-sonnet-5` | `gpt-5.6-mini` | 코딩 주력(workhorse): 코드/언어 리뷰, 빌드 오류 해결, 리팩터링, e2e, 문서 |
 | **cost-optimized** | `claude-haiku-4.5` | `gpt-5.6-nano` | 단순·대량·저판단 작업: 번역, 분류, 기본 콘텐츠 |
 
-설계 원칙: **오케스트레이터는 frontier 티어(기본 fable-5, 폴백 opus-5), Opus 5는 추론, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 기본 티어는 `balanced`(Sonnet 5)다 — 대부분의 에이전트가 코딩 에이전트이므로, 명시되지 않은 역할은 모두 balanced로 떨어진다.
+설계 원칙: **Opus 5가 오케스트레이션과 추론을 맡고, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 기본 티어는 `balanced`(Sonnet 5)다 — 대부분의 에이전트가 코딩 에이전트이므로, 명시되지 않은 역할은 모두 balanced로 떨어진다.
 
 ## 에이전트별 배정
 
 | 티어 | 에이전트 |
 |------|----------|
-| **frontier** (기본 `claude-fable-5`, 폴백 `claude-opus-5`) | kiro-cli(오케스트레이터) |
-| **deep-reasoning** (`claude-opus-5`) | architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| **deep-reasoning** (`claude-opus-5`, 천장) | kiro-cli(오케스트레이터), architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
 | **balanced** (`claude-sonnet-5`) | code-reviewer, refactor-cleaner, 전체 언어 리뷰어(python, rust, go, java, kotlin, cpp, typescript, flutter), database-reviewer, 전체 빌드 리졸버(build-error-resolver, cpp, go, java, kotlin, pytorch, rust), e2e-runner, 문서 에이전트(tech-doc-writer, tech-writer-monolith, doc-clarity-reviewer, doc-quality-detector, tech-fidelity-auditor) |
 | **cost-optimized** (`claude-haiku-4.5`) | translator-docs, article-writer, content-creator |
 
 분류 근거:
-- **kiro-cli는 frontier 티어** — 기본은 Mythos-class `claude-fable-5`(Kiro에서 정식 가용)이며, fable-5를 서빙할 수 없는 환경은 설치 시 `claude-opus-5`로 폴백한다(`--frontier-model=opus5` 또는 대화형 설치). 오케스트레이터의 일이 곧 Mythos-class 모델의 설계 목적(장기 자율 작업, 광폭 병렬 서브에이전트 위임, 자가 검증)이며, 지렛대가 가장 큰 단일 좌석이자 frontier의 유일한 점유자다 — 따라서 fable-5 프리미엄은 함대 전체가 아닌 에이전트 하나에만 적용된다. Kiro CLI는 사용 가능 모델을 비대화형으로 조회하는 명령이 없어 폴백은 명시 설치 선택이며, 미가용 모델은 `chat.defaultModel`로 폴백한다.
+- **kiro-cli는 천장에 위치하지만 위에 있지 않다** — 오케스트레이터가 `claude-opus-5`를 실행하는데, 이는 추론 에이전트와 동일한 티어다. 장기 자율 작업, 광폭 병렬 서브에이전트 위임, 자가 검증이 이 티어의 용도다. 정책의 이전 판에서는 오케스트레이터를 Opus 위의 별도 frontier 티어에 두었지만, 그 티어는 이제 없다. 오케스트레이터는 여전히 지렛대가 가장 큰 단일 좌석이지만, 지렛대는 **노력**(max로 실행)이지, 더 비싼 모델이 아니다.
 - **security-reviewer는 Opus 유지**, 범용 **code-reviewer는 Sonnet으로 이동** — 보안 판단은 깊은 추론에서 이득을 보지만, 일상적 품질 리뷰는 Sonnet의 강점이자 물량이 훨씬 많다.
 - **rdbms-data-modeler는 Opus 유지** — 3NF 정규화와 물리 스키마 트레이드오프는 언어별 리뷰와 달리 실제 추론이 필요하다.
 - **peer-reviewer는 Opus 유지** — Claude Code(`claude -p`) + Codex(`codex`)를 조율하는 교차 모델 second opinion(Kiro + Claude + Codex 3-way)은 왕복 비용을 정당화하려면 최상위 티어에서 나와야 한다.
+
+## 천장 위: 노력, 그 다음 크로스 패밀리
+
+Opus 5는 하네스가 라우팅하는 최상위 티어다. 그 위의 뭔가를 찾는 대신, 두 방향으로 확대한다.
+
+### 1) 내향 — 티어 내에서 노력 증가
+
+같은 모델, 더 큰 추론 예산. 티어 점프보다 싸고, Kiro가 직접 지원한다:
+
+```bash
+kiro-cli chat --effort max                                  # 세션별
+kiro-cli settings chat.modelDefaults \
+  '{"claude-opus-5":{"output_config":{"effort":"max"}}}'    # 모델별 기본값
+```
+
+사다리는 `low` → `medium` → `high` → `xhigh` → `max`. 역할별 권장(`model-policy.js`의 `ROLE_EFFORT`):
+
+| 역할 | 노력 | 이유 |
+|------|------|------|
+| kiro-cli (오케스트레이터) | `max` | 장기 자율 실행 — 사다리 최상단 |
+| architect, security-reviewer, peer-reviewer | `xhigh` | 실패 비용이 최고 |
+| refactor-cleaner, translator-docs | `low` | 기계적 작업은 추론 예산이 불필요 |
+| 나머지 | `high` | Kiro의 합리적 기본값 |
+
+`effort`는 **에이전트 설정 필드가 아니다** — Kiro 에이전트 스키마에는 `model`만 있다. 세션/설정 노브이므로 설치기는 정확한 명령을 출력하지만 자동으로 작성하지 않는다.
+
+### 2) 횡향 — 다른 모델 가족
+
+`max`에는 위가 없다. 남은 축은 다른 모델 가족이다. 같은 가족을 다시 프롬프트하는 것은 상관된 맹점을 깨뜨릴 수 없기 때문이다 — 같은 학습, 같은 실패 모드. Kiro는 이를 `peer-reviewer` 에이전트(터미널 `claude -p` + `codex`)와 `--review-backend cross` 옵션의 온디맨드 `bash .kiro/hooks/cross-review.sh`로 노출한다.
+
+**독립성**이나 **수고**가 가치인 경우 다른 가족에 작업을 넘긴다:
+
+| 상황 | 같은 가족의 다른 서브에이전트보다 다른 가족이 나은 이유 |
+|------|-----------------------------------------------------|
+| 이 함대가 작성한 코드에 대한 적대적 리뷰 | 같은 가족 리뷰는 맹점을 공유한다. 가족을 바꾸는 것이 상관관계를 끊는 유일한 방법 |
+| 두 시도가 불일치한 후 동점 해결 | 세 번째 같은 가족 의견은 첫 두 개와 상관된다 |
+| 대규모 기계적 편집(N개 파일에서 이름 변경, 코드모드) | 천장 티어 컨텍스트를 쓰지 않고 수고를 내려놓는다. 후에 diff 검증 |
+| 루프에 갇혔을 때 두 번째 진단 | 재프롬프트보다 신선한 프레이밍 나음 |
+
+하네스에서 일을 유지할 수 있을 때는, 작업에 steering 규칙, 기술, 워크로드 태그, 프로젝트 규약, 도구 오케스트레이션(MCP / 훅 / 서브에이전트DAG) 또는 한국어 출력이 필요할 때다 — 외부 CLI는 이 모두에서 처음부터 시작한다.
+
+**이를 이득으로 만드는 규칙: 외부 가족이 중요한 뭔가의 *유일한* 리더가 되도록 놔두지 마라.** 그것만 보고하는 결과는 여전히 실제 코드에 대해 확인이 필요하고, 두 가족이 독립적으로 플래그하는 결과가 고신뢰도 결과다. `cross-review.sh`는 실행마다 끝에 이 규칙을 출력한다.
+
+### 폭발 범위(diff가 말하지 않는 것)
+
+한쪽 또는 양쪽 축에 변경을 넘기기 전에, `cross-review.sh`는 **폭발 범위**를 추출한다 — 변경되지 않았지만 리뷰해야 할 파일. 두 축, 가용할 인덱스 없음:
+
+- **(a) 역방향 참조** — 변경된 모듈을 `require`/`import`하는 파일.
+- **(b) 동일 커밋** — 역사적으로 같은 커밋에 나타나는 파일. import 엣지가 없는 결합도 포착(예: 문서의 카운터와 그 카운터가 세는 파일).
+
+두 가지 실패 모드, 모두 측정:
+- `rg`에 경로 인자와 `</dev/null`을 줘야 하지 않으면 루프의 stdin을 삼켜서 첫 파일만 조용히 처리한다.
+- `git log --name-only -- <path>`는 파일 *목록*을 pathspec으로 필터하므로 동일 커밋은 커밋 해시를 먼저 모으고 각 커밋의 전체 파일 집합을 `git show`로 읽어서 계산해야 한다.
+
+고전적 함정은 **카운터/카탈로그 일관성**: diff가 숫자나 리스트를 바꾸면 그 숫자가 나온 파일을 열어라. `scripts/validate-counts.js`가 이제 그 종류를 기계적으로 포착한다.
 
 ## 적용 및 프로바이더 전환
 
@@ -56,8 +111,8 @@ node scripts/validate-models.js   # 또는: npm run validate:models
 
 Kiro는 `model` 값을 모델 서비스가 반환하는 ID와 대조한다. **알 수 없는 ID는 경고와 함께 기본 모델로 조용히 폴백**한다 — 즉 잘못된 문자열은 에이전트를 엉뚱한 모델로 조용히 돌린다.
 
-- 하네스는 **점(dot)** 표기를 쓴다: `claude-fable-5`, `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4.5`.
-- Anthropic의 정식 API/Bedrock ID는 마이너 버전에 **하이픈**을 쓴다: `claude-haiku-4-5`. `claude-fable-5`, `claude-opus-5`, `claude-sonnet-5`는 메이저만 있는 릴리스라 두 표기가 같은 문자열로 수렴한다(모호성 없음).
+- 하네스는 **점(dot)** 표기를 쓴다: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4.5`.
+- Anthropic의 정식 API/Bedrock ID는 마이너 버전에 **하이픈**을 쓴다: `claude-haiku-4-5`. `claude-opus-5`, `claude-sonnet-5`는 메이저만 있는 릴리스라 두 표기가 같은 문자열로 수렴한다(모호성 없음).
 - OpenAI는 원래 **점** 표기다: `gpt-5.6`, `gpt-5.6-mini`, `gpt-5.6-nano`.
 - **의존하기 전에 활성 Kiro 세션에서 `/model`로 각 식별자를 확인하라.** 사용 중인 Kiro 빌드가 하이픈 마이너 버전 형식을 기대한다면 `model-policy.js`의 `TIERS`를 고치고 적용기를 다시 실행한다.
 
@@ -67,7 +122,6 @@ Kiro는 `model` 값을 모델 서비스가 반환하는 ID와 대조한다. **�
 
 | 모델 | Kiro 상태 | 리전 | 플랜 |
 |------|-----------|------|------|
-| `claude-fable-5` | Active (GA) | us-east-1, eu-central-1 | Pro / Pro+ / Power |
 | `claude-opus-5` | Active | us-east-1, eu-central-1 | Pro / Pro+ / Power |
 | `claude-sonnet-5` | **Experimental** | **us-east-1 전용** | Pro / Pro+ / Power (Free 제외) |
 | `claude-haiku-4.5` | Active | us-east-1, eu-central-1 | 광범위 |
@@ -94,6 +148,6 @@ GPT-5.6 3종(`gpt-5.6`, `gpt-5.6-mini`, `gpt-5.6-nano`)이 모두 Kiro에서 선
 1. `/model`로 정확한 식별자를 확인한다(Kiro 빌드에 따라 네이밍이 다를 수 있다).
 2. `gpt-5.6` / `gpt-5.6-mini` / `gpt-5.6-nano`와 다르면 `TIERS`(`model-policy.js`)의 `openai` 열을 수정한다.
 3. `node scripts/apply-model-policy.js --provider=openai`로 전체 에이전트를 재지정하거나, 프로젝트별로 실행해 워크스페이스마다 프로바이더를 섞는다.
-4. 매핑: `frontier / deep-reasoning → gpt-5.6`, `balanced → gpt-5.6-mini`, `cost-optimized → gpt-5.6-nano`.
+4. 매핑: `deep-reasoning → gpt-5.6`, `balanced → gpt-5.6-mini`, `cost-optimized → gpt-5.6-nano`.
 
-혼합은 의도된 설계다: 라우팅이 에이전트 단위이므로, 오케스트레이션·보안은 Claude(fable-5/Opus 5)에 두고 물량이 많은 `balanced` 코딩 에이전트만 GPT-5.6-mini로 돌리는(또는 그 반대) 구성이 가능하다 — 그때그때 벤치마크와 가격이 유리한 쪽으로.
+혼합은 의도된 설계다: 라우팅이 에이전트 단위이므로, 오케스트레이션·보안은 Claude(Opus 5)에 두고 물량이 많은 `balanced` 코딩 에이전트만 GPT-5.6-mini로 돌리는(또는 그 반대) 구성이 가능하다 — 그때그때 벤치마크와 가격이 유리한 쪽으로.

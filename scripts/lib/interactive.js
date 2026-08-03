@@ -9,9 +9,10 @@
  *   1) tier            cli | ide
  *   2) scope           global | workspace (tier 기본값 커서)
  *   3) workloads       대분류(다중) → 중분류(다중, 미선택=전체) → 소분류(있을 때만)
+ *                      미선택=전체는 조용히 넓어지므로 그 자리에서 확장 규모를 알린다.
  *   4) review-backend  claude | cross | kiro
  *   5) mcp-proxy       ide 티어에서만 물음(cli 는 mcp.json 미생성이라 skip)
- *   6) 요약 후 확인    install | cancel
+ *   6) 요약 후 확인    install | cancel — 요약은 실제 설치될 스킬/에이전트 수를 전체 대비로 보여준다.
  *
  * 반환값은 install.js runInstall(opts) 가 기대하는 opts 형태:
  *   { tier, scope, workload:string[], reviewBackend, mcpProxy, target, dryRun }
@@ -22,6 +23,8 @@
 
 const { checkboxPrompt, selectOne } = require('./checkbox-prompt');
 const { CATEGORIES, resolveSelection } = require('./categories');
+const { selectAssets, listSkillAssets } = require('./select-assets');
+const { tierIdentifier } = require('./model-policy');
 
 /**
  * 대화형 설치 옵션을 수집한다.
@@ -78,6 +81,9 @@ async function runInteractiveInstall(io = {}) {
         options: cat.subOptions.map((s) => ({ id: s.id, label: s.label })),
       }));
       subSelections[catId] = subIds; // 빈 배열이면 resolveSelection 이 전체로 해석
+      // 미선택은 "전체"로 해석된다 — 넘어가면 안 쓰는 언어·서비스 자산까지 들어오므로
+      // 그 사실을 그 자리에서 알린다(프롬프트를 늘리지 않고, 최종 확인 단계에서 되돌릴 수 있다).
+      if (!subIds.length) say(`  ! 미선택 — [${cat.label}] 전체 ${cat.subOptions.length}개 항목이 포함됩니다.`);
 
       // 소분류 (선택된 중분류 중 detailOptions 를 가진 것만 드릴다운)
       const effectiveSubs = subIds.length ? subIds : cat.subOptions.map((s) => s.id);
@@ -104,20 +110,6 @@ async function runInteractiveInstall(io = {}) {
     }));
     if (!reviewBackend) return null;
 
-    // 4.5) frontier 모델 — CLI global(오케스트레이터 kiro-cli 설치 대상)에서만 물음
-    let frontierModel = null;
-    if (tier === 'cli' && scope === 'global') {
-      const fm = await selectOne(ask({
-        title: '\n\uc624\ucf00\uc2a4\ud2b8\ub808\uc774\ud130(kiro-cli) frontier \ubaa8\ub378:',
-        options: [
-          { id: 'fable5', label: 'fable-5 (\uae30\ubcf8 \u00b7 Mythos-class \u00b7 \uc815\uc2dd \uac00\uc6a9)' },
-          { id: 'opus5', label: 'opus-5  (\ud3f4\ubc31 \u2014 claude-fable-5 \ubbf8\uac00\uc6a9 \ud658\uacbd\uc6a9)' },
-        ],
-      }));
-      if (!fm) return null;
-      frontierModel = fm;
-    }
-
     // 5) mcp-proxy — IDE 티어에서만(cli 는 mcp.json 미생성)
     let mcpProxy = false;
     if (tier === 'ide') {
@@ -133,12 +125,21 @@ async function runInteractiveInstall(io = {}) {
     }
 
     // 6) 요약 + 확인
+    // 워크로드 목록만 보여주면 "많이 골랐다"는 감각이 안 잡힌다 — 실제 설치될 자산 수를
+    // 전체 대비로 함께 보여줘서 과다 선택을 확인 단계에서 되돌릴 수 있게 한다.
+    let volume = null;
+    try {
+      const a = selectAssets({ tier, scope, workloads: sel.workloads, reviewBackend });
+      volume = { skills: a.skills.length, agents: a.agents.length, allSkills: listSkillAssets().length };
+    } catch { /* 요약의 부가 정보다 — 계산 실패가 설치를 막지 않는다 */ }
+
     say('\n\u2500\u2500 \uc124\uce58 \uc694\uc57d \u2500\u2500');
     say(`  tier          : ${tier}`);
     say(`  scope         : ${scope}`);
-    say(`  workloads     : ${sel.workloads.join(', ')}`);
+    say(`  workloads     : ${sel.workloads.length}개 — ${sel.workloads.join(', ')}`);
+    if (volume) say(`  설치 자산     : 스킬 ${volume.skills}/${volume.allSkills} · 에이전트 ${volume.agents}`);
     say(`  review-backend: ${reviewBackend}`);
-    if (frontierModel) say(`  frontier model: ${frontierModel === 'opus5' ? 'claude-opus-5' : 'claude-fable-5'}`);
+    if (tier === 'cli' && scope === 'global') say(`  orchestrator  : ${tierIdentifier('deep-reasoning')} (ceiling tier, effort \u2191 \u2192 cross-family)`);
     if (tier === 'ide') say(`  mcp-proxy     : ${mcpProxy ? 'on' : 'off'}`);
     say('');
 
@@ -157,7 +158,6 @@ async function runInteractiveInstall(io = {}) {
       workload: sel.workloads,
       reviewBackend,
       mcpProxy,
-      frontierModel,
       target: io.target || null,
       dryRun: io.dryRun === true,
     };

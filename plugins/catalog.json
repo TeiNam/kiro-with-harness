@@ -1,0 +1,149 @@
+{
+  "$comment": [
+    "Claude Code 플러그인 → Kiro 자산 브리지 카탈로그 (SSOT).",
+    "",
+    "Kiro CLI 에는 플러그인 시스템이 없다(`kiro-cli plugin` 서브커맨드 없음 — 실측 확인).",
+    "따라서 플러그인을 '설치'하는 대신, 각 플러그인이 실제로 제공하는 것을 Kiro 네이티브",
+    "구조(skills / steering / agents / MCP)로 옮긴다. 옮길 수 없는 것은 옮기지 않고 이유를 남긴다.",
+    "",
+    "이 레포는 서드파티 소스를 벤더링하지 않는다 — mcp-proxy 와 같은 원칙이다. 카탈로그와",
+    "브리지 스크립트, 문서만 담고 실제 자산은 설치 시 상위 리포에서 가져온다.",
+    "",
+    "mode:",
+    "  bridge       — 상위 git 리포에서 스킬을 가져와 Kiro 형식(workloads 프론트매터)으로 변환 설치",
+    "  external-cli — 상위 프로젝트의 공식 설치기가 Kiro 를 이미 지원 → 그 명령을 쓴다(재구현 금지)",
+    "  native       — Kiro 가 이미 동등 기능을 제공 → 설치하지 않고 대응물을 안내",
+    "  incompatible — Claude Code 전용 포맷/프로토콜에 묶여 이식이 무의미 → 설치하지 않음",
+    "",
+    "실행: node scripts/install-plugins.js --dry-run   (기본은 dry-run, --apply 로 실제 설치)"
+  ],
+  "version": 1,
+  "cacheDir": ".kiro/.plugin-cache",
+  "plugins": [
+    {
+      "id": "superpowers",
+      "mode": "bridge",
+      "label": "Superpowers — 개발 규율 스킬 라이브러리",
+      "author": "Jesse Vincent (obra)",
+      "license": "MIT",
+      "upstream": { "repo": "obra/superpowers", "ref": "main" },
+      "claudeInstall": "claude plugin install superpowers@claude-plugins-official",
+      "skillsPath": "skills",
+      "defaultWorkloads": ["core"],
+      "skillWorkloads": {
+        "writing-skills": ["ai-agent"],
+        "subagent-driven-development": ["core", "ai-agent"],
+        "dispatching-parallel-agents": ["core", "ai-agent"]
+      },
+      "requires": [
+        { "bin": "bash", "for": "systematic-debugging (find-polluter.sh), subagent-driven-development 헬퍼 3종" },
+        { "bin": "node", "for": "brainstorming(로컬 서버), writing-skills(그래프 렌더)" },
+        { "bin": "dot", "optional": true, "for": "writing-skills 의 graphviz 플로차트 렌더 — 없으면 그 기능만 빠진다" }
+      ],
+      "exclude": [
+        {
+          "skill": "using-superpowers",
+          "reason": "Claude 플러그인 전용 스킬 발견 부트스트랩이다. `superpowers:<skill>` 네임스페이스 호출과 '모든 응답 전 스킬 호출' 강제를 담는데, Kiro 는 오케스트레이터 에이전트의 `skill://~/.kiro/skills/**/SKILL.md` 리소스로 스킬을 이미 자동 발견하며 네임스페이스가 없다. 강제 조항은 ponytail(최소 코드)·AGENTS.md(위임 규약)와 충돌한다."
+        },
+        {
+          "skill": "test-driven-development",
+          "reason": "하네스 `tdd-workflow`(157줄)와 같은 주제다. 상위 쪽이 320줄로 더 두껍지만 이중 노출을 만들지 않는 것이 우선이다 — 하네스를 SSOT 로 둔다. 상위 것을 쓰려면 catalog 의 이 항목을 지우고 하네스 `skills/tdd-workflow` 를 제거하라(둘 중 하나만).",
+          "overlaps": "tdd-workflow"
+        },
+        {
+          "skill": "verification-before-completion",
+          "reason": "하네스 `verification-loop`(127줄)와 같은 주제(완료 주장 전 검증 강제). 이중 노출 방지 — 하네스를 SSOT 로 둔다.",
+          "overlaps": "verification-loop"
+        }
+      ],
+      "notes": [
+        "상위의 SessionStart 훅(using-superpowers 주입)은 이식하지 않는다 — 위 exclude 근거와 같다.",
+        "`using-git-worktrees` 는 하네스 `git-workflow` 와 겹치지 않는다(전자는 격리 워크스페이스 확보 기법, 후자는 브랜치·커밋·PR 파이프라인). 함께 설치한다.",
+        "스킬 본문의 `superpowers:<name>` 네임스페이스 참조는 브리지가 평범한 스킬명으로 다시 쓴다."
+      ]
+    },
+    {
+      "id": "obsidian",
+      "mode": "bridge",
+      "label": "Obsidian 볼트 콘텐츠 스킬 (Markdown / Bases / Canvas)",
+      "author": "Steph Ango (kepano)",
+      "license": "MIT",
+      "upstream": { "repo": "kepano/obsidian-skills", "ref": "main" },
+      "claudeInstall": "claude plugin install obsidian@obsidian-skills --scope project",
+      "skillsPath": "skills",
+      "defaultWorkloads": ["obsidian"],
+      "requires": [
+        { "bin": "obsidian", "optional": true, "for": "obsidian-cli 스킬 — 외부 CLI + 실행 중인 Obsidian 앱 필요" },
+        { "bin": "defuddle", "optional": true, "for": "defuddle 스킬 — `npm i -g defuddle-cli`" }
+      ],
+      "exclude": [],
+      "notes": [
+        "하네스 `obsidian-plugin-develop`(플러그인 저작·리뷰·빌드)과 영역이 다르다 — 이쪽은 볼트 콘텐츠 편집(.md/.base/.canvas)이다. 중복 아님, 공존.",
+        "5종 중 3종(obsidian-markdown / obsidian-bases / json-canvas)은 파일 포맷 지식만 담은 순수 지시문이라 의존 없이 동작한다. 나머지 2종은 외부 CLI 가 없으면 그 스킬만 무동작이다.",
+        "상위는 project scope 설치를 권하지만 Kiro 는 글로벌 `~/.kiro/skills/` 에서 progressive 로드하므로 컨텍스트 비용 없이 전역 배치가 안전하다."
+      ]
+    },
+    {
+      "id": "ui-ux-pro-max",
+      "mode": "external-cli",
+      "label": "UI/UX Pro Max — 디자인 인텔리전스(스타일·팔레트·폰트 DB)",
+      "author": "nextlevelbuilder",
+      "upstream": { "repo": "nextlevelbuilder/ui-ux-pro-max-skill" },
+      "claudeInstall": "claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill",
+      "command": "npx -y ui-ux-pro-max-cli init --ai kiro",
+      "installsTo": ".kiro/steering/",
+      "requires": [
+        { "bin": "npx", "for": "공식 설치기" },
+        { "bin": "python3", "for": "핵심 스킬이 로컬 검색 DB 를 scripts/search.py 로 조회한다" }
+      ],
+      "notes": [
+        "공식 CLI 가 `kiro` 를 1급 타깃으로 지원한다(실측: cli/src/types/index.ts 의 AIType 에 'kiro', detect.ts 가 .kiro 감지, '.kiro/steering/' 로 설치). 브리지로 재구현하지 않고 상위 설치기를 그대로 쓴다.",
+        "워크스페이스 `.kiro/steering/` 에 설치되므로 프로젝트 단위다 — 글로벌 배치는 상위가 지원하지 않는다.",
+        "선택적 MCP 3종(playwright / chrome-devtools / shadcn)은 상위의 stack 스캐폴드용이며 하네스 MCP 카탈로그와 별개다."
+      ]
+    },
+    {
+      "id": "rust-analyzer-lsp",
+      "mode": "native",
+      "label": "Rust LSP 코드 인텔리전스",
+      "claudeInstall": "claude plugin install rust-analyzer-lsp@claude-plugins-official",
+      "kiroEquivalent": "`code` 툴의 LSP 연산 (find_references / goto_definition / get_hover / get_diagnostics / rename_symbol)",
+      "reason": "이 플러그인은 로직이 없다 — marketplace.json 에 `lspServers.rust-analyzer` 를 선언하는 설정일 뿐이다(실측: 리포에 README+LICENSE 만 존재). Kiro CLI 의 `code` 툴은 LSP 연산을 이미 내장하므로 옮길 것이 없다.",
+      "requires": [
+        { "bin": "rust-analyzer", "for": "Rust LSP 백엔드 — Kiro 쪽에서도 이 바이너리는 여전히 필요하다 (`rustup component add rust-analyzer` 또는 `brew install rust-analyzer`)" }
+      ]
+    },
+    {
+      "id": "ponytail",
+      "mode": "native",
+      "label": "Ponytail — lazy senior dev 모드",
+      "claudeInstall": "claude plugin install ponytail@ponytail",
+      "kiroEquivalent": "`rules/common/ponytail.md` → CLI 글로벌 설치 시 `~/.kiro/steering/ponytail.md` (항상로딩)",
+      "reason": "하네스가 이미 이 규칙을 steering 으로 담고 있으며 CLI 글로벌 설치에 포함된다. 플러그인으로 또 넣으면 같은 규칙이 두 곳에서 로드된다."
+    },
+    {
+      "id": "codex",
+      "mode": "native",
+      "label": "Codex 교차 모델 리뷰·위임",
+      "author": "OpenAI",
+      "claudeInstall": "claude plugin install codex@openai-codex",
+      "kiroEquivalent": "`peer-reviewer` 에이전트 + `--review-backend cross` 설치 시 `bash .kiro/hooks/cross-review.sh`",
+      "reason": "하네스는 이미 cross-family 축을 갖고 있다(모델 정책의 CROSS_FAMILY). 상위 플러그인의 구현은 `codex app-server`(JSON-RPC stdio)를 상주시키는 node 래퍼(codex-companion.mjs + 브로커)에 묶여 있어 그대로 옮길 수 없고, 하네스는 더 단순한 `codex review` 를 쓴다.",
+      "requires": [
+        { "bin": "codex", "optional": true, "for": "cross-family 리뷰 축 — 없으면 graceful degradation(건너뜀)" }
+      ],
+      "notes": [
+        "상위 플러그인의 순수 마크다운 자산 2종(codex-result-handling: 리뷰 결과 원형 보존·자동수정 금지 / gpt-5-4-prompting: XML 블록 프롬프트 작성법)은 도구 없이도 규범으로 쓸 수 있다. 필요해지면 별도 스킬로 이식을 검토한다 — 지금은 `cross-review.sh` 의 철칙 출력과 model-routing 문서가 같은 역할을 한다."
+      ]
+    },
+    {
+      "id": "claude-dashboard",
+      "mode": "incompatible",
+      "label": "Claude Dashboard — 컨텍스트·요금·사용량 status line",
+      "author": "uppinote",
+      "claudeInstall": "claude plugin install claude-dashboard@claude-dashboard",
+      "reason": "Claude Code 전용 런타임에 전면 의존한다: statusLine stdin 프로토콜(Claude Code 가 렌더마다 JSON 을 파이프), `~/.claude/history.jsonl`, `transcript.jsonl`(= ~/.claude/projects/<proj>/<session>.jsonl), `~/.claude/.credentials.json`. Kiro 에는 이 프로토콜도 이 포맷의 데이터도 없어 옮겨도 읽을 것이 없다.",
+      "kiroEquivalent": "컨텍스트 사용량은 Kiro 의 `/context`, 모델 확인은 `/model` 로 대체한다. 요금·한도 대시보드는 Kiro 에 동등물이 없다."
+    }
+  ]
+}

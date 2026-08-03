@@ -14,6 +14,7 @@ description: |
 metadata:
   author: tei
   version: "2.0.0"
+origin: harness
 workloads: [python]
 ---
 

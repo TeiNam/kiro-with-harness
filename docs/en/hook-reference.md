@@ -57,7 +57,7 @@ For `PreToolUse`/`PostToolUse`, built-in tool categories usable as a matcher inc
 
 ## Installed Hooks (IDE tier)
 
-The IDE tier installs an optimized set defined in `scripts/lib/tiers.js` (`IDE_HOOKS`). All are workload-independent and use agent actions.
+The IDE tier installs 5 hooks, an optimized set defined in `scripts/lib/tiers.js` (`IDE_HOOKS`). All are workload-independent and use agent actions. (`scripts/validate-counts.js` checks this number against the install plan, so it can't drift silently.)
 
 ### pre-write-guard
 - Trigger: `PreToolUse`, matcher `write`
@@ -75,6 +75,13 @@ The IDE tier installs an optimized set defined in `scripts/lib/tiers.js` (`IDE_H
 - Action: agent
 - Detects repeatable corrections (recurring review findings, build-failure patterns, user corrections) and proposes a one-line lesson for `.kiro/steering/lessons-learned.md`. Requires user confirmation before editing user assets; otherwise exits silently. Part of the self-evolution loop.
 
+### git-pipeline-guard
+- Trigger: `PreToolUse`, matcher `shell`
+- Action: agent
+- Detects whether the shell call is `git push` and whether its target is the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`, falling back to an existing `main`/`master`; with no refspec the target is the current branch). A push to the default branch is **blocked** with the pipeline spelled out: `git switch -c <type>/<slug>` -> `git push -u origin <branch>` -> `gh pr create --fill` -> `gh pr merge --squash --delete-branch`.
+- Exceptions (not blocked): tag-only pushes (`--tags`), branch deletion (`--delete`/`-d`), local-only repos with no remote, and the user explicitly saying "directly to main". Non-default-branch pushes pass silently.
+- The CLI tier ships the deterministic equivalent, `pre-push-guard.sh` (`exit 2`, bypass with `KIRO_ALLOW_MAIN_PUSH=1`). Policy text: `rules/common/git-workflow.md`.
+
 ### changelog-on-commit
 - Trigger: `PreToolUse`, matcher `shell`
 - Action: agent
@@ -85,7 +92,14 @@ The IDE tier installs an optimized set defined in `scripts/lib/tiers.js` (`IDE_H
 - **Disable**: set `"enabled": false` in the hook file, delete the `.json` file from `.kiro/hooks/`, or drop the relevant workload from your install command.
 - **Add a custom hook**: create a `.kiro/hooks/<name>.json` file following the v1 schema above, or use the Command Palette → "Kiro: Open Kiro Hook UI" → describe in natural language.
 
-> **CLI tier note**: the CLI tier (`kiro-cli chat`) does not use these files. It embeds hooks inside the agent JSON (`hooks` field) and ships a deterministic `pre-write-guard.sh` (exit 2) referenced by `kiro-cli.json`.
+> **CLI tier note**: the CLI tier (`kiro-cli chat`) does not use these files. It embeds hooks inside the agent JSON (`hooks` field) and installs 2 CLI hook scripts as deterministic gates (`exit 2`), referenced by 2 preToolUse hooks in `kiro-cli.json`:
+>
+> | Script | matcher | Blocks on |
+> |--------|---------|-----------|
+> | `pre-write-guard.sh` | `fs_write` | hardcoded secrets, content over 800 lines |
+> | `pre-push-guard.sh` | `execute_bash` | `git push` targeting the default branch (bypass: `KIRO_ALLOW_MAIN_PUSH=1`) |
+>
+> `cross-review.sh` is **not** a hook — it is an on-demand script (see below), so it is not counted here.
 
 ## On-demand 3-way cross-review (`--review-backend cross`)
 

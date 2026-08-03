@@ -1,6 +1,6 @@
 # 스킬(Skill) 카탈로그
 
-도메인별로 정리된 140개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
+도메인별로 정리된 138개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
 
 ## 인프라(Infrastructure)
 
@@ -120,13 +120,11 @@
 
 | 스킬 | 설명 |
 |-------|-------------|
-| continuous-learning-v2 | 지속적 학습 루프, 피드백 통합 |
 | strategic-compact | 장시간 세션을 위한 컨텍스트 압축 전략 |
 | context-budget | 토큰 예산 관리, 컨텍스트 윈도우 최적화 |
 | agentic-engineering | 에이전틱 코딩 패턴, 도구 사용, 계획 수립 |
 | agentic-loops | Kiro `/goal`·리뷰 루프·DAG 위임을 위한 루프 엔지니어링; 증거 기반 완료 |
 | ai-first-engineering | AI 우선 개발 워크플로 |
-| enterprise-agent-ops | 엔터프라이즈 에이전트 운영, 거버넌스, 모니터링 |
 | documentation-lookup | 문서 검색 및 조회 패턴 |
 
 ## 워크플로 스킬(Workflow Skills)
