@@ -185,6 +185,23 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 **IDE 계층**은 `.kiro/agents/` 아래에 동일한 역할의 Markdown 에이전트를 설치합니다.
 
+**Ponytail 주입:** Lazy senior dev 원칙(`rules/common/ponytail.md`)을 이 저장소의 에이전트 정의에 **미리 주입**해 둡니다 — CLI 에이전트는 `prompt` 필드, IDE 에이전트는 본문 — 설치는 그것을 그대로 복사합니다. 덕분에 글로벌 리소스 상속을 끈 상황에서도(`kiro-cli settings chat.disableInheritingDefaultResources true` — 격리된 워크스페이스에 권장) 22개 저작·코딩 역할이 이 원칙을 유지합니다. steering 으로만 전달하면 서브에이전트에 닿지 않는 것이 바로 그 설정일 때입니다. 주입은 멱등이며, 제외된 역할(상세함·정밀성·외부 절차가 산출물의 본질인 역할)은 이 원칙을 받지 않습니다. 어느 역할이 주입되고 어느 역할이 제외되는지 보려면 `node scripts/apply-ponytail.js --list`를 실행하세요. 문구를 수정한 뒤 재적용하려면 에이전트 파일을 되돌린 뒤 다시 실행합니다. 정책의 SSOT는 `scripts/apply-ponytail.js`(EXEMPT와 BRIEF 테이블)이며, 검증은 `test/ponytail.test.js`에서 이루어집니다.
+
+| 제외 역할 | 사유 |
+|---|---|
+| security-reviewer | OWASP 전수 점검 — 항목 누락이 곧 취약점 |
+| deep-researcher | 다중 소스 조사와 인용 철저함이 산출물 |
+| devops | 인프라 워크플로우(plan/diff/승인) 정밀성 — 생략은 사고 초래 |
+| peer-reviewer | 외부 CLI 3-way 수집·종합 절차를 그대로 따라야 함 |
+| rdbms-data-modeler | 테이블·인덱스·명명 상세 설계가 산출물 |
+| database-reviewer | 정밀한 쿼리·스키마 점검 — 누락 시 데이터 손실 위험 |
+| e2e-runner | 시나리오 커버리지와 POM 구조 상세함이 가치 |
+| tech-fidelity-auditor | 코드·수치·시그니처 전수 대조 검증 |
+| doc-quality-detector | Span 단위 전수 스캔 + 고정 JSON 스키마 |
+| doc-clarity-reviewer | 판정 기준 전수 적용 후 승인/재작업 결정 |
+| tech-doc-writer | 코드·수치 불변 제약 + 수술적 윤문 정밀도 |
+| tech-writer-monolith | 단일 호출 내 저작·탐지·윤문·자체검증 전 절차 수행 |
+
 ### 훅
 
 **CLI 계층**: 훅은 에이전트 JSON 내에 내장됩니다 (별도 파일 아님). 2종 결정적 게이트 스크립트가 받침합니다 — `pre-write-guard.sh`(fs_write: 비밀, 과대 write), `pre-push-guard.sh`(execute_bash: 기본 브랜치 push 차단, `KIRO_ALLOW_MAIN_PUSH=1`로 우회 가능). `cross-review.sh`는 훅이 아니라 온디맨드 스크립트입니다.
@@ -285,6 +302,7 @@ node install.js <tier> [options]
 | [워크로드 가이드](docs/kr/profile-guide.md) | tier × workload 모델, 설치 플래그, 프로필 마이그레이션 |
 | [훅 레퍼런스](docs/kr/hook-reference.md) | IDE 1.0 v1 JSON 훅 포맷, 트리거, 설치되는 훅 세트 |
 | [에이전트 포커스 모드](docs/kr/agent-focus-mode.md) | IDE 1.0 에이전트 포커스 모드(실험적) — 병렬 세션·workflow picker를 하네스 에이전트/오케스트레이션에 매핑 |
+| [Kiro Crew](docs/kr/crew-integration.md) | `kiro-cli crew`, Crew Gateway, 그리고 공유되는 `~/.kiro/agents/` 디렉터리 — 자산 매핑, 역할 분담, 보안 |
 | [MCP 레퍼런스](docs/kr/mcp-reference.md) | 큐레이션 MCP 카탈로그 (내장 / general / DevOps / FinOps / opt-in) |
 | [모델 라우팅](docs/kr/model-routing.md) | 3-티어 모델 정책(Opus/Sonnet/Haiku), Opus-5 천장 + effort/cross-family 에스컬레이션, 에이전트별 배정, 훅→티어 가이드, OpenAI GPT-5.6 프로바이더 전환 |
 | [스킬 카탈로그](docs/kr/skill-catalog.md) | 138개 스킬 도메인별 정리 |
