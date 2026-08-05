@@ -185,6 +185,23 @@ There is no tier above `claude-opus-5`. When a task needs more than the top tier
 
 **IDE tier** installs Markdown agents under `.kiro/agents/` with the same roles.
 
+**Ponytail injection:** The lazy senior dev principle (from `rules/common/ponytail.md`) is pre-injected into the agent definitions in this repo — into the `prompt` field for CLI agents and the body for IDE agents — so installs carry it verbatim. That keeps 22 authoring and coding roles applying it even when global resource inheritance is disabled (`kiro-cli settings chat.disableInheritingDefaultResources true` — recommended for isolated workspaces), which is precisely when steering-only delivery fails to reach subagents. The injection is idempotent; excluded roles (those where completeness, precision, or external procedures are the deliverable itself) do not receive the principle. To see which roles are injected and which are exempt, run `node scripts/apply-ponytail.js --list`. To reapply after editing the wording, reset the agent files and re-run. The SSOT is `scripts/apply-ponytail.js` (EXEMPT and BRIEF tables); validation occurs in `test/ponytail.test.js`.
+
+| Exempt Role | Reason |
+|---|---|
+| security-reviewer | OWASP exhaustive audit — omitted items are vulnerabilities |
+| deep-researcher | Multi-source investigation and citation rigor are the output |
+| devops | Precision of infrastructure workflows (plan/diff/approval) — skipped steps cause incidents |
+| peer-reviewer | Must follow external 3-way collection & synthesis procedure as specified |
+| rdbms-data-modeler | Detailed table, index, and naming design is the output |
+| database-reviewer | Precise query/schema audit — omissions risk data loss |
+| e2e-runner | Scenario coverage and POM structure rigor is the value |
+| tech-fidelity-auditor | Code/number/signature exhaustive cross-check |
+| doc-quality-detector | Span-level exhaustive scan + fixed JSON schema |
+| doc-clarity-reviewer | Exhaustive criterion application before approval decision |
+| tech-doc-writer | Code/number immutability + surgical editing precision |
+| tech-writer-monolith | All-in-one authoring, detection, polish, self-validation in one call |
+
 ### Hooks
 
 **CLI tier**: hooks embedded in agent JSON (not separate files), backed by 2 deterministic gate scripts — `pre-write-guard.sh` (`fs_write`: secrets, oversized writes) and `pre-push-guard.sh` (`execute_bash`: default-branch push, bypass `KIRO_ALLOW_MAIN_PUSH=1`). `cross-review.sh` is an on-demand script, not a hook.
@@ -288,6 +305,7 @@ Full guides live under `docs/` — English in `docs/en/`, Korean in `docs/kr/`.
 | [Workload guide](docs/en/profile-guide.md) | Tier × workload model, install flags, profile migration |
 | [Hook reference](docs/en/hook-reference.md) | IDE 1.0 v1 JSON hook format, triggers, the installed hook set |
 | [Agent Focus Mode](docs/en/agent-focus-mode.md) | IDE 1.0 Agent Focus Mode (experimental) — parallel sessions & workflow picker mapped to harness agents/orchestration |
+| [Kiro Crew](docs/en/crew-integration.md) | `kiro-cli crew`, the Crew Gateway, and the shared `~/.kiro/agents/` directory — asset mapping, work division, security |
 | [Plugins](plugins/README.md) | Claude Code plugins mapped onto Kiro (bridge / external-cli / native / incompatible) |
 | [MCP reference](docs/en/mcp-reference.md) | Curated MCP catalog (built-in / general / DevOps / FinOps / opt-in) |
 | [Model routing](docs/en/model-routing.md) | 3-tier model policy (Opus/Sonnet/Haiku), the Opus-5 ceiling + effort/cross-family escalation, per-agent assignment, hook→tier guidance, OpenAI GPT-5.6 provider switch |

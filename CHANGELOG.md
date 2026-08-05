@@ -3,6 +3,27 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-08-06
+
+### Added
+
+- **ponytail 원칙을 서브에이전트 정의에 주입** — `scripts/apply-ponytail.js` 신설. `rules/common/ponytail.md`(lazy senior dev)의 요약본을 CLI 에이전트 JSON 의 `prompt` 필드와 IDE 에이전트 마크다운 본문에 주입한다. 대상 42개 파일 = **22개 역할** × 두 티어. 주입은 멱등이고, `--list`(적용/제외 역할 조회)·`--dry-run` 을 지원한다. CLI JSON 은 `prompt` 한 줄만 재작성(라인 보존)하고 주입 후 `JSON.parse` 로 검증해 깨진 결과는 쓰지 않는다.
+  - **왜 steering 이 아니라 정의에 넣는가**: `rules/common/ponytail.md` 는 IDE always-on steering 과 CLI 글로벌 steering 으로만 설치된다. CLI 2.7+ 기본 리소스 상속을 끄면(`chat.disableInheritingDefaultResources true` — README 가 격리 워크스페이스에 권장하는 설정) 서브에이전트가 그 steering 을 받지 못한다. 정의에 심으면 상속 설정과 무관하게 유지된다.
+  - **제외 12개 역할** — 상세·전수·정밀 절차가 산출물의 본질이라 "적게 하라"가 곧 누락이 되는 역할: security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler, database-reviewer, e2e-runner, tech-fidelity-auditor, doc-quality-detector, doc-clarity-reviewer, tech-doc-writer, tech-writer-monolith. 정책 SSOT 는 `apply-ponytail.js` 의 `EXEMPT`·`BRIEF`.
+  - 리뷰·판정 역할에는 "authoring 이 아니면 리뷰 렌즈로 적용하고 지적은 통합하라"는 한 줄이 함께 들어가 기존 리뷰 체크리스트와 충돌하지 않는다.
+  - `test/ponytail.test.js` 9건 — 누락·오주입·멱등성·`prompt` 외 필드 보존·frontmatter 없는 파일 무시·EXEMPT 목록 드리프트·원문 대비 핵심 문구 드리프트.
+- **Kiro Crew 통합 가이드** — `docs/en/crew-integration.md`, `docs/kr/crew-integration.md` 신설. `kiro-cli crew` 는 채팅 기능이 아니라 **런처**이고(2.16.1 실측: "Launch Kiro Crew, installing it if it is not already installed"), Crew 는 Gateway(기본 포트 5476)를 띄우는 Apache-2.0 별개 런타임이다. 하네스와의 접점은 하나로 요약된다: **Crew 는 `~/.kiro/agents/` 에서 에이전트 정의를 읽는다 — 하네스 CLI 글로벌 티어가 설치하는 바로 그 디렉터리다.** 따라서 `install.js cli --scope global` 이 이미 Crew 의 에이전트 소스를 채우고, ponytail 주입도 `prompt` 에 있으므로 함께 따라간다. 문서는 확인된 사실과 **공식 문서에 명시되지 않은 항목**(모델 핀 인정 여부, 하네스 JSON 의 추가 필드 처리, steering·skills·MCP 상속, 훅 스키마 공존)을 구분해 표기하고, 서브에이전트 실제 제약(동시성 3–32, 30분 하드 타임아웃, 승인 모드 상속)에 맞춘 역할 분담과 Gateway 보안 주의를 담았다.
+- **저장소 작업 규약 steering** — `.kiro/steering/repo-conventions.md`. 문서는 항상 영/한 양쪽 동시 갱신(번역은 `translator-docs` 위임), 코드 변경 시 `npm run bump` 로 매니페스트 버전업, CHANGELOG 날짜 섹션, 커밋 전 `npm test`, ponytail 재적용 절차를 고정했다. 사람이 기억해야 하는 절차는 잊힌다.
+
+### Changed
+
+- **README·README-KR** — 'What Gets Installed > Agents' 소절에 ponytail 주입 정책과 제외 역할 표(12행)를 추가했다. 적용되는 22개 역할은 문서에 나열하지 않고 `node scripts/apply-ponytail.js --list` 로 조회하게 해 드리프트 소스를 만들지 않는다. 문서 표에 Kiro Crew 가이드 링크를 추가했다.
+- **에이전트 42개 파일** — 프롬프트/본문 말미에 ponytail 요약 블록이 들어갔다. CLI JSON 22개는 `prompt` 한 줄 치환, IDE 마크다운 20개는 본문 14줄 추가. 그 외 필드·키 순서·들여쓰기는 보존된다.
+
+### Known issues
+
+- `test/mcp-proxy.test.js` 의 `install.js ide --mcp-proxy` e2e 1건이 로컬에서 실패한다. 원인은 코드가 아니라 작업 트리 오염 — `mcp-proxy/config.generated.json` 이 파일이 아니라 **디렉터리**로 존재해 테스트 정리 단계의 `rmSync` 가 `EISDIR` 을 던진다. git 미추적 경로이며 이번 변경과 무관하다.
+
 ## 2026-08-01
 
 상위 프로젝트(`my_harness_for_claude_code` v0.3.0)의 변경을 Kiro 하네스에 맞게 반영했습니다. 문자 그대로 옮기지 않고, Kiro 쪽 실측 근거가 있는 것만 적용했습니다(아래 "적용하지 않은 것" 참조).

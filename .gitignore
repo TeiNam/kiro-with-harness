@@ -28,7 +28,13 @@ desktop.ini
 .cursor/
 
 # === Global: AI agent tools (Kiro, Claude Code, Codex, etc.) ===
-.kiro/
+# .kiro/ 는 이 저장소 자신의 설치 산출물이라 무시한다. 단 저장소 작업 규약은
+# 기여자에게 전달돼야 하는 소스이므로 예외로 추적한다(디렉터리를 통째로 무시하면
+# 하위 파일의 ! 예외가 먹지 않으므로 단계적으로 negate 한다).
+.kiro/*
+!.kiro/steering/
+.kiro/steering/*
+!.kiro/steering/repo-conventions.md
 .claude/
 .codex/
 
