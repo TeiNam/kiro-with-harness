@@ -20,6 +20,9 @@
 # graceful 하게 건너뛰기 위함이다.
 set -uo pipefail
 
+# install.js가 선택한 모델 패밀리로 이 값을 설치 시 치환한다.
+HOST_PROVIDER="anthropic"
+
 # --base <branch> 옵션(선택). 기본은 uncommitted 변경.
 BASE=""
 if [ "${1:-}" = "--base" ] && [ -n "${2:-}" ]; then
@@ -154,35 +157,48 @@ fi
 
 GATHERED=0
 
-# Codex 모델은 핀하지 않는다 — `codex review` 를 --model 없이 실행해 로컬 CLI 기본
-# 모델을 쓴다. 특정 모델에 핀하면 그 모델이 없거나 이름이 바뀔 때 조용히 실패한다.
-
-# ── Codex (전용 리뷰어; git 워크트리를 직접 읽고 코드를 인자로 넘기지 않음 = 인젝션-free) ──
-if command -v codex >/dev/null 2>&1; then
-  echo
-  echo "── Codex (CLI 기본 모델) ──"
-  if [ -n "$BASE" ]; then
-    codex review --base "$BASE" \
-      && GATHERED=$((GATHERED + 1)) || echo "codex review 실패 — 건너뜀."
+# Codex 모델은 핀하지 않는다 — 로컬 CLI 기본 모델을 써 가용성 변화에 견딘다.
+run_codex() {
+  local label="$1"
+  if command -v codex >/dev/null 2>&1; then
+    echo
+    echo "── Codex (${label}; CLI 기본 모델) ──"
+    if [ -n "$BASE" ]; then
+      codex review --base "$BASE" \
+        && GATHERED=$((GATHERED + 1)) || echo "codex review 실패 — 건너뜀."
+    else
+      codex review --uncommitted \
+        && GATHERED=$((GATHERED + 1)) || echo "codex review 실패 — 건너뜀."
+    fi
   else
-    codex review --uncommitted \
-      && GATHERED=$((GATHERED + 1)) || echo "codex review 실패 — 건너뜀."
+    echo "── Codex (${label}): CLI 미설치 — 건너뜀 ──"
   fi
-else
-  echo "── Codex: CLI 미설치 — 건너뜀 ──"
-fi
+}
 
-# ── Claude (diff 를 stdin 으로만 전달; 인자가 아님) ──
-if command -v claude >/dev/null 2>&1; then
-  echo
-  echo "── Claude ──"
-  if printf '%s%s\n%s\n' "다음 코드 변경을 리뷰하라. 보안·에러처리·테스트 관점으로 이슈만 간결히 보고하라:" "$BLAST_NOTE" "$DIFF" | claude -p; then
-    GATHERED=$((GATHERED + 1))
+run_claude() {
+  local label="$1"
+  if command -v claude >/dev/null 2>&1; then
+    echo
+    echo "── Claude (${label}) ──"
+    if printf '%s%s\n%s\n' "다음 코드 변경을 리뷰하라. 보안·에러처리·테스트 관점으로 이슈만 간결히 보고하라:" "$BLAST_NOTE" "$DIFF" | claude -p; then
+      GATHERED=$((GATHERED + 1))
+    else
+      echo "claude 실패 — 건너뜀."
+    fi
   else
-    echo "claude 실패 — 건너뜀."
+    echo "── Claude (${label}): CLI 미설치 — 건너뜀 ──"
   fi
+}
+
+# 주 실행 패밀리와 다른 쪽을 먼저 불러 상관된 맹점을 끊는다. 같은 패밀리는 보강이다.
+if [ "$HOST_PROVIDER" = "openai" ]; then
+  echo "=== cross-family primary: Claude; same-family corroboration: Codex ==="
+  run_claude "cross-family primary"
+  run_codex "same-family corroboration"
 else
-  echo "── Claude: CLI 미설치 — 건너뜀 ──"
+  echo "=== cross-family primary: Codex; same-family corroboration: Claude ==="
+  run_codex "cross-family primary"
+  run_claude "same-family corroboration"
 fi
 
 echo

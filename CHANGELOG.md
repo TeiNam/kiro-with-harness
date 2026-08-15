@@ -3,6 +3,22 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-08-15
+
+### Added
+
+- **설치 시 모델 프로바이더 프로필** — `node install.js <cli|ide> --provider=anthropic|openai`와 대화형 provider 선택을 추가했다. 역할별 모델뿐 아니라 provider별 effort 설정 경로(Claude `output_config.effort`, GPT `reasoning.effort`), 컨텍스트 운영 노트(Claude 1M, GPT 272K), cross-family 리뷰 우선순위를 모든 설치 에이전트에 함께 적용한다. 저장소의 Anthropic-first 소스 자산은 변형하지 않아 글로벌·워크스페이스별로 다른 provider를 안전하게 설치할 수 있다.
+
+### Changed
+
+- **OpenAI 라우팅 교정** — 존재하지 않던 `gpt-5.6` / `gpt-5.6-mini` / `gpt-5.6-nano` 매핑을 Kiro 실제 ID인 `gpt-5.6-sol` / `gpt-5.6-terra` / `gpt-5.6-luna`로 교체했다.
+- **provider-aware cross review** — Anthropic 설치는 Codex를, OpenAI 설치는 Claude Code를 독립 cross-family primary로 먼저 실행하고 나머지 CLI는 same-family 보강으로 표시한다. 매니페스트와 `--status`에도 provider를 기록한다.
+- **문서 동기화** — README 영문·국문과 모델 라우팅 가이드를 설치 시 전환, provider별 effort 경로, Sol/Terra/Luna 특성 및 최신 Kiro 가용성에 맞췄다.
+
+### Fixed
+
+- `apply-model-policy.js --provider=openai`가 소스 에이전트 66개를 영구 변형해 Anthropic 기준 검증과 프로젝트별 provider 혼합을 깨뜨리던 경로를 정상 설치 플로우에서 제거했다. 해당 스크립트는 명시적 소스 재핀용 유지보수 도구로만 남기고 경고를 출력한다.
+
 ## 2026-08-06
 
 ### Added

@@ -14,7 +14,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 const fc = require('fast-check');
-const { applyModelToAgentJson } = require('../scripts/lib/model-edits.js');
+const { applyModelToAgentJson, applyTopLevelJsonString } = require('../scripts/lib/model-edits.js');
 
 // ---------------------------------------------------------------------------
 // 결정적 셔플 유틸 — JSON 객체의 "무작위 키 순서"를 만들기 위함.
@@ -201,4 +201,15 @@ test('model 처럼 보이는 최상위 값 문자열은 키로 오인되지 않�
   assert.strictEqual(p.model, 'claude-opus-4.8');
   assert.strictEqual(p.note, '"model":');
   assert.strictEqual(p.desc, 'model');
+});
+
+
+test('applyTopLevelJsonString은 최상위 prompt만 교체하고 중첩 prompt는 보존한다', () => {
+  const raw = '{\n  "nested": { "prompt": "keep" },\n  "prompt": "old",\n  "model": "claude-sonnet-5"\n}\n';
+  const result = applyTopLevelJsonString(raw, 'prompt', 'new\nvalue');
+  assert.strictEqual(result.changed, true);
+  const parsed = JSON.parse(result.text);
+  assert.strictEqual(parsed.prompt, 'new\nvalue');
+  assert.strictEqual(parsed.nested.prompt, 'keep');
+  assert.strictEqual(result.text.replace(JSON.stringify('new\nvalue'), JSON.stringify('old')), raw);
 });

@@ -8,9 +8,9 @@
 
 | 티어 | Claude (기본) | OpenAI | 용도 |
 |------|---------------|--------|------|
-| **deep-reasoning** (천장) | `claude-opus-5` | `gpt-5.6` | 오케스트레이션, 아키텍처, 보안 판단, 근본 원인 분석, 리서치 종합, 복잡한 데이터 모델링, 장기 자율 실행 |
-| **balanced** | `claude-sonnet-5` | `gpt-5.6-mini` | 코딩 주력(workhorse): 코드/언어 리뷰, 빌드 오류 해결, 리팩터링, e2e, 문서 |
-| **cost-optimized** | `claude-haiku-4.5` | `gpt-5.6-nano` | 단순·대량·저판단 작업: 번역, 분류, 기본 콘텐츠 |
+| **deep-reasoning** (천장) | `claude-opus-5` | `gpt-5.6-sol` | 오케스트레이션, 아키텍처, 보안 판단, 근본 원인 분석, 리서치 종합, 복잡한 데이터 모델링, 장기 자율 실행 |
+| **balanced** | `claude-sonnet-5` | `gpt-5.6-terra` | 코딩 주력(workhorse): 코드/언어 리뷰, 빌드 오류 해결, 리팩터링, e2e, 문서 |
+| **cost-optimized** | `claude-haiku-4.5` | `gpt-5.6-luna` | 단순·대량·저판단 작업: 번역, 분류, 기본 콘텐츠 |
 
 설계 원칙: **Opus 5가 오케스트레이션과 추론을 맡고, Sonnet은 코딩 물량, Haiku는 값싼 대량 작업.** 기본 티어는 `balanced`(Sonnet 5)다 — 대부분의 에이전트가 코딩 에이전트이므로, 명시되지 않은 역할은 모두 balanced로 떨어진다.
 
@@ -37,12 +37,19 @@ Opus 5는 하네스가 라우팅하는 최상위 티어다. 그 위의 뭔가를
 같은 모델, 더 큰 추론 예산. 티어 점프보다 싸고, Kiro가 직접 지원한다:
 
 ```bash
-kiro-cli chat --effort max                                  # 세션별
+# Claude
 kiro-cli settings chat.modelDefaults \
-  '{"claude-opus-5":{"output_config":{"effort":"max"}}}'    # 모델별 기본값
+  '{"claude-opus-5":{"output_config":{"effort":"max"}}}'
+
+# GPT-5.6
+kiro-cli settings chat.modelDefaults \
+  '{"gpt-5.6-sol":{"reasoning":{"effort":"max"}}}'
+
+# 모든 프로바이더, 세션별
+kiro-cli chat --effort max
 ```
 
-사다리는 `low` → `medium` → `high` → `xhigh` → `max`. 역할별 권장(`model-policy.js`의 `ROLE_EFFORT`):
+공용 사다리는 `low` → `medium` → `high` → `xhigh` → `max`. GPT-5.6은 추가로 `none`도 지원한다. 역할별 권장(`model-policy.js`의 `ROLE_EFFORT`):
 
 | 역할 | 노력 | 이유 |
 |------|------|------|
@@ -55,7 +62,7 @@ kiro-cli settings chat.modelDefaults \
 
 ### 2) 횡향 — 다른 모델 가족
 
-`max`에는 위가 없다. 남은 축은 다른 모델 가족이다. 같은 가족을 다시 프롬프트하는 것은 상관된 맹점을 깨뜨릴 수 없기 때문이다 — 같은 학습, 같은 실패 모드. Kiro는 이를 `peer-reviewer` 에이전트(터미널 `claude -p` + `codex`)와 `--review-backend cross` 옵션의 온디맨드 `bash .kiro/hooks/cross-review.sh`로 노출한다.
+`max`에는 위가 없다. 남은 축은 다른 모델 가족이다. 같은 가족을 다시 프롬프트하는 것은 상관된 맹점을 깨뜨릴 수 없기 때문이다 — 같은 학습, 같은 실패 모드. Kiro는 이를 `peer-reviewer` 에이전트(터미널 `claude -p` + `codex`)와 `--review-backend cross` 옵션의 온디맨드 `bash .kiro/hooks/cross-review.sh`로 노출한다. 설치된 프로바이더 프로필이 독립 백엔드 우선순위를 정한다: Anthropic → Codex를 먼저 호출, OpenAI → Claude Code를 먼저 호출. 다른 CLI는 같은 가족 상호 검증으로 남는다.
 
 **독립성**이나 **수고**가 가치인 경우 다른 가족에 작업을 넘긴다:
 
@@ -83,23 +90,29 @@ kiro-cli settings chat.modelDefaults \
 
 고전적 함정은 **카운터/카탈로그 일관성**: diff가 숫자나 리스트를 바꾸면 그 숫자가 나온 파일을 열어라. `scripts/validate-counts.js`가 이제 그 종류를 기계적으로 포착한다.
 
-## 적용 및 프로바이더 전환
+## 프로바이더 설치 및 전환
 
-각 에이전트 파일의 `model` 필드는 정책 적용기가 기록한다:
+설치 시 패밀리를 선택하세요. 소스 함대는 Anthropic 우선으로 유지되며, 설치된 JSON/Markdown 에이전트만 변환됩니다.
 
 ```bash
-# 미리보기 (쓰기 없음)
-node scripts/apply-model-policy.js --dry-run
+# Claude 프로필 (기본)
+node install.js cli --scope global --provider=anthropic
 
-# Claude(anthropic) 매핑 적용 — 기본값
-node scripts/apply-model-policy.js
-
-# 모든 에이전트를 OpenAI(GPT-5.6) 티어 식별자로 재지정
-node scripts/apply-model-policy.js --provider=openai --dry-run
-node scripts/apply-model-policy.js --provider=openai
+# GPT-5.6 프로필
+node install.js cli --scope global --provider=openai
+node install.js ide --provider=openai --dev=frontend
 ```
 
-적용기는 `model` 값만 교체하며(라인 보존 — 들여쓰기·키 순서·본문 불변), 각 편집 후 JSON 유효성을 검증한다. 티어가 가리키는 식별자를 바꾸려면 `model-policy.js`의 `TIERS`를 수정하고 다시 실행하면 된다.
+프로바이더 프로필이 네 가지를 함께 변경합니다:
+
+1. 역할-티어 모델 ID (`Opus/Sonnet/Haiku` 또는 `Sol/Terra/Luna`).
+2. 출력된 `chat.modelDefaults` 필드 경로 (`output_config.effort` 또는 `reasoning.effort`).
+3. 모든 설치된 에이전트에 주입된 간결한 운영 노트. Claude는 plan/자가검증과 1M 컨텍스트 가이드를 받고, GPT는 배치 도구와 272K 컨텍스트용 조기 컴팩션 가이드를 받습니다.
+4. Cross-family 우선순위. Anthropic은 Codex 우선, OpenAI는 Claude Code 우선.
+
+매니페스트가 `provider`를 기록하며, `node install.js --status`로 확인 가능합니다. 다른 프로바이더로 설치기를 다시 실행하면 워크스페이스를 전환합니다. 글로벌·워크스페이스 설치는 다른 프로바이더를 사용할 수 있으며, 콘텐츠 기반 중복 제거가 차이나는 프로바이더별 워크스페이스 사본을 유지합니다.
+
+`scripts/apply-model-policy.js`는 저장소 소스 자산을 의도적으로 재지정하기 위한 유지 보수 도구로 남아 있습니다. 일반적인 프로바이더 전환이 아닙니다. 소스 검증이 의도적으로 Anthropic 우선 베이스라인을 예상하기 때문입니다.
 
 일관성 검증은 언제든:
 
@@ -113,20 +126,21 @@ Kiro는 `model` 값을 모델 서비스가 반환하는 ID와 대조한다. **�
 
 - 하네스는 **점(dot)** 표기를 쓴다: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4.5`.
 - Anthropic의 정식 API/Bedrock ID는 마이너 버전에 **하이픈**을 쓴다: `claude-haiku-4-5`. `claude-opus-5`, `claude-sonnet-5`는 메이저만 있는 릴리스라 두 표기가 같은 문자열로 수렴한다(모호성 없음).
-- OpenAI는 원래 **점** 표기다: `gpt-5.6`, `gpt-5.6-mini`, `gpt-5.6-nano`.
+- OpenAI의 Kiro 식별자는 `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`입니다.
 - **의존하기 전에 활성 Kiro 세션에서 `/model`로 각 식별자를 확인하라.** 사용 중인 Kiro 빌드가 하이픈 마이너 버전 형식을 기대한다면 `model-policy.js`의 `TIERS`를 고치고 적용기를 다시 실행한다.
 
 ## Kiro 가용성 (기본 티어가 `balanced`라 중요)
 
-티어 값은 Anthropic 모델명이지만, **Kiro 내부 가용성**은 다르며 가용하지 않은 모델은 세션 기본값으로 조용히 폴백한다. 2026-07-26 기준([kiro.dev/docs/models](https://kiro.dev/docs/models)):
+가용성은 여전히 중요합니다. 알 수 없거나 가용하지 않은 식별자는 세션 기본값으로 폴백할 수 있기 때문입니다. 2026-08-04 업데이트 Kiro 모델 문서 기준:
 
-| 모델 | Kiro 상태 | 리전 | 플랜 |
-|------|-----------|------|------|
-| `claude-opus-5` | Active | us-east-1, eu-central-1 | Pro / Pro+ / Power |
-| `claude-sonnet-5` | **Experimental** | **us-east-1 전용** | Pro / Pro+ / Power (Free 제외) |
-| `claude-haiku-4.5` | Active | us-east-1, eu-central-1 | 광범위 |
+| 모델 패밀리 | Kiro 상태 | 컨텍스트 / 리전 안내 |
+|-----------|----------|------------------|
+| `claude-opus-5` | Experimental | 1M 컨텍스트; us-east-1, eu-central-1 (cross-region inference 지원) |
+| `claude-sonnet-5` | Active | 1M 컨텍스트 |
+| `claude-haiku-4.5` | Active | 광범위 가용 |
+| GPT-5.6 Sol / Terra / Luna | Experimental | 272K 컨텍스트; us-east-1, eu-central-1 (cross-region inference 지원) |
 
-**이 제약은 `balanced`(Sonnet 5)에 가장 크게 작용한다 — 대다수 에이전트를 커버하는 기본 티어이기 때문이다.** Anthropic API에서는 Sonnet 5가 GA지만 **Kiro에서는 Experimental + us-east-1 전용**이다. eu-central-1이나 Free 티어에서 하네스를 설치하면 대부분의 에이전트가 기본 모델로 조용히 폴백한다. 그 경우 `TIERS`(`model-policy.js`)의 `balanced`를 가용한 모델로 바꾸고 적용기를 다시 실행한 뒤 `/model`로 확인하라. (Sonnet 5는 수동 extended thinking이 제거되고 adaptive thinking이 기본 ON이다. effort는 low→max를 API 수준에서 지원하며 코딩·agentic에는 high/xhigh가 적합.)
+Experimental 모델은 변경될 수 있으며 리전 제약이 있습니다. 특히 Kiro 업데이트 후에 설치된 ID를 `/model`로 확인하세요.
 
 ## 훅(Hook) → 티어 가이드
 
@@ -143,11 +157,10 @@ IDE 훅(`.kiro/hooks/*.json`, v1 포맷)은 `askAgent` 프롬프트로 에이전
 
 ## OpenAI GPT-5.6 (현재 선택 가능)
 
-GPT-5.6 3종(`gpt-5.6`, `gpt-5.6-mini`, `gpt-5.6-nano`)이 모두 Kiro에서 선택 가능하다. 함대 전환 방법:
+세 GPT-5.6 변형 모두 Kiro에서 선택 가능합니다:
 
-1. `/model`로 정확한 식별자를 확인한다(Kiro 빌드에 따라 네이밍이 다를 수 있다).
-2. `gpt-5.6` / `gpt-5.6-mini` / `gpt-5.6-nano`와 다르면 `TIERS`(`model-policy.js`)의 `openai` 열을 수정한다.
-3. `node scripts/apply-model-policy.js --provider=openai`로 전체 에이전트를 재지정하거나, 프로젝트별로 실행해 워크스페이스마다 프로바이더를 섞는다.
-4. 매핑: `deep-reasoning → gpt-5.6`, `balanced → gpt-5.6-mini`, `cost-optimized → gpt-5.6-nano`.
+- **Sol** (`gpt-5.6-sol`, 2.4x credits): 가장 어려운 장기 추론, 리팩터, 터미널 워크플로.
+- **Terra** (`gpt-5.6-terra`, 1.0x): 일상적 다단계 개발과 균형잡힌 workhorse.
+- **Luna** (`gpt-5.6-luna`, 0.1x): 높은 빈도, 속도·크레딧 민감 작업.
 
-혼합은 의도된 설계다: 라우팅이 에이전트 단위이므로, 오케스트레이션·보안은 Claude(Opus 5)에 두고 물량이 많은 `balanced` 코딩 에이전트만 GPT-5.6-mini로 돌리는(또는 그 반대) 구성이 가능하다 — 그때그때 벤치마크와 가격이 유리한 쪽으로.
+세 종 모두 272K 컨텍스트 윈도우를 가지고 `none`부터 `max`까지 `reasoning.effort`를 지원합니다. `--provider=openai`로 설치하세요. 일반적인 워크스페이스 전환에는 소스 정책 적용기를 실행하지 마세요.

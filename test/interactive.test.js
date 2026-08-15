@@ -41,6 +41,7 @@ test('해피패스(ide): tier·scope·workload·review·proxy·confirm → 정�
 
   await tick(); press(input, 'down', 'return');            // tier: cli→ide
   await tick(); press(input, 'return');                    // scope: default workspace(ide)
+  await tick(); press(input, 'return');   // provider: anthropic(기본)
   await tick(); press(input, 'down', 'down', 'down', 'space', 'return'); // 대분류: data 체크(dev,cloud,ai,data,…)
   await tick(); press(input, 'down', 'down', 'down', 'down', 'space', 'return'); // 중분류: postgres 체크(duckdb,python-data,aws-analytics,mysql,postgres,…)
   await tick(); press(input, 'return');                    // review: claude(기본)
@@ -51,6 +52,7 @@ test('해피패스(ide): tier·scope·workload·review·proxy·confirm → 정�
   assert.deepStrictEqual(opts, {
     tier: 'ide',
     scope: 'workspace',
+    provider: 'anthropic',
     workload: ['core', 'postgres'],
     reviewBackend: 'claude',
     mcpProxy: true,
@@ -65,6 +67,7 @@ test('3단 드릴다운: dev › apple › core 소분류 → swift 워크로드
 
   await tick(); press(input, 'return');                    // tier: cli
   await tick(); press(input, 'return');                    // scope: global
+  await tick(); press(input, 'return');   // provider: anthropic(기본)
   await tick(); press(input, 'space', 'return');           // 대분류: dev 체크(커서 0)
   // 중분류: apple(index 11 — frontend,python,rust,nodejs,go,java,kotlin,cpp,csharp,php,perl,apple)
   await tick(); press(input, ...Array(11).fill('down'), 'space', 'return');
@@ -82,6 +85,7 @@ test('cli 티어는 mcp-proxy 를 묻지 않는다(mcpProxy=false, core만)', as
 
   await tick(); press(input, 'return');   // tier: cli(기본 커서0)
   await tick(); press(input, 'return');   // scope: default global(cli)
+  await tick(); press(input, 'return');   // provider: anthropic(기본)
   await tick(); press(input, 'return');   // categories: 미선택 → core만
   await tick(); press(input, 'return');   // review: claude
   // proxy 단계 없음(cli) → 바로 confirm
@@ -99,6 +103,7 @@ test('dryRun/target 이 opts 로 전달된다', async () => {
   const p = runInteractiveInstall({ input, output: makeOutput(), dryRun: true, target: '/tmp/x' });
   await tick(); press(input, 'return');   // tier cli
   await tick(); press(input, 'return');   // scope global
+  await tick(); press(input, 'return');   // provider: anthropic(기본)
   await tick(); press(input, 'return');   // categories none
   await tick(); press(input, 'return');   // review claude
   await tick(); press(input, 'return');   // confirm install
@@ -119,6 +124,7 @@ test('확인 단계에서 취소 선택 → null', async () => {
   const p = runInteractiveInstall({ input, output: makeOutput() });
   await tick(); press(input, 'return');        // tier cli
   await tick(); press(input, 'return');        // scope global
+  await tick(); press(input, 'return');   // provider: anthropic(기본)
   await tick(); press(input, 'return');        // categories none
   await tick(); press(input, 'return');        // review claude
   await tick(); press(input, 'down', 'return'); // confirm: cancel 선택
@@ -137,6 +143,7 @@ test('중분류 미선택 시 전체 확장 사실을 알린다 + 요약에 설�
 
   await tick(); press(input, 'return');            // tier: cli
   await tick(); press(input, 'return');            // scope: global
+  await tick(); press(input, 'return');   // provider: anthropic(기본)
   await tick(); press(input, 'space', 'return');   // 대분류: dev 체크(커서 0)
   await tick(); press(input, 'return');            // 중분류: 미선택 확정 → 전체
   await tick(); press(input, 'return');            // review: claude
@@ -158,6 +165,7 @@ test('중분류를 명시 선택하면 확장 경고가 나오지 않는다 (경
 
   await tick(); press(input, 'return');                        // tier: cli
   await tick(); press(input, 'return');                        // scope: global
+  await tick(); press(input, 'return');   // provider: anthropic(기본)
   await tick(); press(input, 'space', 'return');               // 대분류: dev
   await tick(); press(input, 'down', 'down', 'space', 'return'); // 중분류: rust 명시 선택
   await tick(); press(input, 'return');                        // review: claude

@@ -234,3 +234,57 @@ test('e2e: 오케스트레이터(kiro-cli) 모델은 정책 천장 티어로 고
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
+
+
+test('e2e: --provider=openai는 Sol/Terra/Luna와 GPT 운영 프로필만 설치본에 적용한다', () => {
+  const tmp = mkTmp();
+  const source = path.join(ROOT, 'agents', 'ide', 'architect.md');
+  const before = fs.readFileSync(source, 'utf8');
+  try {
+    const r = runInstall(['ide', '--workload=core', '--provider=openai', '--review-backend=cross', `--target=${tmp}`]);
+    assert.strictEqual(r.status, 0, `install exit 0 (${r.stderr})`);
+    const kiro = path.join(tmp, '.kiro');
+    const architect = fs.readFileSync(path.join(kiro, 'agents', 'architect.md'), 'utf8');
+    const translator = fs.readFileSync(path.join(kiro, 'agents', 'translator-docs.md'), 'utf8');
+    const peer = fs.readFileSync(path.join(kiro, 'agents', 'peer-reviewer.md'), 'utf8');
+    const cross = fs.readFileSync(path.join(kiro, 'hooks', 'cross-review.sh'), 'utf8');
+    const manifest = JSON.parse(fs.readFileSync(path.join(kiro, '.harness-manifest.json'), 'utf8'));
+
+    assert.match(architect, /^model: gpt-5\.6-sol$/m);
+    assert.match(translator, /^model: gpt-5\.6-luna$/m);
+    assert.match(peer, /For an independent family opinion, prefer Claude Code/);
+    assert.match(architect, /context window is 272K/);
+    assert.match(cross, /^HOST_PROVIDER="openai"$/m);
+    assert.strictEqual(manifest.provider, 'openai');
+    assert.match(r.stdout, /provider profile: GPT-5\.6/);
+    assert.strictEqual(fs.readFileSync(source, 'utf8'), before, '설치가 저장소 소스를 변형하지 않는다');
+
+    // 재설치 멱등성: provider 노트가 중복 주입되지 않고 정확히 1개 유지된다.
+    const r2 = runInstall(['ide', '--workload=core', '--provider=openai', '--review-backend=cross', `--target=${tmp}`]);
+    assert.strictEqual(r2.status, 0, r2.stderr);
+    const architect2 = fs.readFileSync(path.join(kiro, 'agents', 'architect.md'), 'utf8');
+    const markers = architect2.split('kiro-harness:provider-profile:start').length - 1;
+    assert.strictEqual(markers, 1, '재설치 후에도 provider 노트는 1개');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('e2e: OpenAI CLI 설치는 reasoning.effort 안내를 출력하고 잘못된 provider를 거부한다', () => {
+  const tmp = mkTmp();
+  try {
+    const ok = runInstall(['cli', '--scope=global', '--workload=core', '--provider=openai', `--target=${tmp}`]);
+    assert.strictEqual(ok.status, 0, ok.stderr);
+    assert.match(ok.stdout, /gpt-5\.6-sol/);
+    assert.match(ok.stdout, /"reasoning":\{"effort":"max"\}/);
+    const agent = JSON.parse(fs.readFileSync(path.join(tmp, 'agents', 'kiro-cli.json'), 'utf8'));
+    assert.strictEqual(agent.model, 'gpt-5.6-sol');
+    assert.match(agent.prompt, /Batch independent tool reads/);
+
+    const bad = runInstall(['ide', '--provider=bogus', `--target=${tmp}`]);
+    assert.notStrictEqual(bad.status, 0);
+    assert.match(bad.stderr, /Invalid --provider/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

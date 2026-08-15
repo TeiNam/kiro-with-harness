@@ -50,4 +50,4 @@ kiro-cli settings chat.modelDefaults \
 
 **철칙: 외부 패밀리를 유일한 독자로 두지 않는다.** 그쪽만 지적한 것은 코드로 확인해야 하고, 두 패밀리가 독립적으로 잡은 것이 고신뢰 항목이다.
 
-OpenAI GPT-5.6 3종이 Kiro에서 선택 가능하다: deep-reasoning→`gpt-5.6`, balanced→`gpt-5.6-mini`, cost-optimized→`gpt-5.6-nano`. 프로바이더 전환: `node scripts/apply-model-policy.js --provider=openai`.
+OpenAI GPT-5.6 3종이 Kiro에서 선택 가능하다: deep-reasoning→`gpt-5.6-sol`, balanced→`gpt-5.6-terra`, cost-optimized→`gpt-5.6-luna`. 설치 시 `node install.js <cli|ide> --provider=openai`를 쓰면 저장소 소스를 바꾸지 않고 모델 ID, `reasoning.effort` 안내, 272K 컨텍스트 운영 노트가 함께 적용된다. OpenAI가 주 패밀리면 독립 cross-family 백엔드는 Claude Code이고 Codex는 same-family 보강이다.

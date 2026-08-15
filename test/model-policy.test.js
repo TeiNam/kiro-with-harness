@@ -94,9 +94,9 @@ test('tierIdentifier: anthropic 기본 식별자', () => {
 });
 
 test('tierIdentifier: openai 식별자(GPT-5.6 3종)', () => {
-  assert.strictEqual(tierIdentifier('deep-reasoning', 'openai'), 'gpt-5.6');
-  assert.strictEqual(tierIdentifier('balanced', 'openai'), 'gpt-5.6-mini');
-  assert.strictEqual(tierIdentifier('cost-optimized', 'openai'), 'gpt-5.6-nano');
+  assert.strictEqual(tierIdentifier('deep-reasoning', 'openai'), 'gpt-5.6-sol');
+  assert.strictEqual(tierIdentifier('balanced', 'openai'), 'gpt-5.6-terra');
+  assert.strictEqual(tierIdentifier('cost-optimized', 'openai'), 'gpt-5.6-luna');
 });
 
 test('tierIdentifier: 알 수 없는 티어/프로바이더는 throw', () => {
@@ -109,8 +109,8 @@ test('identifierForRole: 역할 → 식별자(프로바이더별)', () => {
   assert.strictEqual(identifierForRole('architect'), 'claude-opus-5');
   assert.strictEqual(identifierForRole('code-reviewer'), 'claude-sonnet-5');
   assert.strictEqual(identifierForRole('translator-docs'), 'claude-haiku-4.5');
-  assert.strictEqual(identifierForRole('code-reviewer', 'openai'), 'gpt-5.6-mini');
-  assert.strictEqual(identifierForRole('kiro-cli', 'openai'), 'gpt-5.6');
+  assert.strictEqual(identifierForRole('code-reviewer', 'openai'), 'gpt-5.6-terra');
+  assert.strictEqual(identifierForRole('kiro-cli', 'openai'), 'gpt-5.6-sol');
 });
 
 test('isKnownProvider', () => {
@@ -185,4 +185,19 @@ test('CROSS_FAMILY: 핸드오프 기준·하네스 잔류 기준·유일한 독�
 test('천장 원칙: deep-reasoning 이 TIER_IDS 의 첫 원소이며 그 위 티어가 없다', () => {
   assert.strictEqual(TIER_IDS[0], 'deep-reasoning');
   assert.strictEqual(classifyRole('kiro-cli'), TIER_IDS[0], '오케스트레이터가 천장에 앉는다');
+});
+
+
+test('PROVIDER_PROFILES: Claude/GPT effort 경로와 cross-family가 올바르게 반전된다', () => {
+  const { providerProfile, effortSettings } = require('../scripts/lib/model-policy');
+  const claude = providerProfile('anthropic');
+  const gpt = providerProfile('openai');
+  assert.deepStrictEqual(effortSettings('anthropic', 'max'), { output_config: { effort: 'max' } });
+  assert.deepStrictEqual(effortSettings('openai', 'max'), { reasoning: { effort: 'max' } });
+  assert.ok(!claude.effortLevels.includes('none'));
+  assert.ok(gpt.effortLevels.includes('none'));
+  assert.strictEqual(claude.crossFamilyBackend, 'Codex');
+  assert.strictEqual(gpt.crossFamilyBackend, 'Claude Code');
+  assert.match(gpt.operatingNote.join(' '), /272K/);
+  assert.throws(() => providerProfile('bogus'), /Unknown provider/);
 });

@@ -7,8 +7,8 @@
  * 에이전트별 모델 배정을 하나의 선언적 정책으로 모은다. 모든 역할(role)을 능력
  * 티어(capability tier)에 매핑하고, 각 티어를 프로바이더별 모델 식별자에 매핑한다.
  * 하네스는 Claude-first 이므로 anthropic 이 기본 프로바이더다. openai 열은
- * Kiro 에서 선택 가능한 GPT-5.6 3종(gpt-5.6 / gpt-5.6-mini / gpt-5.6-nano) 매핑이며
- * `apply-model-policy.js --provider=openai` 로 전환한다.
+ * Kiro 에서 선택 가능한 GPT-5.6 3종(Sol / Terra / Luna) 매핑이며,
+ * 설치 시 `install.js --provider=openai` 로 소스를 바꾸지 않고 적용한다.
  *
  * ── 능력 티어(capability tiers) ──────────────────────────────────────────
  *   - deep-reasoning : **천장(ceiling)**. 오케스트레이션·아키텍처·보안 판단·근본
@@ -47,6 +47,51 @@ const DEFAULT_PROVIDER = 'anthropic';
 const PROVIDERS = ['anthropic', 'openai'];
 
 /**
+ * 설치 시 에이전트에 함께 적용할 프로바이더별 실행 프로필.
+ * 모델 ID뿐 아니라 서로 다른 effort 설정 경로와 작업 방식을 한곳에서 관리한다.
+ */
+const PROVIDER_PROFILES = {
+  anthropic: {
+    label: 'Claude',
+    effortPath: ['output_config', 'effort'],
+    effortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+    contextWindow: '1M',
+    crossFamilyBackend: 'Codex',
+    sameFamilyBackend: 'Claude Code',
+    operatingNote: [
+      'Plan before editing, surface uncertainty, and verify the result before reporting completion.',
+      'Use the 1M context window to keep broad repository context together when that reduces coordination overhead.',
+      'For an independent family opinion, prefer Codex; Claude Code is same-family corroboration.',
+    ],
+  },
+  openai: {
+    label: 'GPT-5.6',
+    effortPath: ['reasoning', 'effort'],
+    effortLevels: ['none', 'low', 'medium', 'high', 'xhigh', 'max'],
+    contextWindow: '272K',
+    crossFamilyBackend: 'Claude Code',
+    sameFamilyBackend: 'Codex',
+    operatingNote: [
+      'Batch independent tool reads and process intermediate results locally when safe instead of making avoidable round trips.',
+      'Keep long tool loops moving to completion, but compact earlier than Claude because the context window is 272K.',
+      'For an independent family opinion, prefer Claude Code; Codex is same-family corroboration.',
+    ],
+  },
+};
+
+function providerProfile(provider = DEFAULT_PROVIDER) {
+  const profile = PROVIDER_PROFILES[provider];
+  if (!profile) throw new Error(`Unknown provider: ${provider}. Valid: ${PROVIDERS.join(', ')}`);
+  return profile;
+}
+
+/** Kiro chat.modelDefaults 에 넣을 프로바이더별 effort 객체. */
+function effortSettings(provider, effort) {
+  const [outer, inner] = providerProfile(provider).effortPath;
+  return { [outer]: { [inner]: effort } };
+}
+
+/**
  * 능력 티어 정의. 각 티어는 프로바이더별 모델 식별자를 가진다.
  * `providers[DEFAULT_PROVIDER]` 가 에이전트 파일에 실제로 기록되는 기본 식별자다.
  * @type {Record<string, { description: string, providers: Record<string, string> }>}
@@ -61,7 +106,7 @@ const TIERS = {
       'See EFFORT_LADDER and CROSS_FAMILY.',
     providers: {
       anthropic: 'claude-opus-5',
-      openai: 'gpt-5.6',
+      openai: 'gpt-5.6-sol',
     },
   },
   balanced: {
@@ -69,7 +114,7 @@ const TIERS = {
       'High-volume coding workhorse: code/language review, build-error resolution, refactor, e2e, documentation. Balances speed, cost, and coding ability.',
     providers: {
       anthropic: 'claude-sonnet-5',
-      openai: 'gpt-5.6-mini',
+      openai: 'gpt-5.6-terra',
     },
   },
   'cost-optimized': {
@@ -77,9 +122,8 @@ const TIERS = {
       'Simple, high-throughput, low-judgment work: translation, classification, basic content generation.',
     providers: {
       anthropic: 'claude-haiku-4.5',
-      // GPT-5.6 은 gpt-5.6 / gpt-5.6-mini / gpt-5.6-nano 3종이 모두 선택 가능하다.
-      // cost-optimized 는 최저가 경량 티어인 nano 를 쓴다.
-      openai: 'gpt-5.6-nano',
+      // cost-optimized 는 최저가 경량 티어인 Luna 를 쓴다.
+      openai: 'gpt-5.6-luna',
     },
   },
 };
@@ -260,6 +304,9 @@ function isKnownProvider(provider) {
 module.exports = {
   DEFAULT_PROVIDER,
   PROVIDERS,
+  PROVIDER_PROFILES,
+  providerProfile,
+  effortSettings,
   TIERS,
   TIER_IDS,
   DEFAULT_TIER,

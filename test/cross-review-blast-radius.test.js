@@ -218,3 +218,14 @@ test('셸 함정 방어가 유지된다 — rg 경로 인자 + </dev/null', () =
   assert.match(rgLine, /\s\.\s/, 'rg 에 경로 인자(.)를 준다');
   assert.match(rgLine, /<\/dev\/null/, 'rg 의 stdin 을 /dev/null 로 막는다');
 });
+
+
+test('기본 Anthropic 프로필은 Codex를 cross-family primary로 표시한다', () => {
+  const dir = makeRepo();
+  try {
+    const out = run(dir);
+    assert.match(out, /cross-family primary: Codex; same-family corroboration: Claude/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
