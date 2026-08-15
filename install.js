@@ -31,7 +31,20 @@ const tiers = require(path.join(HARNESS_ROOT, 'scripts/lib/tiers'));
 const { runInteractiveInstall } = require(path.join(HARNESS_ROOT, 'scripts/lib/interactive'));
 const { ensureMcpProxy } = require(path.join(HARNESS_ROOT, 'scripts/lib/mcp-proxy'));
 const { buildProxyConfig } = require(path.join(HARNESS_ROOT, 'scripts/lib/proxy-config'));
-const { tierIdentifier, effortForRole } = require(path.join(HARNESS_ROOT, 'scripts/lib/model-policy'));
+const {
+  DEFAULT_PROVIDER,
+  PROVIDERS,
+  identifierForRole,
+  effortForRole,
+  effortSettings,
+  isKnownProvider,
+  providerProfile,
+} = require(path.join(HARNESS_ROOT, 'scripts/lib/model-policy'));
+const {
+  applyModelToAgentJson,
+  applyModelToFrontmatter,
+  applyTopLevelJsonString,
+} = require(path.join(HARNESS_ROOT, 'scripts/lib/model-edits'));
 
 let DRY_RUN = false;
 const MANIFEST_FILE = '.harness-manifest.json';
@@ -172,44 +185,81 @@ function dedupAgainstGlobal(ops, scope) {
   return { ops: kept, inherited };
 }
 
-// ── 오케스트레이터 모델·effort ──────────────────────────────
-/**
- * 오케스트레이터(kiro-cli) 모델은 정책의 천장 티어(deep-reasoning)로 고정된다.
- * Opus 5 위의 상위 티어를 찾지 않는다 — 더 깊은 추론은 (1) 같은 티어에서 effort 를
- * 올려서 (2) 그다음은 위가 아니라 옆(다른 모델 패밀리)으로 얻는다.
- * @returns {string} 모델 식별자
- */
-function orchestratorModel() {
-  return tierIdentifier('deep-reasoning');
+// ── 프로바이더별 모델·운영 프로필·effort ────────────────────
+const PROVIDER_NOTE_START = '<!-- kiro-harness:provider-profile:start -->';
+const PROVIDER_NOTE_END = '<!-- kiro-harness:provider-profile:end -->';
+
+function providerNote(provider) {
+  const profile = providerProfile(provider);
+  return [
+    PROVIDER_NOTE_START,
+    `## Provider profile — ${profile.label}`,
+    ...profile.operatingNote.map((line) => `- ${line}`),
+    PROVIDER_NOTE_END,
+  ].join('\n');
 }
 
-/**
- * 오케스트레이터 effort 안내. effort 는 에이전트 JSON 필드가 아니라 세션/설정 레벨
- * 손잡이라(`--effort`, `chat.modelDefaults`) 설치기가 대신 써줄 수 없다 — 실행할
- * 명령을 그대로 보여준다.
- * @param {string} model 오케스트레이터 모델 식별자
- */
-function printEffortHint(model) {
-  const effort = effortForRole('kiro-cli');
-  console.log(`  effort: 천장 티어 위로는 티어가 아니라 effort 를 올립니다 (권장: ${effort}).`);
-  console.log(`    kiro-cli settings chat.modelDefaults '{"${model}":{"output_config":{"effort":"${effort}"}}}'`);
-  console.log(`    세션 단위: kiro-cli chat --effort ${effort}`);
-  console.log('    그 위는 없습니다 — 다음은 옆(cross-family)입니다: peer-reviewer 에이전트.');
+function replaceProviderNote(text, block) {
+  const start = text.indexOf(PROVIDER_NOTE_START);
+  const end = text.indexOf(PROVIDER_NOTE_END, start);
+  if (start === -1 || end === -1) return `${text.replace(/\s*$/, '')}\n\n${block}\n`;
+  return text.slice(0, start) + block + text.slice(end + PROVIDER_NOTE_END.length);
 }
 
-/** kiro-cli(오케스트레이터) 설치 op 의 model 필드를 정책 천장 모델로 치환(치환 시 true). */
-function patchOrchestratorModel(ops, model) {
-  let patched = false;
+/** 선택한 provider를 설치 산출물에만 적용한다. 저장소의 Claude 기준 소스는 바꾸지 않는다. */
+function applyProviderToOps(ops, provider) {
+  let agents = 0;
   for (const op of ops) {
-    if (op.destRel === 'agents/kiro-cli.json' && op.type === 'copy' && fs.existsSync(op.src)) {
-      const raw = fs.readFileSync(op.src, 'utf8');
+    if (/^agents\/.+\.json$/.test(op.destRel)) {
+      const raw = opContent(op);
+      if (raw == null) continue;
+      const role = path.basename(op.destRel, '.json');
+      const modelEdit = applyModelToAgentJson(raw, identifierForRole(role, provider));
+      if (modelEdit.reason) throw new Error(`${op.destRel}: ${modelEdit.reason}`);
+      const parsed = JSON.parse(modelEdit.text);
+      const promptEdit = applyTopLevelJsonString(
+        modelEdit.text,
+        'prompt',
+        replaceProviderNote(parsed.prompt, providerNote(provider))
+      );
+      if (promptEdit.reason) throw new Error(`${op.destRel}: ${promptEdit.reason}`);
       op.type = 'content';
-      op.content = raw.replace(/("model"\s*:\s*")[^"]*(")/, `$1${model}$2`);
+      op.content = promptEdit.text;
       delete op.src;
-      patched = true;
+      agents += 1;
+    } else if (/^agents\/.+\.md$/.test(op.destRel)) {
+      const raw = opContent(op);
+      if (raw == null) continue;
+      const role = path.basename(op.destRel, '.md');
+      const modelEdit = applyModelToFrontmatter(raw, identifierForRole(role, provider));
+      if (modelEdit.reason) throw new Error(`${op.destRel}: ${modelEdit.reason}`);
+      op.type = 'content';
+      op.content = replaceProviderNote(modelEdit.text, providerNote(provider));
+      delete op.src;
+      agents += 1;
+    } else if (op.destRel === 'hooks/cross-review.sh') {
+      const raw = opContent(op);
+      if (raw == null) continue;
+      op.type = 'content';
+      op.content = raw.replace(/^HOST_PROVIDER="[^"]*"$/m, `HOST_PROVIDER="${provider}"`);
+      delete op.src;
     }
   }
-  return patched;
+  return agents;
+}
+
+function orchestratorModel(provider = DEFAULT_PROVIDER) {
+  return identifierForRole('kiro-cli', provider);
+}
+
+function printEffortHint(model, provider) {
+  const effort = effortForRole('kiro-cli');
+  const settings = JSON.stringify({ [model]: effortSettings(provider, effort) });
+  const profile = providerProfile(provider);
+  console.log(`  effort: 천장 티어 위로는 티어가 아니라 effort 를 올립니다 (권장: ${effort}).`);
+  console.log(`    kiro-cli settings chat.modelDefaults '${settings}'`);
+  console.log(`    세션 단위: kiro-cli chat --effort ${effort}`);
+  console.log(`    그 위는 없습니다 — cross-family 우선: ${profile.crossFamilyBackend} (${profile.sameFamilyBackend}는 same-family 보강).`);
 }
 
 // ── 워크로드 정규화 ─────────────────────────────────────────
@@ -227,10 +277,11 @@ function runInstall(opts) {
   const scope = opts.scope || (tier === 'ide' ? 'workspace' : 'global');
   const workloads = resolveWorkloads(opts.workload);
   const reviewBackend = opts.reviewBackend || 'claude';
+  const provider = opts.provider || DEFAULT_PROVIDER;
   const useProxy = opts.mcpProxy === true;
 
   const kiroRoot = resolveKiroRoot(scope, opts.target);
-  console.log(`\ntier=${tier} scope=${scope} workloads=[${workloads.join(',') || 'core'}] review-backend=${reviewBackend}${useProxy ? ' mcp-proxy=on' : ''}`);
+  console.log(`\ntier=${tier} scope=${scope} provider=${provider} workloads=[${workloads.join(',') || 'core'}] review-backend=${reviewBackend}${useProxy ? ' mcp-proxy=on' : ''}`);
   console.log(`target: ${kiroRoot}`);
   if (useProxy && tier === 'cli') {
     console.log('  NOTE: --mcp-proxy 는 IDE 티어의 settings/mcp.json 에만 적용됩니다. CLI 티어는 mcp.json 을 생성하지 않아 효과가 없습니다.');
@@ -240,13 +291,15 @@ function runInstall(opts) {
   selection.mcp = selectMcpServers({ root: HARNESS_ROOT, activeGroups: selection.activeGroups, useProxy });
   const plan = tiers.plan(tier, selection, { root: HARNESS_ROOT });
 
-  // 오케스트레이터(kiro-cli) 모델 = 정책 천장 티어 + 설치 op model 치환 (CLI 티어 전용)
+  // 선택한 provider의 모델·운영 노트를 설치 산출물에만 굽는다.
+  const profiledAgents = applyProviderToOps(plan.ops, provider);
+  console.log(`provider profile: ${providerProfile(provider).label} (${profiledAgents} agent(s) optimized)`);
+
   const hasOrchestrator = selection.agents.some((a) => a.name === 'kiro-cli');
-  const orchModel = orchestratorModel();
+  const orchModel = orchestratorModel(provider);
   if (hasOrchestrator) {
-    patchOrchestratorModel(plan.ops, orchModel);
     console.log(`orchestrator(kiro-cli) model: ${orchModel} (ceiling tier: deep-reasoning)`);
-    printEffortHint(orchModel);
+    printEffortHint(orchModel, provider);
   }
 
   // 글로벌↔워크스페이스 중복 제거: 워크스페이스 설치 시 글로벌에 이미 있는 동일 파일은 상속(스킵)
@@ -262,7 +315,7 @@ function runInstall(opts) {
   const tracked = new Set();
   console.log('');
   executePlan(plan, kiroRoot, tracked);
-  writeManifest(kiroRoot, tracked, { tier, scope, workloads, reviewBackend, mcpProxy: useProxy, ...(hasOrchestrator ? { orchestratorModel: orchModel } : {}) });
+  writeManifest(kiroRoot, tracked, { tier, scope, provider, workloads, reviewBackend, mcpProxy: useProxy, ...(hasOrchestrator ? { orchestratorModel: orchModel } : {}) });
   runPostInstall(plan.postInstall);
 
   // IDE + --mcp-proxy: 워크로드로 필터한 프록시 config 생성 후 mcp-proxy 컨테이너 보장
@@ -317,7 +370,7 @@ function showStatus(opts) {
     console.log('  (no harness manifest — not installed)\n');
     return;
   }
-  console.log(`  tier: ${m.tier || '?'}  workloads: [${(m.workloads || []).join(',') || 'core'}]  review-backend: ${m.reviewBackend || '?'}${m.mcpProxy ? '  mcp-proxy: on' : ''}${m.orchestratorModel ? `  orchestrator: ${m.orchestratorModel}` : ''}`);
+  console.log(`  tier: ${m.tier || '?'}  provider: ${m.provider || DEFAULT_PROVIDER}  workloads: [${(m.workloads || []).join(',') || 'core'}]  review-backend: ${m.reviewBackend || '?'}${m.mcpProxy ? '  mcp-proxy: on' : ''}${m.orchestratorModel ? `  orchestrator: ${m.orchestratorModel}` : ''}`);
   console.log(`  managed files: ${m.managedFiles.length}`);
   if (m.installedAt) console.log(`  installed at: ${m.installedAt}`);
   // 설치 버전 vs 현재 소스 버전 — outdated(갱신 필요) 판정
@@ -356,6 +409,7 @@ function printIntro() {
     '    --workload=<키,...> | all                       워크로드 키 직접 지정(저수준)',
     '',
     '  옵션:',
+    '    --provider anthropic|openai       모델 패밀리(기본 anthropic). 역할별 Claude 또는 GPT-5.6 Sol/Terra/Luna와 최적화 노트를 설치',
     '    --review-backend kiro|claude|cross  리뷰 백엔드(기본 claude=peer-reviewer→claude -p; cross=claude+codex 3-way + cross-review.sh 온디맨드)',
     '    --mcp-proxy                    IDE 티어: mcp.json을 mcp-proxy(:9090) 경유로 생성 + 프록시 컨테이너 자동 보장(없으면 docker compose up -d, 있으면 스킵). mcp-proxy/README.md',
     '    --target <path>                설치 위치. global=이 경로가 곧 .kiro 루트(기본 ~/.kiro), workspace=이 경로 아래 .kiro(기본 cwd)',
@@ -375,7 +429,7 @@ function printIntro() {
 
 // ── CLI 파싱 ───────────────────────────────────────────────
 function parseArgs(argv) {
-  const opts = { tier: null, scope: null, workload: [], reviewBackend: null, target: null, dryRun: false, list: false, status: false, intro: false, mcpProxy: false, interactive: false, categoryFlags: {} };
+  const opts = { tier: null, scope: null, provider: DEFAULT_PROVIDER, workload: [], reviewBackend: null, target: null, dryRun: false, list: false, status: false, intro: false, mcpProxy: false, interactive: false, categoryFlags: {} };
   const catFlagNames = categoryFlagNames(); // 'category' + 대분류 + 소분류 플래그 (categories.js)
   const args = argv.slice(2);
   if (args.length === 0) opts.intro = true;
@@ -389,6 +443,7 @@ function parseArgs(argv) {
       case '--tier': opts.tier = next(); break;
       case '--scope': opts.scope = next(); break;
       case '--workload': case '--workloads': opts.workload = String(next() || '').split(',').map((s) => s.trim()).filter(Boolean); break;
+      case '--provider': opts.provider = next(); break;
       case '--review-backend': opts.reviewBackend = next(); break;
       case '--mcp-proxy': opts.mcpProxy = true; break;
       case '-i': case '--interactive': opts.interactive = true; break;
@@ -422,6 +477,7 @@ function parseArgs(argv) {
     opts.workload = [...new Set([...opts.workload, ...sel.workloads])];
   }
   if (opts.scope && !['global', 'workspace'].includes(opts.scope)) { console.error(`Invalid --scope: ${opts.scope}`); process.exit(1); }
+  if (!isKnownProvider(opts.provider)) { console.error(`Invalid --provider: ${opts.provider} (use ${PROVIDERS.join('|')})`); process.exit(1); }
   if (opts.reviewBackend && !['kiro', 'claude', 'cross'].includes(opts.reviewBackend)) { console.error(`Invalid --review-backend: ${opts.reviewBackend} (use kiro|claude|cross)`); process.exit(1); }
   return opts;
 }
@@ -479,5 +535,6 @@ module.exports = {
   parseArgs, resolveWorkloads, resolveKiroRoot, executePlan,
   readManifest, cleanManaged, runInstall, main,
   opContent, dedupAgainstGlobal, compareSemver, HARNESS_VERSION,
+  applyProviderToOps, providerNote, orchestratorModel,
   setDryRun: (v) => { DRY_RUN = v; },
 };

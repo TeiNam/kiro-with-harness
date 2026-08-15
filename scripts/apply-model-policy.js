@@ -84,6 +84,11 @@ function main(argv) {
     process.stderr.write(`Unknown provider: ${flags.provider} (use anthropic|openai)\n`);
     return 1;
   }
+  if (flags.provider !== DEFAULT_PROVIDER) {
+    process.stderr.write(
+      'NOTE: this command rewrites repository source assets. For a per-install provider profile, use `node install.js <tier> --provider=openai`; source validation intentionally remains Anthropic-first.\n'
+    );
+  }
 
   const changes = [];
   const unchanged = [];

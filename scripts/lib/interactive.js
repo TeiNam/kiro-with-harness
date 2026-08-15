@@ -24,7 +24,7 @@
 const { checkboxPrompt, selectOne } = require('./checkbox-prompt');
 const { CATEGORIES, resolveSelection } = require('./categories');
 const { selectAssets, listSkillAssets } = require('./select-assets');
-const { tierIdentifier } = require('./model-policy');
+const { tierIdentifier, providerProfile } = require('./model-policy');
 
 /**
  * 대화형 설치 옵션을 수집한다.
@@ -62,7 +62,17 @@ async function runInteractiveInstall(io = {}) {
     }));
     if (!scope) return null;
 
-    // 3) workloads: 대분류(다중) → 중분류(다중, 미선택=전체) → 소분류(있을 때만)
+    // 3) provider — 설치 산출물의 모델 ID·effort 경로·운영 노트를 함께 결정한다.
+    const provider = await selectOne(ask({
+      title: '\n모델 패밀리(provider):',
+      options: [
+        { id: 'anthropic', label: 'anthropic (기본 — Claude Opus/Sonnet/Haiku)' },
+        { id: 'openai', label: 'openai   (GPT-5.6 Sol/Terra/Luna)' },
+      ],
+    }));
+    if (!provider) return null;
+
+    // 4) workloads: 대분류(다중) → 중분류(다중, 미선택=전체) → 소분류(있을 때만)
     say('\n\ud575\uc2ec(core)\uc740 \ud56d\uc0c1 \uc124\uce58\ub429\ub2c8\ub2e4. \ucd94\uac00\ub85c \uc124\uce58\ud560 \uc601\uc5ed\uc744 \uace0\ub974\uc138\uc694.');
     const categories = await checkboxPrompt(ask({
       title: '\ub300\ubd84\ub958 (space \ud1a0\uae00 \u00b7 a \uc804\uccb4 \u00b7 enter \ud655\uc815, \ubbf8\uc120\ud0dd=core\ub9cc):',
@@ -136,10 +146,11 @@ async function runInteractiveInstall(io = {}) {
     say('\n\u2500\u2500 \uc124\uce58 \uc694\uc57d \u2500\u2500');
     say(`  tier          : ${tier}`);
     say(`  scope         : ${scope}`);
+    say(`  provider      : ${provider} (${providerProfile(provider).label})`);
     say(`  workloads     : ${sel.workloads.length}개 — ${sel.workloads.join(', ')}`);
     if (volume) say(`  설치 자산     : 스킬 ${volume.skills}/${volume.allSkills} · 에이전트 ${volume.agents}`);
     say(`  review-backend: ${reviewBackend}`);
-    if (tier === 'cli' && scope === 'global') say(`  orchestrator  : ${tierIdentifier('deep-reasoning')} (ceiling tier, effort \u2191 \u2192 cross-family)`);
+    if (tier === 'cli' && scope === 'global') say(`  orchestrator  : ${tierIdentifier('deep-reasoning', provider)} (ceiling tier, effort \u2191 \u2192 cross-family)`);
     if (tier === 'ide') say(`  mcp-proxy     : ${mcpProxy ? 'on' : 'off'}`);
     say('');
 
@@ -155,6 +166,7 @@ async function runInteractiveInstall(io = {}) {
     return {
       tier,
       scope,
+      provider,
       workload: sel.workloads,
       reviewBackend,
       mcpProxy,

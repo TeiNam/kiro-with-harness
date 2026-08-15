@@ -7,20 +7,24 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. Tuned for Kiro's ceiling tier — Opus 5, with escalation by **effort** rather than by tier, then sideways to a different model family — with role-based model routing, DAG-style parallel delegation, an enforced git pipeline, and a shared agent collaboration guide (AGENTS.md).
+Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload and model-provider selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. The installer optimizes the same role tiers for either Claude (default) or GPT-5.6 without duplicating the asset fleet: it writes provider-specific model IDs, effort guidance, operating notes, and cross-family review priority into the installed output. The ceiling tier escalates by **effort** rather than by another tier, then sideways to a different model family, with role-based model routing, DAG-style parallel delegation, an enforced git pipeline, and a shared agent collaboration guide (AGENTS.md).
 
 ## Quick Start
 
 The installer uses a **tier × category tree** model: choose `cli` or `ide`, then select categories.
 
 ```bash
-# Interactive install (guided prompts: tier, scope, categories, review backend, MCP proxy)
+# Interactive install (guided prompts: tier, scope, provider, categories, review backend, MCP proxy)
 node install.js              # or: node install.js -i
 
 # CLI tier: install global baseline (orchestrator agents, skills → ~/.kiro)
 node install.js cli --scope global
 
-# Rust + Python dev, workspace install
+# Same fleet optimized for OpenAI GPT-5.6 Sol / Terra / Luna
+node install.js cli --scope global --provider=openai
+
+# Claude is the default; provider selection also works for IDE/workspace installs
+node install.js ide --provider=anthropic --dev=frontend
 node install.js cli --scope workspace --dev=rust,python
 
 # Frontend development (React/TypeScript)
@@ -152,14 +156,14 @@ Agent model assignments are role-based, organized into three **provider-agnostic
 | Balanced (default) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, language reviewers, build-resolvers, database-reviewer, e2e-runner, doc/tech writers |
 | Cost-optimized | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
-The design principle: **Opus 5 orchestrates and reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** Routing is per-agent, so you can mix models across roles. All three OpenAI GPT-5.6 variants are selectable in Kiro; the same tiers map to them (`deep-reasoning → gpt-5.6`, `balanced → gpt-5.6-mini`, `cost-optimized → gpt-5.6-nano`) — run `node scripts/apply-model-policy.js --provider=openai` to retarget. Full details, hook→tier guidance, and the provider-switch workflow: [Model routing](docs/en/model-routing.md).
+The design principle: **Opus 5 orchestrates and reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** The same capability tiers map to OpenAI as `deep-reasoning → gpt-5.6-sol`, `balanced → gpt-5.6-terra`, and `cost-optimized → gpt-5.6-luna`. Choose with `--provider=anthropic|openai`; the installer changes only the installed output, leaving the Anthropic-first source assets untouched. It also injects a concise provider operating note into every installed agent: Claude gets plan/self-verification and 1M-context guidance, while GPT gets batched-tool/early-compaction guidance for its 272K context. Full details, hook→tier guidance, and provider switching: [Model routing](docs/en/model-routing.md).
 
 ### Opus 5 is the ceiling — escalate inward, then sideways
 
 There is no tier above `claude-opus-5`. When a task needs more than the top tier is producing, the harness escalates in two directions instead of reaching for a bigger model:
 
 1. **Inward — raise effort within the tier.** `low` → `medium` → `high` → `xhigh` → `max`. Same model, larger reasoning budget, cheaper than a tier jump. Kiro exposes this as `kiro-cli chat --effort <level>` and `kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'`. The installer prints the exact command (effort is a session/settings knob, not an agent-config field). Recommended: orchestrator `max`; architect / security-reviewer / peer-reviewer `xhigh`; mechanical roles `low`.
-2. **Sideways — a different model family.** At `max` there is nothing above. Re-prompting the same family cannot break correlated blind spots (same training, same failure modes), so the remaining axis is a different family: the `peer-reviewer` agent (terminal `claude -p` + `codex`) and, with `--review-backend cross`, `bash .kiro/hooks/cross-review.sh`. Hand off where **independence** or **grind** is the value — adversarial review of code this fleet wrote, tie-breaking two disagreeing attempts, large mechanical edits, a second diagnosis when stuck. Keep in the harness anything needing steering rules, skills, workload tags, tool orchestration, or Korean output.
+2. **Sideways — a different model family.** At `max` there is nothing above. Re-prompting the same family cannot break correlated blind spots (same training, same failure modes), so the remaining axis is a different family: the `peer-reviewer` agent (terminal `claude -p` + `codex`) and, with `--review-backend cross`, `bash .kiro/hooks/cross-review.sh`. The selected provider determines priority: an Anthropic-hosted fleet calls Codex first; an OpenAI-hosted fleet calls Claude Code first. The other backend remains same-family corroboration. Hand off where **independence** or **grind** is the value — adversarial review of code this fleet wrote, tie-breaking two disagreeing attempts, large mechanical edits, a second diagnosis when stuck. Keep in the harness anything needing steering rules, skills, workload tags, tool orchestration, or Korean output.
 
 > **The rule that makes the sideways axis pay off:** never let an external family be the *only* reader of something that matters. A finding only it reports still needs confirmation against the actual code; findings both families flag independently are the high-confidence ones. `cross-review.sh` prints this at the end of every run and, before the review, extracts the **blast radius** — files that did *not* change but should be reviewed anyway, via reverse `require`/`import` references and historical co-change.
 
@@ -288,6 +292,7 @@ Options:
   --<category>= <list>           Sub-category selection (e.g., --dev=frontend,python; unselected = all subs)
   --<category>-<sub>= <list>     Detail option (e.g., --writing-social=voice; for subs with drill-down only)
   --workload <list|all>          Low-level: comma-separated workload keys or 'all' (legacy surface, merges with categories via union)
+  --provider <anthropic|openai>  Model family profile (default: anthropic); writes role models, effort guidance, operating notes, and cross-family priority into installed agents
   --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE only: route mcp.json through mcp-proxy (:9090) and auto-start the proxy container (docker compose up -d) if not already running
   --target <path>                Install to specified directory

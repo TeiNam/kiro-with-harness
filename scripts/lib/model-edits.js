@@ -36,7 +36,7 @@ function isWhitespace(ch) {
  * @param {string} text 원본 JSON 텍스트.
  * @returns {number} 최상위 model 키 여는 따옴표의 인덱스. 없으면 -1.
  */
-function findTopLevelModelKeyStart(text) {
+function findTopLevelKeyStart(text, key = 'model') {
   let inString = false;
   let escaped = false;
   let depth = 0;
@@ -56,7 +56,7 @@ function findTopLevelModelKeyStart(text) {
         // 방금 닫힌 문자열이 깊이 1의 키 위치(뒤에 ':')에 있는 'model'인지 확인.
         if (depth === 1) {
           const content = text.slice(stringStart + 1, i);
-          if (content === 'model') {
+          if (content === key) {
             let j = i + 1;
             while (j < n && isWhitespace(text[j])) j++;
             if (text[j] === ':') {
@@ -79,6 +79,30 @@ function findTopLevelModelKeyStart(text) {
   }
 
   return -1;
+}
+
+/** 최상위 문자열 필드 하나만 바이트 보존 방식으로 교체한다. */
+function applyTopLevelJsonString(rawText, key, value) {
+  let parsed;
+  try { parsed = JSON.parse(rawText); }
+  catch { return { text: rawText, changed: false, reason: 'invalid-input-json' }; }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed[key] !== 'string') {
+    return { text: rawText, changed: false, reason: `missing-${key}-field` };
+  }
+  const keyStart = findTopLevelKeyStart(rawText, key);
+  if (keyStart === -1) return { text: rawText, changed: false, reason: `missing-${key}-field` };
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const valueRe = new RegExp(`^("${escapedKey}"\\s*:\\s*)"(?:[^"\\\\]|\\\\.)*"`);
+  const tail = rawText.slice(keyStart);
+  if (!valueRe.test(tail)) return { text: rawText, changed: false, reason: `missing-${key}-field` };
+  const newTail = tail.replace(valueRe, (_full, prefix) => prefix + JSON.stringify(String(value)));
+  const newText = rawText.slice(0, keyStart) + newTail;
+  try {
+    if (JSON.parse(newText)[key] !== String(value)) throw new Error('field mismatch');
+  } catch {
+    return { text: rawText, changed: false, reason: 'parse-failed' };
+  }
+  return { text: newText, changed: newText !== rawText };
 }
 
 /**
@@ -126,7 +150,7 @@ function applyModelToAgentJson(rawText, newModel) {
   }
 
   // 2. 최상위 "model" 키의 위치를 깊이 추적 스캔으로 특정한다(중첩 키 배제).
-  const keyStart = findTopLevelModelKeyStart(rawText);
+  const keyStart = findTopLevelKeyStart(rawText, 'model');
   if (keyStart === -1) {
     // 파서는 top-level model을 보았지만 텍스트 스캔이 못 찾는 경우(예: 비문자열 값).
     return { text: rawText, changed: false, reason: 'missing-model-field' };
@@ -354,6 +378,7 @@ function applyModelToFrontmatter(rawText, newModel) {
 }
 
 module.exports = {
+  applyTopLevelJsonString,
   applyModelToAgentJson,
   applyModelToFrontmatter,
 };

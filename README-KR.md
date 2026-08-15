@@ -7,7 +7,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자와 워크로드 선택으로 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. Kiro 천장(ceiling) 티어인 Opus 5로 최적화하며, **노력(effort)**으로 계층 내에서 에스컬레이션하고, 다른 모델 패밀리로 옆(sideways) 에스컬레이션하는 구조 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 강제 git 파이프라인, 공유 에이전트 협업 가이드(AGENTS.md).
+Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자로 워크로드와 모델 프로바이더를 선택하여, 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. 설치 관리자는 동일 역할 티어를 Claude(기본값) 또는 GPT-5.6으로 최적화하며, 자산 fleet을 중복하지 않습니다: 프로바이더 특화 모델 ID, 노력(effort) 가이드, 운영 노트, 교차 패밀리 리뷰 우선순위를 설치 산출물에 기록합니다. 천장 티어는 **노력**으로 에스컬레이션하고, 그 다음 다른 모델 패밀리로 옆(sideways) 에스컬레이션합니다 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 강제 git 파이프라인, 공유 에이전트 협업 가이드(AGENTS.md).
 
 ## 빠른 시작
 
@@ -20,7 +20,11 @@ node install.js              # 또는: node install.js -i
 # CLI 계층: 글로벌 기본 설정 설치 (오케스트레이터 에이전트, 스킬 → ~/.kiro)
 node install.js cli --scope global
 
-# Rust + Python 개발, 워크스페이스 설치
+# OpenAI GPT-5.6 Sol / Terra / Luna로 최적화한 동일 fleet
+node install.js cli --scope global --provider=openai
+
+# Claude는 기본값; 프로바이더 선택은 IDE/워크스페이스 설치에도 적용됨
+node install.js ide --provider=anthropic --dev=frontend
 node install.js cli --scope workspace --dev=rust,python
 
 # 프론트엔드 개발 (React/TypeScript)
@@ -152,14 +156,14 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 | 균형 (기본) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, 언어 리뷰어, 빌드 해결자, database-reviewer, e2e-runner, 문서/기술 작성자 |
 | 비용 최적화 | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
-설계 원칙: **Opus 5가 오케스트레이션과 추론을 담당하고, Sonnet이 코딩 물량을 처리하며, Haiku는 값싼 대량 작업을 맡는다.** 라우팅은 에이전트 단위라 역할별로 모델을 섞을 수 있습니다. OpenAI GPT-5.6 3종이 모두 Kiro에서 선택 가능하며 동일한 티어가 그대로 매핑됩니다(`deep-reasoning → gpt-5.6`, `balanced → gpt-5.6-mini`, `cost-optimized → gpt-5.6-nano`) — `node scripts/apply-model-policy.js --provider=openai`로 재지정하세요. 전체 배정·훅→티어 가이드·프로바이더 전환 워크플로: [모델 라우팅](docs/kr/model-routing.md).
+설계 원칙: **Opus 5가 오케스트레이션과 추론을 담당하고, Sonnet이 코딩 물량을 처리하며, Haiku는 값싼 대량 작업을 맡는다.** 동일한 능력 티어가 OpenAI에도 매핑됩니다: `deep-reasoning → gpt-5.6-sol`, `balanced → gpt-5.6-terra`, `cost-optimized → gpt-5.6-luna`. `--provider=anthropic|openai`로 선택하세요. 설치기는 설치된 산출물만 변경하며 Anthropic 우선 소스 자산은 손대지 않습니다. 또한 모든 설치된 에이전트에 프로바이더별 운영 노트를 주입합니다: Claude는 plan/자가검증과 1M 컨텍스트 가이드, GPT는 배치 도구/조기 컴팩션 가이드(272K 컨텍스트용)를 받습니다. 전체 배정·훅→티어 가이드·프로바이더 전환: [모델 라우팅](docs/kr/model-routing.md).
 
 ### Opus 5가 천장이다 — 안으로 에스컬레이션한 후 옆으로
 
 `claude-opus-5` 위의 티어는 없습니다. 태스크가 최상위 티어 성능을 초과해야 할 때, 더 큰 모델에 도달하는 대신 하네스는 두 방향으로 에스컬레이션합니다:
 
 1. **안으로 — 같은 티어 내에서 노력을 올린다.** `low` → `medium` → `high` → `xhigh` → `max`. 같은 모델, 더 큰 추론 예산, 티어 점프보다 저렴합니다. Kiro는 이를 `kiro-cli chat --effort <level>`과 `kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'`로 노출합니다. 설치기가 정확한 명령을 출력합니다(effort는 세션/설정 손잡이이지 에이전트 설정이 아닙니다). 권장사항: 오케스트레이터 `max`; architect / security-reviewer / peer-reviewer `xhigh`; 기계적 역할 `low`.
-2. **옆으로 — 다른 모델 패밀리.** `max`에는 그 위가 없습니다. 같은 패밀리에 다시 프롬프트하면 상관관계가 있는 blind spot을 깨뜨릴 수 없습니다(같은 학습, 같은 failure 모드), 따라서 남은 축은 다른 패밀리입니다: `peer-reviewer` 에이전트(터미널 `claude -p` + `codex`)와 `--review-backend cross` 사용 시 `bash .kiro/hooks/cross-review.sh`. **독립성** 또는 **grinding**이 가치인 곳으로 넘기세요 — 이 fleet이 작성한 코드에 대한 adversarial review, 두 의견이 어긋날 때 tie-breaking, 대규모 기계 편집, 막힌 상태에서 두 번째 진단. 스티어링 규칙, 스킬, 워크로드 태그, 도구 오케스트레이션, 한국어 출력이 필요한 모든 것은 하네스에 유지하세요.
+2. **옆으로 — 다른 모델 패밀리.** `max`에는 그 위가 없습니다. 같은 패밀리에 다시 프롬프트하면 상관관계가 있는 blind spot을 깨뜨릴 수 없습니다(같은 학습, 같은 failure 모드), 따라서 남은 축은 다른 패밀리입니다: `peer-reviewer` 에이전트(터미널 `claude -p` + `codex`)와 `--review-backend cross` 사용 시 `bash .kiro/hooks/cross-review.sh`. 선택된 프로바이더가 우선순위를 결정합니다: Anthropic 호스팅 fleet은 Codex를 먼저 호출하고, OpenAI 호스팅 fleet은 Claude Code를 먼저 호출합니다. 다른 백엔드는 같은 패밀리 상호 검증으로 남습니다. **독립성** 또는 **grinding**이 가치인 곳으로 넘기세요 — 이 fleet이 작성한 코드에 대한 adversarial review, 두 의견이 어긋날 때 tie-breaking, 대규모 기계 편집, 막힌 상태에서 두 번째 진단. 스티어링 규칙, 스킬, 워크로드 태그, 도구 오케스트레이션, 한국어 출력이 필요한 모든 것은 하네스에 유지하세요.
 
 > **옆 축을 가치있게 만드는 규칙:** 중요한 무언가의 *유일한* 독자가 외부 패밀리가 되게 하지 마세요. 그것만 보고하는 발견은 여전히 실제 코드에 대한 확인이 필요하며, 두 패밀리가 독립적으로 플래그하는 발견이 높은 신뢰도입니다. `cross-review.sh`는 실행의 끝에 이를 출력하며, review 전에 **blast radius**를 추출합니다 — 변경되지 *않았지만* 어쨌든 리뷰되어야 할 파일들로, reverse `require`/`import` 참조와 역사적 co-change를 통해 찾습니다.
 
@@ -284,7 +288,8 @@ node install.js <tier> [options]
   --category <list>              대분류: dev, cloud, ai, data, research, writing (콤마로 구분; 미선택 = 전체)
   --<category>= <list>           중분류 선택 (예: --dev=frontend,python; 미선택 = 전체 중분류)
   --<category>-<sub>= <list>     소분류 옵션 (예: --writing-social=voice; 소분류가 있는 중분류만)
-  --workload <list|all>           저수준: 워크로드 키 직접 지정 (쉼표로 구분 또는 'all'; 레거시 표면, 카테고리와 합집합)
+  --workload <list|all>          저수준: 워크로드 키 직접 지정 (쉼표로 구분 또는 'all'; 레거시 표면, 카테고리와 합집합)
+  --provider <anthropic|openai>  모델 프로바이더 프로필 (기본: anthropic); 역할 모델·effort 가이드·운영 노트·교차 패밀리 우선순위를 설치 에이전트에 기록
   --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE 전용: mcp.json을 mcp-proxy(:9090) 경유로 구성 + 프록시 컨테이너 자동 기동(미실행 시 docker compose up -d)
   --target <path>                지정 디렉토리에 설치

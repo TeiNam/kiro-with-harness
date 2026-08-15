@@ -8,9 +8,9 @@ The harness assigns each agent a model by **capability tier**, not by hand-picki
 
 | Tier | Claude (default) | OpenAI | Use for |
 |------|------------------|--------|---------|
-| **deep-reasoning** (ceiling) | `claude-opus-5` | `gpt-5.6` | Orchestration, architecture, security judgment, root-cause analysis, research synthesis, complex data modeling, long-horizon autonomous runs |
-| **balanced** | `claude-sonnet-5` | `gpt-5.6-mini` | High-volume coding workhorse: code/language review, build-error resolution, refactor, e2e, documentation |
-| **cost-optimized** | `claude-haiku-4.5` | `gpt-5.6-nano` | Simple, high-throughput, low-judgment work: translation, classification, basic content |
+| **deep-reasoning** (ceiling) | `claude-opus-5` | `gpt-5.6-sol` | Orchestration, architecture, security judgment, root-cause analysis, research synthesis, complex data modeling, long-horizon autonomous runs |
+| **balanced** | `claude-sonnet-5` | `gpt-5.6-terra` | High-volume coding workhorse: code/language review, build-error resolution, refactor, e2e, documentation |
+| **cost-optimized** | `claude-haiku-4.5` | `gpt-5.6-luna` | Simple, high-throughput, low-judgment work: translation, classification, basic content |
 
 The design principle: **Opus 5 orchestrates and reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** `balanced` (Sonnet 5) is the default tier — most agents are coding agents, so any role not explicitly listed falls to balanced.
 
@@ -34,15 +34,22 @@ Opus 5 is the top tier the harness routes to. Instead of looking for something a
 
 ### 1) Inward — raise effort inside the tier
 
-Same model, larger reasoning budget. Cheaper than a tier jump, and Kiro supports it directly:
+Same model, larger reasoning budget. Cheaper than a tier jump, and Kiro supports it directly. The field path differs by family:
 
 ```bash
-kiro-cli chat --effort max                                  # per session
+# Claude
 kiro-cli settings chat.modelDefaults \
-  '{"claude-opus-5":{"output_config":{"effort":"max"}}}'    # per-model default
+  '{"claude-opus-5":{"output_config":{"effort":"max"}}}'
+
+# GPT-5.6
+kiro-cli settings chat.modelDefaults \
+  '{"gpt-5.6-sol":{"reasoning":{"effort":"max"}}}'
+
+# Either family, per session
+kiro-cli chat --effort max
 ```
 
-The ladder is `low` → `medium` → `high` → `xhigh` → `max`. Recommended per role (`ROLE_EFFORT` in `model-policy.js`):
+The shared ladder is `low` → `medium` → `high` → `xhigh` → `max`; GPT-5.6 also supports `none`. Recommended per role (`ROLE_EFFORT` in `model-policy.js`):
 
 | Role | Effort | Why |
 |------|--------|-----|
@@ -55,7 +62,7 @@ Note that `effort` is **not** an agent-config field — Kiro's agent schema has 
 
 ### 2) Sideways — a different model family
 
-At `max` there is nothing above. The remaining axis is a different model family, because re-prompting the same family cannot break correlated blind spots — same training, same failure modes. Kiro surfaces this through the `peer-reviewer` agent (terminal `claude -p` + `codex`) and, with `--review-backend cross`, the on-demand `bash .kiro/hooks/cross-review.sh`.
+At `max` there is nothing above. The remaining axis is a different model family, because re-prompting the same family cannot break correlated blind spots — same training, same failure modes. Kiro surfaces this through the `peer-reviewer` agent (terminal `claude -p` + `codex`) and, with `--review-backend cross`, the on-demand `bash .kiro/hooks/cross-review.sh`. The installed provider profile sets the independent backend first: Anthropic → Codex; OpenAI → Claude Code. The other CLI is labeled same-family corroboration rather than an independent vote.
 
 Hand work to another family when **independence** or **grind** is the value:
 
@@ -81,25 +88,31 @@ Two failure modes to know about, both measured: `rg` must be given a path argume
 
 The classic catch is **counter/catalog consistency**: if a diff changes a number or a list, open the file that number comes from. `scripts/validate-counts.js` now catches that class mechanically.
 
-## Applying and Switching Providers
+## Installing and Switching Providers
 
-The `model` field in each agent file is written by the policy applier:
+Choose the family when installing. The source fleet stays Anthropic-first; only the installed JSON/Markdown agents are transformed.
 
 ```bash
-# Preview (no writes)
-node scripts/apply-model-policy.js --dry-run
+# Claude profile (default)
+node install.js cli --scope global --provider=anthropic
 
-# Apply the Claude (anthropic) mapping — the default
-node scripts/apply-model-policy.js
-
-# Retarget every agent to the OpenAI (GPT-5.6) tier identifiers
-node scripts/apply-model-policy.js --provider=openai --dry-run
-node scripts/apply-model-policy.js --provider=openai
+# GPT-5.6 profile
+node install.js cli --scope global --provider=openai
+node install.js ide --provider=openai --dev=frontend
 ```
 
-The applier edits only the `model` value (line-preserving — indentation, key order, and body are untouched) and validates JSON after each edit. To change what a tier points to, edit `TIERS` in `model-policy.js` and re-run.
+The provider profile changes four things together:
 
-Validate consistency any time:
+1. Role-tier model IDs (`Opus/Sonnet/Haiku` or `Sol/Terra/Luna`).
+2. The printed `chat.modelDefaults` field path (`output_config.effort` or `reasoning.effort`).
+3. A concise operating note injected into every installed agent. Claude gets plan/self-verification and 1M-context guidance; GPT gets batched-tool and earlier-compaction guidance for its 272K context.
+4. Cross-family priority. Anthropic runs Codex first; OpenAI runs Claude Code first.
+
+The manifest records `provider`, and `node install.js --status` shows it. Re-run the installer with another provider to switch a workspace. Global and workspace installs may use different providers; content-based deduplication keeps a provider-specific workspace copy when it differs from the global one.
+
+`scripts/apply-model-policy.js` remains a maintenance tool for deliberately repinning repository source assets. It is not the normal provider switch, because source validation intentionally expects the Anthropic-first baseline.
+
+Validate source consistency any time:
 
 ```bash
 node scripts/validate-models.js   # or: npm run validate:models
@@ -111,20 +124,21 @@ Kiro validates the `model` value against the IDs its model service returns. **An
 
 - The harness uses **dotted** identifiers: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4.5`.
 - Anthropic's canonical API/Bedrock IDs use **hyphens** for minor versions: `claude-haiku-4-5`. `claude-opus-5` and `claude-sonnet-5` are major-only releases, so both conventions collapse to the same string (no ambiguity there).
-- OpenAI uses **dot** notation natively: `gpt-5.6`, `gpt-5.6-mini`, `gpt-5.6-nano`.
+- OpenAI's Kiro identifiers are `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`.
 - **Confirm each identifier with `/model` in an active Kiro session before relying on it.** If your Kiro build expects the hyphenated minor-version form, update `TIERS` in `model-policy.js` and re-run the applier.
 
 ## Kiro Availability (matters because `balanced` is the default tier)
 
-The tier values are Anthropic model names; their **availability inside Kiro** differs, and an unavailable model silently falls back to the session default. As of 2026-07-26 ([kiro.dev/docs/models](https://kiro.dev/docs/models)):
+Availability still matters because an unknown or unavailable identifier can fall back to the session default. As of the Kiro model docs updated 2026-08-04:
 
-| Model | Kiro status | Regions | Plans |
-|-------|-------------|---------|-------|
-| `claude-opus-5` | Active | us-east-1, eu-central-1 | Pro / Pro+ / Power |
-| `claude-sonnet-5` | **Experimental** | **us-east-1 only** | Pro / Pro+ / Power (not Free) |
-| `claude-haiku-4.5` | Active | us-east-1, eu-central-1 | broad |
+| Model family | Kiro status | Context / region note |
+|--------------|-------------|-----------------------|
+| `claude-opus-5` | Experimental | 1M context; us-east-1 and eu-central-1 with cross-region inference |
+| `claude-sonnet-5` | Active | 1M context |
+| `claude-haiku-4.5` | Active | Broadly available |
+| GPT-5.6 Sol / Terra / Luna | Experimental | 272K context; us-east-1 and eu-central-1 with cross-region inference |
 
-**This bites hardest on `balanced` (Sonnet 5), because it is the default tier covering most agents.** On the Anthropic API Sonnet 5 is GA, but **in Kiro it is Experimental and us-east-1-only**. If you install the harness while on eu-central-1 or the Free tier, the majority of agents silently fall back to the default model. In that case, point `balanced` at an available model in `TIERS` (`model-policy.js`) and re-run the applier — then confirm with `/model`. (Sonnet 5 also removed manual extended thinking and defaults to adaptive thinking; effort levels low→max are supported at the API level, with high/xhigh best for coding/agentic work.)
+Experimental models may change and have region constraints. Confirm the installed IDs with `/model`, especially after a Kiro update.
 
 ## Hook → Tier Guidance
 
@@ -141,11 +155,10 @@ For heavyweight review that must run on a specific tier regardless of the sessio
 
 ## OpenAI GPT-5.6 (selectable now)
 
-All three GPT-5.6 variants (`gpt-5.6`, `gpt-5.6-mini`, `gpt-5.6-nano`) are selectable in Kiro. To retarget the fleet:
+All three GPT-5.6 variants are selectable in Kiro:
 
-1. Confirm the exact identifiers with `/model` (naming may differ per Kiro build).
-2. If they differ from `gpt-5.6` / `gpt-5.6-mini` / `gpt-5.6-nano`, update the `openai` column in `TIERS` (`model-policy.js`).
-3. Run `node scripts/apply-model-policy.js --provider=openai` to retarget all agents, or run it per project to mix providers across workspaces.
-4. The mapping: `deep-reasoning → gpt-5.6`, `balanced → gpt-5.6-mini`, `cost-optimized → gpt-5.6-nano`.
+- **Sol** (`gpt-5.6-sol`, 2.4x credits): hardest long-horizon reasoning, refactors, and terminal workflows.
+- **Terra** (`gpt-5.6-terra`, 1.0x): routine multi-step development and the balanced workhorse.
+- **Luna** (`gpt-5.6-luna`, 0.1x): high-frequency, speed- and credit-sensitive work.
 
-Mixing is intentional: because routing is per-agent, you can keep orchestration/security on Claude (Opus 5) while running the high-volume `balanced` coding agents on GPT-5.6-mini (or vice versa) — whatever the benchmarks and pricing favor at the time.
+All three have a 272K context window and support `reasoning.effort` from `none` through `max`. Install with `--provider=openai`; do not run the source policy applier for normal workspace switching.
