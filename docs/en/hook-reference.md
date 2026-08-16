@@ -57,7 +57,7 @@ For `PreToolUse`/`PostToolUse`, built-in tool categories usable as a matcher inc
 
 ## Installed Hooks (IDE tier)
 
-The IDE tier installs 5 hooks, an optimized set defined in `scripts/lib/tiers.js` (`IDE_HOOKS`). All are workload-independent and use agent actions. (`scripts/validate-counts.js` checks this number against the install plan, so it can't drift silently.)
+The IDE tier installs 2 hooks — deterministic gates symmetric with the CLI tier, defined in `scripts/lib/tiers.js` (`IDE_HOOKS`). Per-event agent automations (review-on-stop, capture-lessons, changelog-on-commit) were removed in v2: reviews run on demand (code-reviewer agent, `cross-review.sh`), lessons live in the `lessons-learned` skill, and the CHANGELOG convention lives in repo steering. (`scripts/validate-counts.js` checks this number against the install plan, so it can't drift silently.)
 
 ### pre-write-guard
 - Trigger: `PreToolUse`, matcher `write`
@@ -65,27 +65,12 @@ The IDE tier installs 5 hooks, an optimized set defined in `scripts/lib/tiers.js
 - Checks (one pass): (1) SIZE — block writes over 800 lines, suggest splitting under 400; (2) SECRETS — flag hardcoded keys/tokens/passwords/connection strings; (3) DOC LOCATION — warn when a `.md`/`.txt` is created outside `docs/`, `.kiro/`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LICENSE`.
 - Reports issues only; passes silently otherwise.
 
-### review-on-stop
-- Trigger: `Stop`
-- Action: agent
-- Brief post-task review: security issues, error handling, leftover `console.log`, tests needed. Reports issues only.
-
-### capture-lessons
-- Trigger: `Stop`
-- Action: agent
-- Detects repeatable corrections (recurring review findings, build-failure patterns, user corrections) and proposes a one-line lesson for `.kiro/steering/lessons-learned.md`. Requires user confirmation before editing user assets; otherwise exits silently. Part of the self-evolution loop.
-
 ### git-pipeline-guard
 - Trigger: `PreToolUse`, matcher `shell`
 - Action: agent
 - Detects whether the shell call is `git push` and whether its target is the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`, falling back to an existing `main`/`master`; with no refspec the target is the current branch). A push to the default branch is **blocked** with the pipeline spelled out: `git switch -c <type>/<slug>` -> `git push -u origin <branch>` -> `gh pr create --fill` -> `gh pr merge --squash --delete-branch`.
 - Exceptions (not blocked): tag-only pushes (`--tags`), branch deletion (`--delete`/`-d`), local-only repos with no remote, and the user explicitly saying "directly to main". Non-default-branch pushes pass silently.
 - The CLI tier ships the deterministic equivalent, `pre-push-guard.sh` (`exit 2`, bypass with `KIRO_ALLOW_MAIN_PUSH=1`). Policy text: `rules/common/git-workflow.md`.
-
-### changelog-on-commit
-- Trigger: `PreToolUse`, matcher `shell`
-- Action: agent
-- Detects whether the shell tool call is `git commit`; if so, maintains a date-organized `CHANGELOG.md` (`## YYYY-MM-DD`) and updates README only where the commit made it inaccurate, staging the docs into the same commit. No-ops for non-commits and doc-only commits (loop guard).
 
 ## Adding or Disabling Hooks
 

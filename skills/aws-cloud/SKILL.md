@@ -157,5 +157,4 @@ Fargate task definition essentials:
 
 - `aws-bedrock` — Bedrock LLM calls + agents
 - `terraform-deployment` — greenfield Terraform version pinning + first deploy
-- `postgres-guideline` / `mysql-guideline` — DB-side schema patterns
 - `cost-aware-llm-pipeline` — cost discipline applies to LLM workloads too

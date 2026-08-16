@@ -98,7 +98,7 @@ test('IDE 계획: 훅 + steering(always/fileMatch) + mcp.json(general+docker)', 
   sel.mcp = selectMcpServers({ root: ROOT, activeGroups: sel.activeGroups });
   const plan = tiers.plan('ide', sel, { root: ROOT });
   assert.ok(plan.ops.some((o) => o.destRel.startsWith('hooks/')), 'IDE는 .kiro.hook 생성');
-  assert.ok(plan.ops.some((o) => o.destRel === 'steering/coding-style.md'), 'core steering');
+  assert.ok(plan.ops.some((o) => o.destRel === 'steering/minimal-core.md'), 'core steering (v2 minimal digest)');
   assert.ok(plan.ops.some((o) => o.destRel === 'steering/ponytail.md'), 'ponytail core steering');
   assert.ok(plan.ops.some((o) => o.destRel === 'steering/python-rules.md'), 'python fileMatch steering');
   const mcpOp = plan.ops.find((o) => o.destRel === 'settings/mcp.json');

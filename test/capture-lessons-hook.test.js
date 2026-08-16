@@ -1,10 +1,11 @@
 'use strict';
 
-// capture-lessons hook — 자기 진화 메커니즘이 Kiro hook 스키마를 따르고,
-// IDE 티어 설치가 유효한 v1 JSON hook 파일(.kiro/hooks/*.json, IDE 1.0)을 생성하는지 검증한다.
-// (구 프로파일/매니페스트 기반 테스트를 tiers.IDE_HOOKS 기준으로 이관.)
+// v2 최소화: IDE 훅은 결정적 게이트 2개(pre-write-guard, git-pipeline-guard)만
+// 설치한다 — CLI 티어의 훅 스크립트 2개와 대칭. 이벤트마다 에이전트 프롬프트를
+// 태우는 자동화(review-on-stop, capture-lessons, changelog-on-commit)는 제거됐다.
+// 이 테스트는 그 계약(정확히 2개, 제거된 훅 미설치, v1 스키마)을 고정한다.
 
-const { test } = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -12,32 +13,42 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
-const tiers = require(path.join(ROOT, 'scripts/lib/tiers'));
+const { IDE_HOOKS } = require(path.join(ROOT, 'scripts/lib/tiers'));
 
-test('IDE_HOOKS의 capture-lessons 가 필수 스키마(event=agentStop, action=askAgent, prompt)를 갖는다', () => {
-  const h = tiers.IDE_HOOKS.find((x) => x.id === 'capture-lessons');
-  assert.ok(h, 'capture-lessons hook 이 IDE_HOOKS 에 존재해야 한다');
-  assert.strictEqual(h.event, 'agentStop');
-  assert.strictEqual(h.action, 'askAgent');
-  assert.strictEqual(typeof h.prompt, 'string');
-  assert.ok(h.prompt.length > 0, 'prompt 는 비어있지 않아야 한다');
+test('IDE_HOOKS 는 결정적 게이트 2개만 담는다 (pre-write-guard, git-pipeline-guard)', () => {
+  assert.deepStrictEqual(
+    IDE_HOOKS.map((h) => h.id).sort(),
+    ['git-pipeline-guard', 'pre-write-guard'],
+    'v2 최소 훅 세트'
+  );
+  for (const h of IDE_HOOKS) {
+    assert.strictEqual(h.event, 'preToolUse', `${h.id}: preToolUse 게이트`);
+    assert.strictEqual(h.action, 'askAgent', `${h.id}: askAgent`);
+    assert.ok(h.prompt && h.prompt.length > 0, `${h.id}: prompt 비어있지 않음`);
+    assert.ok(h.matcher, `${h.id}: matcher 필수(도구 게이트)`);
+  }
 });
 
-test('e2e: ide 설치가 유효한 capture-lessons.json (IDE 1.0 v1) 을 생성한다', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kh-cl-'));
+test('e2e: ide 설치가 훅 JSON 정확히 2개를 생성하고 제거된 훅은 설치하지 않는다', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kh-hooks-'));
   try {
-    const r = spawnSync('node', [path.join(ROOT, 'install.js'), 'ide', '--workload=core', `--target=${tmp}`], { cwd: ROOT, encoding: 'utf8', timeout: 60000 });
-    assert.strictEqual(r.status, 0, `install exit 0 (stderr: ${r.stderr})`);
-    const hookFile = path.join(tmp, '.kiro', 'hooks', 'capture-lessons.json');
-    assert.ok(fs.existsSync(hookFile), 'capture-lessons.json 생성');
-    const doc = JSON.parse(fs.readFileSync(hookFile, 'utf8'));
-    assert.strictEqual(doc.version, 'v1', 'IDE 1.0 v1 래퍼');
-    assert.ok(Array.isArray(doc.hooks) && doc.hooks.length === 1, 'hooks 배열');
-    const hook = doc.hooks[0];
-    assert.strictEqual(hook.trigger, 'Stop', 'agentStop → Stop trigger');
-    assert.strictEqual(hook.action.type, 'agent', 'askAgent → action.type=agent');
-    assert.ok(hook.action.prompt && hook.action.prompt.length > 0, 'prompt 보유');
-    assert.strictEqual(hook.enabled, true);
+    const r = spawnSync('node', [path.join(ROOT, 'install.js'), 'ide', '--workload=core', `--target=${tmp}`], {
+      cwd: ROOT, encoding: 'utf8', timeout: 60000,
+    });
+    assert.strictEqual(r.status, 0, r.stderr);
+    const hooksDir = path.join(tmp, '.kiro', 'hooks');
+    const files = fs.readdirSync(hooksDir).filter((f) => f.endsWith('.json')).sort();
+    assert.deepStrictEqual(files, ['git-pipeline-guard.json', 'pre-write-guard.json']);
+    for (const removed of ['capture-lessons.json', 'review-on-stop.json', 'changelog-on-commit.json']) {
+      assert.ok(!fs.existsSync(path.join(hooksDir, removed)), `${removed} 은 더 이상 설치되지 않는다`);
+    }
+    // v1 스키마 유효성
+    for (const f of files) {
+      const parsed = JSON.parse(fs.readFileSync(path.join(hooksDir, f), 'utf8'));
+      assert.strictEqual(parsed.version, 'v1', `${f}: version v1`);
+      assert.strictEqual(parsed.hooks[0].trigger, 'PreToolUse', `${f}: PascalCase trigger`);
+      assert.strictEqual(parsed.hooks[0].enabled, true);
+    }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

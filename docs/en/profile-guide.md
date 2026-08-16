@@ -46,11 +46,8 @@ Select by **category tree**: major categories (dev, cloud, ai, data, research, w
 | **data** | duckdb | — | python-data |
 | | python-data | — | python-data, ai |
 | | aws-analytics | — | cloud, python-data |
-| | mysql | — | mysql |
-| | postgres | — | postgres |
 | | mongodb | — | mongodb |
 | | dynamodb | — | dynamodb |
-| | aws-rds | — | mysql, postgres |
 | **research** | websearch | — | research |
 | | report | — | report |
 | **writing** | general | — | writing |
@@ -76,13 +73,13 @@ node install.js cli --scope global --category=cloud
 node install.js ide --dev=frontend,nodejs
 
 # Data engineering: PostgreSQL + AWS analytics
-node install.js cli --scope workspace --data=postgres,aws-analytics
+node install.js cli --scope workspace --data=dynamodb,aws-analytics
 
 # Multiple specializations
 node install.js ide --category=dev,cloud --dev=python --review-backend claude
 
 # Low-level direct workload (legacy, backward compatible)
-node install.js cli --scope global --workload rust,postgres,cloud
+node install.js cli --scope global --workload rust,mongodb,cloud
 ```
 
 ## Review backend

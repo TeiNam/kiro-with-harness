@@ -3,6 +3,22 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-08-16 — v2.0.0
+
+하네스 최소화 릴리스. 상위 프로젝트(my_harness_for_claude_code)의 최소화 작업(훅 축소·상시 rule 다이어트·플로우 정리)을 Kiro 에 맞게 반영하고, AWS 인프라·Terraform 작업에 최적화했다.
+
+### Removed
+
+- **RDBMS 설계 자산 제거 → easy-rdbms 플러그인으로 분리** — `mysql-guideline`·`postgres-guideline`·`rdbms-naming`·`database-migrations` 스킬 4종과 `rdbms-data-modeler` 에이전트(CLI/IDE)를 삭제했다. RDBMS 설계·마이그레이션은 별도 플러그인(easy-rdbms)이 담당하며, 필요 시 그쪽에서 다시 가져온다. **NoSQL(mongodb/dynamodb)·duckdb·분석 자산은 유지**: `mongodb-guideline`·`mongodb-patterns`·`dynamodb-guideline`·`duckdb-patterns`·`clickhouse-io` 는 남고, ORM 앱 패턴(`prisma-patterns`·`kotlin-exposed-patterns`·`jpa-patterns`)과 캐시(`redis-patterns`)도 DB 설계가 아니므로 유지. 워크로드 키 `mysql`/`postgres` 와 카테고리 leaf(`data.mysql`/`data.postgres`/`data.aws-rds`) 제거, `data` 카테고리는 분석(duckdb/python-data/aws-analytics) + NoSQL 설계(mongodb/dynamodb)로 정리. 스킬 138 → **134**, 워크로드 31 → **29**.
+- **이벤트 자동화 훅 3종 제거 (IDE 5→2)** — `review-on-stop`·`capture-lessons`·`changelog-on-commit` 을 제거했다. 매 턴/커밋마다 에이전트 프롬프트를 태우는 자동화는 토큰 대비 효용이 낮고 온디맨드 대체물이 이미 있다: 리뷰는 code-reviewer 에이전트·`cross-review.sh`, 교훈은 `lessons-learned` 스킬, CHANGELOG 는 저장소 규약(steering). IDE 훅은 CLI 티어와 대칭인 **결정적 게이트 2개**(pre-write-guard, git-pipeline-guard)만 남는다.
+
+### Changed
+
+- **상시 steering 축소 — minimal-core 고정** — IDE always-on 이 6파일(coding-style/security/testing/git-workflow/product/ponytail, ~13KB)에서 **2파일**(`minimal-core.md` + `ponytail.md`, ~3.2KB)로 줄었다. `rules/common/minimal-core.md` 신설: 작업 방식·보안 경계·git 파이프라인·**AWS/Terraform 게이트**를 압축한 상시 digest. CLI 글로벌 steering 에도 동일 digest 를 설치해 두 티어의 상시 규칙이 일치한다(AGENTS.md + minimal-core + ponytail).
+- **AWS 인프라·Terraform 최적화** — kiro-cli 오케스트레이터 프롬프트에 "AWS & Terraform Default Flow" 섹션 신설: 조회는 세션 직접(describe/list/plan), 변경은 전부 `devops` 위임, Terraform 게이트(`fmt`→`validate`→`plan` 제시→승인→`apply`), provider 버전 핀 + lock 파일 커밋, terraform/aws-documentation MCP 우선, 변경 전 blast radius·비용 1줄 명시. AGENTS.md 위임 규약에도 인프라 게이트 항목을 추가해 오케스트레이터-서브에이전트 흐름이 모순 없이 이어진다.
+- **database-reviewer 를 NoSQL 전담으로 재작성** — PostgreSQL 전용 프롬프트(RLS/psql)를 MongoDB(ESR 인덱스·aggregation·write concern)·DynamoDB(PK/SK 액세스 패턴·GSI·핫 파티션·RCU/WCU) 리뷰어로 교체. RDBMS 리뷰는 easy-rdbms 플러그인 소관임을 명시해 역할 경계가 겹치지 않는다.
+- 생존 스킬 8종(aws-cloud, aws-lakehouse, log-data-offloading, mle-workflow, prompt-optimizer, prisma-patterns, redis-patterns, mongodb-patterns)의 삭제 자산 참조를 재배선하고, 문서(en/kr 8쌍)·legacy 매니페스트·검증 카운트를 동기화했다.
+
 ## 2026-08-15
 
 ### Added

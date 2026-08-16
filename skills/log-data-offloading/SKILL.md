@@ -58,7 +58,7 @@ ALTER TABLE app_log DETACH PARTITION app_log_2026_06;  -- then archive, then DRO
 ```
 
 - **Never** purge logs with `DELETE FROM ... WHERE ts < ...` on a large table — it's slow, bloats the table, and hammers autovacuum/undo. Drop the partition.
-- MySQL: `ALTER TABLE app_log DROP PARTITION p202606;` (see `mysql-guideline`); Postgres details in `postgres-guideline`.
+- MySQL: `ALTER TABLE app_log DROP PARTITION p202606;`. Detailed RDBMS partitioning/retention guidance lives in the easy-rdbms plugin.
 - Automate partition creation/retention with `pg_partman` (Postgres) or an event scheduler (MySQL).
 - This alone often defers the need to offload — but pair it with offload so dropped partitions are archived first.
 
@@ -119,7 +119,6 @@ RDBMS (hot, days)  --DMS/CDC/Firehose-->  OpenSearch hot+UltraWarm (searchable, 
 ## Related
 
 - `aws-lakehouse` — S3 Tables / Iceberg / Athena / Spark for the cold tier
-- `postgres-guideline` / `mysql-guideline` — time range partitioning + retention on the source
 - `aws-cloud` — IAM/networking/cost for the pipeline services
 - `aws-sdk-patterns` — boto3 for Firehose/DMS/OpenSearch API calls
 - `duckdb-patterns` — query the S3/Parquet archive without a cluster

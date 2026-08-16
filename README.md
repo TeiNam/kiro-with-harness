@@ -40,13 +40,13 @@ node install.js cli --scope global --category=cloud
 node install.js ide --ai=llm,agent
 
 # Data engineering: analytics + AWS lakehouse
-node install.js cli --scope workspace --data=aws-analytics,postgres
+node install.js cli --scope workspace --data=aws-analytics,dynamodb
 
 # View the category tree
 node install.js --list
 
 # Low-level: install by workload keys directly (legacy surface, merged with categories)
-node install.js cli --scope global --workload rust,postgres
+node install.js cli --scope global --workload rust,mongodb
 
 # Check installation status
 node install.js --status
@@ -73,7 +73,7 @@ Installs JSON agents with embedded hooks; skills as progressive `skill://` resou
 
 **Workspace** (`.kiro/agents/`):
 - Language reviewers, build-resolvers (per workload)
-- e2e-runner, database-reviewer, rdbms-data-modeler
+- e2e-runner, database-reviewer (NoSQL — MongoDB/DynamoDB)
 - Article-writer, content-creator
 
 ### IDE Tier (Kiro IDE)
@@ -82,7 +82,7 @@ Installs Markdown agents and separate hook files; skills convert to steering (ma
 
 **Workspace** (`.kiro/agents/`, `.kiro/hooks/`, `.kiro/steering/`):
 - Agents: same roles as CLI, in Markdown format
-- Hooks: pre-write-guard, review-on-stop, capture-lessons, changelog-on-commit (optimized set)
+- Hooks: pre-write-guard, git-pipeline-guard (2 deterministic gates, symmetric with the CLI tier)
 - Steering: language rules (fileMatch), core rules (always), manual skills
 - MCP: `.kiro/settings/mcp.json`
 
@@ -120,11 +120,8 @@ The installer now organizes installation through a **category tree** (major cate
 | **data** | duckdb | — | python-data | DuckDB analysis |
 | | python-data | — | python-data, ai | Python analytics (pandas / pytorch / MLE) |
 | | aws-analytics | — | cloud, python-data | AWS analytics (Glue · Athena · S3 Tables · Iceberg) |
-| | mysql | — | mysql | MySQL / Aurora MySQL schema design |
-| | postgres | — | postgres | PostgreSQL / Aurora Postgres schema design |
 | | mongodb | — | mongodb | MongoDB schema design |
 | | dynamodb | — | dynamodb | DynamoDB design |
-| | aws-rds | — | mysql, postgres | AWS managed DB (Aurora · RDS) |
 | **research** | websearch | — | research | Web search · research (exa · brave · deep-research) |
 | | report | — | report | Tech report writing · verification |
 | **writing** | general | — | writing | General writing (blogging · PPT · creative · translation) |
@@ -152,7 +149,7 @@ Agent model assignments are role-based, organized into three **provider-agnostic
 
 | Tier | Model | Agents |
 |------|-------|--------|
-| Deep reasoning (ceiling) | `claude-opus-5` | kiro-cli (orchestrator), architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| Deep reasoning (ceiling) | `claude-opus-5` | kiro-cli (orchestrator), architect, security-reviewer, deep-researcher, devops, peer-reviewer |
 | Balanced (default) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, language reviewers, build-resolvers, database-reviewer, e2e-runner, doc/tech writers |
 | Cost-optimized | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
@@ -197,7 +194,6 @@ There is no tier above `claude-opus-5`. When a task needs more than the top tier
 | deep-researcher | Multi-source investigation and citation rigor are the output |
 | devops | Precision of infrastructure workflows (plan/diff/approval) — skipped steps cause incidents |
 | peer-reviewer | Must follow external 3-way collection & synthesis procedure as specified |
-| rdbms-data-modeler | Detailed table, index, and naming design is the output |
 | database-reviewer | Precise query/schema audit — omissions risk data loss |
 | e2e-runner | Scenario coverage and POM structure rigor is the value |
 | tech-fidelity-auditor | Code/number/signature exhaustive cross-check |
@@ -210,28 +206,27 @@ There is no tier above `claude-opus-5`. When a task needs more than the top tier
 
 **CLI tier**: hooks embedded in agent JSON (not separate files), backed by 2 deterministic gate scripts — `pre-write-guard.sh` (`fs_write`: secrets, oversized writes) and `pre-push-guard.sh` (`execute_bash`: default-branch push, bypass `KIRO_ALLOW_MAIN_PUSH=1`). `cross-review.sh` is an on-demand script, not a hook.
 
-**IDE tier** (`.kiro/hooks/`): optimized set of event-driven automations:
+**IDE tier** (`.kiro/hooks/`): 2 deterministic gates, symmetric with the CLI tier:
 - pre-write-guard: size limit, secret detection, doc-location check
-- review-on-stop: post-task code review
-- capture-lessons: feed a one-line lesson into `lessons-learned.md` when a correction repeats
 - git-pipeline-guard: block `git push` to the default branch and spell out branch → commit → push → PR → merge
-- changelog-on-commit: maintain a date-organized CHANGELOG (`## YYYY-MM-DD`) on git commit
+
+Per-event agent automations (review-on-stop, capture-lessons, changelog-on-commit) were removed in v2 — reviews are on-demand (code-reviewer, `cross-review.sh`), and lessons/CHANGELOG live in skills and repo conventions.
 
 ### Steering
 
-**CLI tier**: global steering limited to AGENTS.md (agent collaboration guide); agents reference skills via `skill://`.
+**CLI tier**: global steering = AGENTS.md (agent collaboration guide) + minimal-core (compact always-on digest incl. the AWS/Terraform gate) + ponytail; agents reference skills via `skill://`.
 
 **IDE tier** (`.kiro/steering/`):
-- Always-on: coding style, security, testing, git workflow, patterns, performance
+- Always-on (v2 minimal): minimal-core (compact digest — working style, security, git pipeline, AWS/Terraform gate) + ponytail
 - FileMatch: language-specific rules loaded per file type
-- Manual: skills loaded on demand (138 total; workload-tagged for selective inclusion)
+- Manual: skills loaded on demand (134 total; workload-tagged for selective inclusion)
 
 ### Skills
 
-138 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
+134 skill packages under `skills/`, tagged by workload. Installation selects only skills matching active workloads.
 - Core: context budget, strategic compact, agentic engineering, lessons learned, git workflow, verification loop
-- Infrastructure: Docker, deployment, database migrations, backend patterns
-- Databases: PostgreSQL, MySQL, MongoDB, DynamoDB (+ rdbms-naming, mongodb-patterns)
+- Infrastructure: Docker, deployment, backend patterns
+- Databases (NoSQL): MongoDB, DynamoDB (+ mongodb-patterns) — RDBMS design/migration skills moved to the separate easy-rdbms plugin
 - Cloud / Data: aws-cloud, aws-sdk-patterns (boto3/JS v3/CLI v2), aws-lakehouse (S3 Tables/Iceberg/Athena/Spark), aws-etl-cdc (DMS/Glue/Kinesis/MSK/Flink), log-data-offloading (RDBMS→S3/OpenSearch), infra-version-currency (EKS/MSK latest-version checks), terraform-deployment
 - Backend: Django, Spring Boot, Laravel, FastAPI
 - Frontend: Next.js, Nuxt4, Vite, Bun
@@ -266,7 +261,7 @@ Full catalog (general / DevOps / FinOps / opt-in incl. brave-search, sentry, tim
 │   ├── cli/                    # CLI agents (global + workspace)
 │   ├── ide/                    # IDE agents (Markdown)
 │   └── AGENTS.md               # Shared agent collaboration guide
-├── skills/                     # 138 skill packages (workload-tagged)
+├── skills/                     # 134 skill packages (workload-tagged)
 ├── plugins/
 │   ├── catalog.json            # Claude-plugin → Kiro asset bridge catalog (SSOT)
 │   └── README.md               # Per-plugin verdicts and porting rules
@@ -314,7 +309,7 @@ Full guides live under `docs/` — English in `docs/en/`, Korean in `docs/kr/`.
 | [Plugins](plugins/README.md) | Claude Code plugins mapped onto Kiro (bridge / external-cli / native / incompatible) |
 | [MCP reference](docs/en/mcp-reference.md) | Curated MCP catalog (built-in / general / DevOps / FinOps / opt-in) |
 | [Model routing](docs/en/model-routing.md) | 3-tier model policy (Opus/Sonnet/Haiku), the Opus-5 ceiling + effort/cross-family escalation, per-agent assignment, hook→tier guidance, OpenAI GPT-5.6 provider switch |
-| [Skill catalog](docs/en/skill-catalog.md) | The 138 skills by domain |
+| [Skill catalog](docs/en/skill-catalog.md) | The 134 skills by domain |
 | [Creating skills](docs/en/creating-skills.md) | Authoring + registering a skill via `workloads:` frontmatter |
 | [Claude vs Kiro](docs/en/claude-vs-kiro.md) | Claude Code vs Kiro CLI vs Kiro IDE — feature-by-feature differences (official-docs-based) |
 | [Migration from Claude](docs/en/migration-from-claude.md) | Converting a Claude Code setup to Kiro |

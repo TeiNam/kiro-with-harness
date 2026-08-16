@@ -209,7 +209,7 @@ const ROLE_TIERS = {
   'deep-researcher': 'deep-reasoning', // 다중 출처 종합
   devops: 'deep-reasoning', // 인프라 리스크 판단(파괴적 작업)
   'peer-reviewer': 'deep-reasoning', // 교차 모델 리뷰(단일 모델 편향 감소)
-  'rdbms-data-modeler': 'deep-reasoning', // 3NF 정규화·물리 스키마 추론
+  // rdbms-data-modeler 는 v2 에서 제거 — RDBMS 설계는 easy-rdbms 플러그인 담당
 
   // ── cost-optimized (claude-haiku-4.5) ──
   'translator-docs': 'cost-optimized', // 번역·문서

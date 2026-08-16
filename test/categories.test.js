@@ -140,9 +140,9 @@ test('bare 플래그(빈 값)는 그 대분류 전체로 해석 (--cloud)', () =
   assert.deepStrictEqual(r.workloads, ['cloud', 'core', 'finops']);
 });
 
-test('레퍼런스 시나리오 패리티: --data=aws-rds,duckdb', () => {
-  const r = resolveSelection(parseCliFlags({ data: 'aws-rds,duckdb' }));
-  assert.deepStrictEqual(r.workloads, ['core', 'mysql', 'postgres', 'python-data']);
+test('NoSQL 설계 leaf: --data=mongodb,duckdb (RDBMS leaf 는 v2 에서 제거)', () => {
+  const r = resolveSelection(parseCliFlags({ data: 'mongodb,duckdb' }));
+  assert.deepStrictEqual(r.workloads, ['core', 'mongodb', 'python-data']);
 });
 
 // ── install.js 통합(e2e, dry-run) ───────────────────────────

@@ -74,7 +74,7 @@ Crew's subagents have concrete limits worth designing around ([Subagents](https:
 | IDE-tier assets (Markdown agents, v1 hooks, fileMatch steering) | Crew is a CLI/Gateway runtime |
 | The MCP proxy | Separate concern; Crew spawns its own MCP servers |
 
-The overlap to be deliberate about is **lessons**: the harness has a `capture-lessons` hook plus a `lessons-learned` skill, and Crew turns corrections into durable lessons on its own. Running both against the same repo means two stores of the same knowledge with no reconciliation. Pick one owner per workspace.
+The overlap to be deliberate about is **lessons**: the harness ships a `lessons-learned` skill, and Crew turns corrections into durable lessons on its own. Running both against the same repo means two stores of the same knowledge with no reconciliation. Pick one owner per workspace.
 
 ## Security
 

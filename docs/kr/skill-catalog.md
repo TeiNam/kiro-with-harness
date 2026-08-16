@@ -1,6 +1,6 @@
 # 스킬(Skill) 카탈로그
 
-도메인별로 정리된 138개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
+도메인별로 정리된 134개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
 
 ## 인프라(Infrastructure)
 
@@ -8,7 +8,6 @@
 |-------|-------------|
 | docker-patterns | 컨테이너 패턴, 멀티 스테이지 빌드, Compose 모범 사례 |
 | deployment-patterns | 배포 전략, 블루-그린, 카나리, 롤백 |
-| database-migrations | 스키마 마이그레이션 패턴, 무중단 마이그레이션 |
 | backend-patterns | 백엔드 아키텍처 패턴, 서비스 레이어, 리포지토리 |
 | content-hash-cache-pattern | 콘텐츠 주소 지정 캐싱 전략 |
 | video-editing | 비디오 처리 및 편집 자동화 |
@@ -31,16 +30,15 @@
 | analysis-methodology | 분석 판단층: 프레이밍·기법 선택·인과/실험 설계·도메인 플레이북 |
 | cost-tracking | 토큰/지출 추적 및 예산 리포트 |
 
-## 데이터베이스(Databases)
+## 데이터베이스 (NoSQL & 분석)
+
+v2에서 RDBMS 설계/마이그레이션 스킬(mysql-guideline, postgres-guideline, rdbms-naming, database-migrations)은 별도 easy-rdbms 플러그인으로 이관됨.
 
 | 스킬 | 설명 |
 |-------|-------------|
-| postgres-guideline | PostgreSQL 모범 사례, 인덱싱, 쿼리 최적화 |
-| mysql-guideline | MySQL 모범 사례, InnoDB 튜닝, 복제, 개발 원칙, JDBC |
 | mongodb-guideline | MongoDB 스키마 설계, 집계, 샤딩 |
 | mongodb-patterns | MongoDB 런타임 — 집계, 쿼리/인덱스 사용, 트랜잭션, 비동기 풀 |
 | dynamodb-guideline | DynamoDB 단일 테이블 설계, GSI, 용량 계획 |
-| rdbms-naming | RDBMS 공통 네이밍·데이터 타입 규칙 (MySQL & PostgreSQL) |
 | clickhouse-io | ClickHouse 분석, MergeTree 엔진, 구체화된 뷰 |
 | jpa-patterns | JPA/Hibernate 패턴, N+1 방지, 엔티티 생명주기 |
 

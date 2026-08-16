@@ -57,7 +57,7 @@ workloads: [cloud]      # 워크로드 키 한 개 이상; [core]는 모든 설�
 ```
 
 - 설치기는 스킬의 `workloads:`가 활성 워크로드(`--workload ...`)와 교집합일 때 선택합니다. `core`는 항상 설치됩니다.
-- 유효한 워크로드 키: README 워크로드 표 참고 (python, rust, …, cloud, frontend, mysql, postgres, writing, ai-agent, …).
+- 유효한 워크로드 키: README 워크로드 표 참고 (python, rust, …, cloud, frontend, mongodb, dynamodb, writing, ai-agent, …).
 - frontmatter가 없으면 `scripts/lib/tag-assets.js` 휴리스틱이 추정 분류로 폴백하지만, 명시적 태그가 권장됩니다. 일괄 재태깅은 `node scripts/lib/tag-assets.js`.
 - **CLI 티어**는 스킬 디렉터리를 그대로 배치(`skill://` progressive 로드). **IDE 티어**는 `SKILL.md`를 `inclusion: manual` 스티어링으로 자동 변환합니다.
 
