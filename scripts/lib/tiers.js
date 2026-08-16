@@ -140,7 +140,43 @@ function crossReviewScriptOp(root, selection) {
 }
 
 // ── CLI 티어 계획 ───────────────────────────────────────────
-function planCli(selection, { root = ROOT } = {}) {
+/**
+ * CLI 3.0(v3 엔진)용 독립 훅 파일 op 2개를 만든다.
+ * v3 는 에이전트 JSON 안의 camelCase embedded hooks 를 쓰지 않고(구 포맷),
+ * `.kiro/hooks/*.json`(version v1, PascalCase trigger) 독립 파일을 읽는다.
+ * matcher 는 v3 도구 태그(write/shell), command 는 기존 게이트 스크립트를 그대로 실행.
+ */
+function cliV3HookOps() {
+  const mk = (name, matcher, script, timeout) => ({
+    type: 'content',
+    destRel: `hooks/${name}.json`,
+    content: JSON.stringify({
+      version: 'v1',
+      hooks: [{
+        name,
+        trigger: 'PreToolUse',
+        matcher,
+        action: { type: 'command', command: `bash ~/.kiro/hooks/${script}` },
+        timeout,
+        enabled: true,
+      }],
+    }, null, 2) + '\n',
+    label: `hook ${name} (cli v3)`,
+  });
+  return [
+    mk('pre-write-guard', 'write', 'pre-write-guard.sh', 5),
+    mk('pre-push-guard', 'shell', 'pre-push-guard.sh', 8),
+  ];
+}
+
+/** kiro-cli.json 원문에서 embedded hooks 필드를 제거한 content 를 반환(v3 전용). */
+function stripEmbeddedHooks(raw) {
+  const parsed = JSON.parse(raw);
+  delete parsed.hooks;
+  return JSON.stringify(parsed, null, 2) + '\n';
+}
+
+function planCli(selection, { root = ROOT, cliVersion = 2 } = {}) {
   const ops = [];
   const postInstall = [];
 
@@ -174,11 +210,24 @@ function planCli(selection, { root = ROOT } = {}) {
 
   // 5) 오케스트레이터(kiro-cli) 선택 시: 훅 스크립트 설치 + 기본 에이전트 지정
   if (selection.agents.some((a) => a.name === 'kiro-cli')) {
-    // preToolUse 훅 스크립트 — 에이전트 JSON 의 hooks.preToolUse 가 이 경로를 참조한다.
+    // 게이트 스크립트는 두 CLI 버전 공통 — 훅이 이 경로를 실행한다.
     for (const h of ['pre-write-guard.sh', 'pre-push-guard.sh']) {
       const src = path.join(root, 'agents/cli/hooks', h);
       if (fs.existsSync(src)) {
         ops.push({ type: 'copy', src, destRel: `hooks/${h}`, label: `hook ${h.replace(/\.sh$/, '')}` });
+      }
+    }
+    if (cliVersion === 3) {
+      // CLI 3.0: 훅은 독립 `.kiro/hooks/*.json`(v1 스키마, PascalCase trigger)로.
+      // 에이전트 JSON 의 camelCase embedded hooks 는 v3 가 읽지 않으므로 제거해
+      // 죽은 설정이 남지 않게 한다(조용한 미발화 방지).
+      ops.push(...cliV3HookOps());
+      for (const op of ops) {
+        if (op.destRel !== 'agents/kiro-cli.json') continue;
+        const raw = op.type === 'copy' ? fs.readFileSync(op.src, 'utf8') : op.content;
+        op.type = 'content';
+        op.content = stripEmbeddedHooks(raw);
+        delete op.src;
       }
     }
     postInstall.push('kiro-cli agent set-default kiro-cli');
@@ -262,6 +311,8 @@ module.exports = {
   CORE_RULES,
   IDE_HOOKS,
   mcpJsonContent,
+  cliV3HookOps,
+  stripEmbeddedHooks,
   planCli,
   planIde,
   plan,

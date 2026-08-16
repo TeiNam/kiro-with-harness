@@ -77,7 +77,7 @@ IDE 티어는 2개의 훅을 설치하며, 결정적 게이트는 CLI 계층과 
 - **비활성화**: 훅 파일에서 `"enabled": false` 설정, `.kiro/hooks/`의 `.json` 파일 삭제, 또는 설치 명령에서 해당 워크로드 제외.
 - **커스텀 훅 추가**: 위 v1 스키마에 따라 `.kiro/hooks/<name>.json`을 생성하거나, 명령 팔레트 → "Kiro: Open Kiro Hook UI" → 자연어로 설명.
 
-> **CLI 티어 참고**: CLI 티어(`kiro-cli chat`)는 이 파일들을 쓰지 않습니다. 훅을 에이전트 JSON(`hooks` 필드)에 임베드하고, CLI 훅 스크립트 2종을 결정적 게이트(`exit 2`)로 배치하며 `kiro-cli.json`의 preToolUse 훅 2개가 이를 참조합니다:
+> **CLI 티어 참고**: 기본값(`--cli-version 2`)으로는 CLI 티어(`kiro-cli chat`)가 이 파일들을 쓰지 않습니다. 훅을 에이전트 JSON(`hooks` 필드)에 임베드하고, CLI 훅 스크립트 2종을 결정적 게이트(`exit 2`)로 배치하며 `kiro-cli.json`의 preToolUse 훅 2개가 이를 참조합니다. `--cli-version 3`이면 (CLI 3.0 engine, `kiro-cli --v3`) 동일한 2개 게이트가 독립 `.kiro/hooks/pre-write-guard.json` / `pre-push-guard.json`(v1 schema, `PreToolUse` 트리거, matcher `write`/`shell`)으로 설치되고 임베디드 `hooks` 필드는 제거됩니다 — v3 엔진은 기존 camelCase 임베디드 포맷을 읽지 않습니다:
 >
 > | 스크립트 | matcher | 차단 조건 |
 > |---------|---------|----------|

@@ -168,8 +168,9 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 > **모델 ID 형식:** Kiro는 `model` 값을 model service가 반환하는 ID와 대조하며, 알 수 없는 ID는 경고와 함께 기본 모델로 silent 폴백됩니다. 고정 전 활성 채팅 세션에서 `/model`로 정확한 식별자를 확인하세요.
 
-## Kiro 버전 호환성 (CLI 2.10 / IDE 1.0)
+## Kiro 버전 호환성 (CLI 2.x / 3.0 / IDE 1.0)
 
+- **CLI 3.0 (v3 engine, `kiro-cli --v3`로 옵트인):** 훅이 에이전트 임베디드 camelCase 필드에서 독립 `.kiro/hooks/*.json` 파일(v1 schema, PascalCase 트리거)로 이관됩니다. `--cli-version 3`으로 설치하면 2개 게이트 훅을 외부화하고 v3 엔진이 읽지 않는 임베디드 `hooks` 필드를 제거합니다. 에이전트 설정 자체는 하위 호환성이 있습니다. `toolsSettings` → `permissions` 마이그레이션을 하려면 `/upgrade-agent` 또는 `kiro-cli agent migrate`를 사용하세요. 기본값(`--cli-version 2`)은 현재의 2.x 임베디드 훅 설치를 유지합니다.
 - **IDE 훅은 v1 JSON 포맷**(`.kiro/hooks/*.json`)을 사용합니다. IDE 1.0에서 도입되어 레거시 `.kiro.hook` 포맷을 대체하며, 레거시 훅은 마이그레이션 전까지 실행되지 않습니다. 설치기는 v1 JSON을 직접 생성합니다. `docs/kr/hook-reference.md` 참고.
 - **기본 리소스 상속(CLI 2.7+):** 커스텀 에이전트는 자신의 `resources`에 더해 글로벌 steering·skills·`AGENTS.md`를 자동 상속합니다. 설치를 워크로드 범위로만 엄격히 유지하려면(글로벌 끌어오기 차단) 비활성화하세요: `kiro-cli settings chat.disableInheritingDefaultResources true` (`--workspace`로 프로젝트 범위 지정 가능). 내장 에이전트는 설정과 무관하게 항상 상속합니다.
 - **Hot-reload(CLI 2.10+):** `~/.kiro/agents/*` 와 `mcp.json` 편집은 세션 재시작 없이 다음 idle 경계에서 반영됩니다 — 하네스를 재설치해도 채팅 컨텍스트 손실 없이 적용됩니다.
@@ -204,7 +205,7 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 ### 훅
 
-**CLI 계층**: 훅은 에이전트 JSON 내에 내장됩니다 (별도 파일 아님). 2종 결정적 게이트 스크립트가 받침합니다 — `pre-write-guard.sh`(fs_write: 비밀, 과대 write), `pre-push-guard.sh`(execute_bash: 기본 브랜치 push 차단, `KIRO_ALLOW_MAIN_PUSH=1`로 우회 가능). `cross-review.sh`는 훅이 아니라 온디맨드 스크립트입니다.
+**CLI 계층** (기본값, `--cli-version 2`): 훅은 에이전트 JSON 내에 내장되며, 2종 결정적 게이트 스크립트가 받침합니다. `--cli-version 3`이면 동일한 2개 게이트가 독립 `.kiro/hooks/*.json`(v1 schema)으로 설치되고 v3.0 엔진용으로 임베디드 필드가 제거됩니다. 게이트 스크립트 — `pre-write-guard.sh`(fs_write: 비밀, 과대 write), `pre-push-guard.sh`(execute_bash: 기본 브랜치 push 차단, `KIRO_ALLOW_MAIN_PUSH=1`로 우회 가능). `cross-review.sh`는 훅이 아니라 온디맨드 스크립트입니다.
 
 **IDE 계층** (`.kiro/hooks/`): 2개 결정적 게이트, CLI 계층과 대칭:
 - pre-write-guard: 크기 제한, 비밀 탐지, 문서 위치 확인
@@ -285,6 +286,7 @@ node install.js <tier> [options]
   --<category>-<sub>= <list>     소분류 옵션 (예: --writing-social=voice; 소분류가 있는 중분류만)
   --workload <list|all>          저수준: 워크로드 키 직접 지정 (쉼표로 구분 또는 'all'; 레거시 표면, 카테고리와 합집합)
   --provider <anthropic|openai>  모델 프로바이더 프로필 (기본: anthropic); 역할 모델·effort 가이드·운영 노트·교차 패밀리 우선순위를 설치 에이전트에 기록
+  --cli-version <2|3>            CLI 계층 훅 포맷 (기본 2 = agent 임베디드; 3 = 독립 .kiro/hooks/*.json for CLI 3.0 engine)
   --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE 전용: mcp.json을 mcp-proxy(:9090) 경유로 구성 + 프록시 컨테이너 자동 기동(미실행 시 docker compose up -d)
   --target <path>                지정 디렉토리에 설치

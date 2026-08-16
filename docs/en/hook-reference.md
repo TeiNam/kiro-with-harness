@@ -77,7 +77,7 @@ The IDE tier installs 2 hooks — deterministic gates symmetric with the CLI tie
 - **Disable**: set `"enabled": false` in the hook file, delete the `.json` file from `.kiro/hooks/`, or drop the relevant workload from your install command.
 - **Add a custom hook**: create a `.kiro/hooks/<name>.json` file following the v1 schema above, or use the Command Palette → "Kiro: Open Kiro Hook UI" → describe in natural language.
 
-> **CLI tier note**: the CLI tier (`kiro-cli chat`) does not use these files. It embeds hooks inside the agent JSON (`hooks` field) and installs 2 CLI hook scripts as deterministic gates (`exit 2`), referenced by 2 preToolUse hooks in `kiro-cli.json`:
+> **CLI tier note**: by default (`--cli-version 2`) the CLI tier embeds hooks inside the agent JSON (`hooks` field) and installs 2 CLI hook scripts as deterministic gates (`exit 2`), referenced by 2 preToolUse hooks in `kiro-cli.json`. With `--cli-version 3` (for the CLI 3.0 engine, `kiro-cli --v3`) the same two gates install as standalone `.kiro/hooks/pre-write-guard.json` / `pre-push-guard.json` (v1 schema, `PreToolUse` trigger, matchers `write`/`shell`) and the embedded `hooks` field is stripped — the v3 engine does not read the old camelCase embedded format:
 >
 > | Script | matcher | Blocks on |
 > |--------|---------|-----------|

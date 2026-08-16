@@ -168,8 +168,9 @@ There is no tier above `claude-opus-5`. When a task needs more than the top tier
 
 > **Model ID format:** Kiro validates `model` against the IDs its model service returns; an unknown ID silently falls back to the default model with a warning. Confirm the exact identifier with `/model` in an active chat session before pinning.
 
-## Kiro Version Compatibility (CLI 2.10 / IDE 1.0)
+## Kiro Version Compatibility (CLI 2.x / 3.0 / IDE 1.0)
 
+- **CLI 3.0 (v3 engine, opt-in via `kiro-cli --v3`):** hooks moved from agent-embedded camelCase fields to standalone `.kiro/hooks/*.json` files (v1 schema, PascalCase triggers). Install with `--cli-version 3` to externalize the two gate hooks and strip the embedded `hooks` field the v3 engine would ignore. Agent configs themselves remain backward-compatible; for `toolsSettings` → `permissions` migration use `/upgrade-agent` or `kiro-cli agent migrate`. The default (`--cli-version 2`) keeps the current 2.x embedded-hook install.
 - **IDE hooks use the v1 JSON format** (`.kiro/hooks/*.json`), introduced in IDE 1.0 and replacing the legacy `.kiro.hook` format. Legacy hooks do not execute until migrated. The installer emits v1 JSON directly. See `docs/en/hook-reference.md`.
 - **Default resource inheritance (CLI 2.7+):** custom agents automatically inherit global steering, skills, and `AGENTS.md` in addition to their own `resources`. To keep installs strictly workload-scoped (no global pull-in), disable it: `kiro-cli settings chat.disableInheritingDefaultResources true` (add `--workspace` to scope per project). Built-in agents always inherit regardless.
 - **Hot-reload (CLI 2.10+):** edits to `~/.kiro/agents/*` and `mcp.json` apply at the next idle boundary without restarting the session — reinstalling the harness takes effect without losing chat context.
@@ -204,7 +205,7 @@ There is no tier above `claude-opus-5`. When a task needs more than the top tier
 
 ### Hooks
 
-**CLI tier**: hooks embedded in agent JSON (not separate files), backed by 2 deterministic gate scripts — `pre-write-guard.sh` (`fs_write`: secrets, oversized writes) and `pre-push-guard.sh` (`execute_bash`: default-branch push, bypass `KIRO_ALLOW_MAIN_PUSH=1`). `cross-review.sh` is an on-demand script, not a hook.
+**CLI tier** (default, `--cli-version 2`): hooks embedded in agent JSON, backed by 2 deterministic gate scripts; with `--cli-version 3` the same two gates install as standalone `.kiro/hooks/*.json` (v1 schema) and the embedded field is stripped for the CLI 3.0 engine. Gate scripts — `pre-write-guard.sh` (`fs_write`: secrets, oversized writes) and `pre-push-guard.sh` (`execute_bash`: default-branch push, bypass `KIRO_ALLOW_MAIN_PUSH=1`). `cross-review.sh` is an on-demand script, not a hook.
 
 **IDE tier** (`.kiro/hooks/`): 2 deterministic gates, symmetric with the CLI tier:
 - pre-write-guard: size limit, secret detection, doc-location check
@@ -288,6 +289,7 @@ Options:
   --<category>-<sub>= <list>     Detail option (e.g., --writing-social=voice; for subs with drill-down only)
   --workload <list|all>          Low-level: comma-separated workload keys or 'all' (legacy surface, merges with categories via union)
   --provider <anthropic|openai>  Model family profile (default: anthropic); writes role models, effort guidance, operating notes, and cross-family priority into installed agents
+  --cli-version <2|3>            CLI-tier hook format (default 2 = agent-embedded; 3 = standalone .kiro/hooks/*.json for the CLI 3.0 engine)
   --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE only: route mcp.json through mcp-proxy (:9090) and auto-start the proxy container (docker compose up -d) if not already running
   --target <path>                Install to specified directory

@@ -3,6 +3,12 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-08-16 — v3.0.0
+
+### Added
+
+- **CLI 3.0(v3 엔진) 훅 포맷 지원 — `--cli-version 2|3`** — Kiro CLI 3.0(`kiro-cli --v3`)은 에이전트 JSON 의 camelCase embedded hooks 를 읽지 않는다(공식 브레이킹 체인지). `--cli-version 3` 으로 설치하면 두 게이트 훅(pre-write-guard, pre-push-guard)을 독립 `.kiro/hooks/*.json`(version v1, `PreToolUse` PascalCase 트리거, v3 도구 태그 matcher `write`/`shell`)으로 외부화하고, v3 엔진이 무시할 embedded `hooks` 필드를 설치본에서 제거한다(죽은 설정 잔존 방지). 게이트 셸 스크립트는 두 버전 공통. 기본값 `--cli-version 2` 는 기존 2.x embedded 설치를 바이트 동일하게 유지한다(회귀 가드 테스트 포함). 매니페스트·`--status` 에 `cliVersion` 기록. 에이전트 설정 자체는 v3 에서 하위 호환이며, `toolsSettings`→`permissions` 전환은 Kiro 공식 도구(`/upgrade-agent`, `kiro-cli agent migrate`)를 안내한다.
+
 ## 2026-08-16 — v2.0.0
 
 하네스 최소화 릴리스. 상위 프로젝트(my_harness_for_claude_code)의 최소화 작업(훅 축소·상시 rule 다이어트·플로우 정리)을 Kiro 에 맞게 반영하고, AWS 인프라·Terraform 작업에 최적화했다.
