@@ -2,18 +2,16 @@
 
 여러 MCP 클라이언트(Kiro, Claude Code, Obsidian 등)가 각자 MCP 서버 프로세스를 중복으로 띄우지 않도록,
 [tbxark/mcp-proxy](https://github.com/tbxark/mcp-proxy)로 MCP 서버를 **한 곳(도커 컨테이너)에서 중앙 관리**한다.
-클라이언트는 `http://localhost:<포트>/<서버>/mcp` 만 바라본다.
-
-프록시는 **두 개**다 — 자격증명 격리를 위해 나눴다.
+클라이언트는 `http://localhost:9090/<서버>/mcp` 하나만 바라본다.
 
 ```
-클라이언트들 ──HTTP──▶ mcp-proxy(:9090)        ──▶ fetch / brave / exa / time / drawio / context7 / obsidian ...
-             └───────▶ devops-mcp-proxy(:9092) ──▶ terraform / aws-documentation / cloudwatch / aws-ecs /
-                                                    aws-iam / aws-pricing / aws-billing-cost-management
+클라이언트들 ──HTTP──▶ mcp-proxy(:9090) ──▶ fetch / brave / exa / time / drawio / context7 / obsidian ...
 ```
 
-`~/.aws`(프로필·SSO 토큰)를 마운트하는 컨테이너는 **devops-mcp-proxy 하나뿐**이다. brave/github/obsidian 같은
-범용 백엔드는 AWS 자격증명과 같은 파일시스템에 놓이지 않는다.
+> **devops/AWS MCP 는 이 프록시에 없다.** terraform 과 AWS 서버는 온디맨드 stdio 프로세스로 돈다 —
+> 호스트 `uvx`(awslabs 공식, 버전 핀)와 terraform 의 `docker run -i --rm`(핀된 이미지)이다. 상주
+> 컨테이너가 없어 평소 리소스를 쓰지 않고, 지킬 HTTP 엔드포인트도 없다. 이유와 실측 지연은
+> `docs/kr/mcp-reference.md` 의 "왜 프록시가 아니라 stdio 인가" 참고.
 
 이 디렉터리는 하네스에 번들된 배포 단위다. 하네스 설치기(`install.js`)의 `--mcp-proxy` 옵션은
 여기서 뜬 프록시를 가리키도록 Kiro MCP 구성을 생성한다(아래 "하네스 연동" 참고).
@@ -64,102 +62,85 @@ cp .env.example .env
 ## 2. 실행
 
 ```bash
-docker compose up -d mcp-proxy          # 범용 프록시 :9090
-docker compose up -d devops-mcp-proxy   # devops 프록시 :9092 (terraform-mcp 도 함께 뜸)
-docker compose up -d                    # 둘 다
-docker compose logs -f devops-mcp-proxy # 기동 확인 (Ctrl+C로 로그만 빠져나옴)
+docker compose up -d mcp-proxy     # 범용 프록시 :9090 (terraform-mcp 사이드카도 함께 뜸)
+docker compose logs -f mcp-proxy   # 기동 확인 (Ctrl+C로 로그만 빠져나옴)
 ```
 
-- 서비스는 셋이다: `mcp-proxy`(:9090), `devops-mcp-proxy`(:9092), `terraform-mcp`(내부 전용).
+- `mcp-proxy` (:9090) + `terraform-mcp` (내부 전용) 두 컨테이너가 뜬다.
 - `restart: unless-stopped` — 재부팅/크래시 시 자동 재기동.
-- devops 프록시 첫 기동은 awslabs 서버를 `uvx`로 받는 동안 **30~60초** 걸린다. 이후엔 `devops-uv-cache`
-  볼륨에 남아 즉시 뜬다. 로그에 서버별 `Handling requests at /<서버>/` 가 7개 찍히면 준비된 것이다.
 
-> **보안:** 두 프록시 모두 루프백(`127.0.0.1:9090`, `127.0.0.1:9092`)에만 바인딩된다. **무인증**이며
-> github(PAT)/obsidian/brave, 그리고 AWS 자격증명 백엔드를 프론트하므로 LAN에 노출하면 같은 네트워크의
-> 임의 호스트가 그 권한을 쓸 수 있다. 원격 접근이 꼭 필요하면 `config.json`에 `authTokens`를 설정하고
-> 바인딩을 조정할 것. terraform-mcp는 호스트 포트를 발행하지 않는다(내부망 전용).
->
-> devops 프록시는 `~/.aws`를 **읽기 전용**으로 마운트한다. 그래서 SSO 토큰 갱신은 호스트에서 해야 한다:
-> `aws sso login --profile <이름>`. 프로필/리전은 `AWS_PROFILE`/`AWS_REGION`(셸 또는 `.env`)로 주입된다.
+> **보안:** 프록시는 `127.0.0.1:9090` (루프백)에만 바인딩된다. github(PAT)/obsidian/brave 등 자격증명
+> 백엔드를 프론트하므로 무인증으로 LAN에 노출되면 안 된다. 원격 접근이 꼭 필요하면 `config.json`에
+> `authTokens`를 설정하고 바인딩을 조정할 것. terraform-mcp는 호스트 포트를 발행하지 않는다(내부망 전용).
 
 ## 3. 확인
 
 ```bash
 # 프록시가 응답하는지 (405/mcp 관련 응답이면 정상 기동)
 curl -i http://localhost:9090/time/mcp
+```
 
-# devops 프록시 서버별 handshake — 7개 모두 serverInfo 를 돌려주면 정상
-for s in terraform aws-documentation cloudwatch aws-ecs aws-pricing aws-billing-cost-management aws-iam; do
-  printf '%-30s ' "$s"
-  curl -sS --max-time 30 -X POST "http://localhost:9092/$s/mcp" \
-    -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
-    -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}' \
-    | grep -o '"serverInfo":{"name":"[^"]*"' || echo FAIL
-done
+devops/AWS MCP 는 프록시를 안 거치므로 stdio 로 직접 확인한다:
+
+```bash
+req='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}'
+printf '%s\n' "$req" | uvx awslabs.cloudwatch-mcp-server@0.1.8 2>/dev/null | head -1
+printf '%s\n' "$req" | docker run -i --rm hashicorp/terraform-mcp-server:1.0.0 2>/dev/null | head -1
 ```
 
 ## 하네스 연동 (`--mcp-proxy`)
 
-하네스 IDE 설치에 `--mcp-proxy`를 주면, 생성되는 `.kiro/settings/mcp.json`이 범용 프록시 경유 서버를
+하네스 IDE 설치에 `--mcp-proxy`를 주면, 생성되는 `.kiro/settings/mcp.json`이 프록시 경유 서버를
 직접 stdio 대신 `{"type":"http","url":"http://localhost:9090/<서버>/mcp"}` 형태로 기록한다.
 
-**devops 프록시는 이 플래그와 무관하다.** `cloud`/`finops` 워크로드가 활성이면 티어와 관계없이 설치기가
-`devops-mcp-proxy`를 보장하고, devops MCP 는 항상 `http://localhost:9092/<서버>/mcp` 를 가리킨다.
-이유는 성능이 아니라 **동작 여부**다 — 예전에는 클라이언트가 서버마다 `docker run -i --rm <이미지>` 를
-띄웠는데, 첫 이미지 pull 이 14~20초 걸려 MCP 초기화 타임아웃을 넘겼고 그래서 devops MCP 가 **전부** 실패했다.
-상주 프록시는 그 비용을 컨테이너 기동 때 한 번만 낸다.
+devops/AWS 서버는 이 플래그와 무관하게 항상 온디맨드 stdio 로 기록된다(프록시 대상이 아니다).
 
 ```bash
 node install.js ide --workload=cloud,writing --mcp-proxy
 ```
 
-설치기는 이때 **프록시 컨테이너까지 보장**한다: `docker ps`로 해당 컨테이너가 떠 있는지 확인해 — 떠 있으면 스킵, 없으면 이 디렉터리에서 `docker compose up -d <서비스>`를 자동 실행한다(서비스명을 명시하므로 필요한 프록시만 뜬다). **Docker 가 설치돼 있지 않으면 "Docker 설치 후 다시 실행"**, 데몬이 꺼져 있으면 "데몬 시작 후 다시 실행"하라고 안내한다. 기동 실패·`--dry-run`이면 안내만 출력하고 설치는 계속된다(수동 기동: `cd mcp-proxy && docker compose up -d`). 키가 필요한 백엔드(brave/github/obsidian)는 위 "1. API 키 설정"을 먼저 해두면 컨테이너 기동 시 함께 주입된다.
+설치기는 이때 **프록시 컨테이너까지 보장**한다: `docker ps`로 `mcp-proxy`가 떠 있는지 확인해 — 떠 있으면 스킵, 없으면 이 디렉터리에서 `docker compose up -d mcp-proxy`를 자동 실행한다. (`KIRO_HARNESS_SKIP_PROXY_PROVISION=1` 을 주면 이 단계를 건너뛴다 — e2e 테스트가 호스트 도커 상태를 바꾸지 않도록 쓰는 탈출구다.) **Docker 가 설치돼 있지 않으면 "Docker 설치 후 다시 실행"**, 데몬이 꺼져 있으면 "데몬 시작 후 다시 실행"하라고 안내한다. 기동 실패·`--dry-run`이면 안내만 출력하고 설치는 계속된다(수동 기동: `cd mcp-proxy && docker compose up -d`). 키가 필요한 백엔드(brave/github/obsidian)는 위 "1. API 키 설정"을 먼저 해두면 컨테이너 기동 시 함께 주입된다.
 
 **워크로드 선별 (`config.generated.json`):** `--mcp-proxy` 설치는 활성 워크로드에 맞는 백엔드만 담은 `config.generated.json`을 이 디렉터리에 생성하고, 컨테이너가 그것을 마운트하도록 `MCP_PROXY_CONFIG`로 주입한다(전체 `config.json`은 템플릿이자 수동 `up` 시 기본값으로 유지). 그래서 프록시도 **"필요한 백엔드만"** 서빙하며, 클라이언트 `mcp.json`과 동일한 워크로드 게이트라 서빙 목록과 구독 목록이 정합한다. 프록시가 이미 실행 중이면 공유 안정성을 위해 자동 재기동하지 않는다 — 새 구성을 반영하려면 `MCP_PROXY_CONFIG=./config.generated.json docker compose up -d`로 재적용한다. Kiro 내장(github/context7)은 선별 config 에서 제외되므로, 비-Kiro 클라이언트용으로 전체를 서빙하려면 수동 `docker compose up -d`(기본값 = 전체 `config.json`)를 쓴다.
 
-**범용 프록시(:9090)로 들어가는 것:** fetch, time, brave-search, exa, drawio, token-optimizer,
-obsidian — 활성 워크로드에 맞는 것만.
-
-**devops 프록시(:9092)로 들어가는 것:** terraform, aws-documentation, cloudwatch, aws-ecs, aws-iam
-(cloud 워크로드), aws-pricing, aws-billing-cost-management (finops 워크로드). 백엔드는 AWS 공식
-`awslabs` 서버를 `uvx`로 버전 핀해 실행한다 — 종전의 서드파티 `acuvity/*` 미러는 같은 awslabs 소스를
-`minibridge` 래퍼로 감싸 기본 HTTP 모드로 뜨기 때문에 stdio 경로가 불안정했다.
+**프록시로 들어가는 것:** fetch, time, brave-search, exa, drawio, token-optimizer, obsidian —
+활성 워크로드에 맞는 것만.
 
 **프록시 밖에 남는 것:**
 - **Kiro 내장** — `github`, `context7`, `playwright`, `memory`, `sequential-thinking`. Kiro가 자체 제공하므로
   Kiro 구성에는 프록시 URL로도 넣지 않는다. (프록시 자체는 Claude Code/Obsidian 등 비-Kiro 클라이언트를 위해
   github/context7 백엔드를 계속 제공한다.)
+- **devops/AWS 서버** — terraform, aws-documentation, cloudwatch, aws-ecs, aws-iam, aws-pricing,
+  aws-billing-cost-management. 온디맨드 stdio(호스트 `uvx` / `docker run -i --rm`)로 돌아 상주 컨테이너가
+  없다. 정의는 `mcp-configs/mcp-servers.json` 의 `mcpServersDevops`.
 - **범용 AWS API 서버** — 없다. 구 `aws-core`(= `awslabs.core-mcp-server`)는 upstream 에서
-  yanked 됐고(사유: 'load individual MCPs'), 대체 후보 `awslabs.aws-api-mcp-server`는 기동 시
-  `~/.aws/aws-api-mcp/` 를 무조건 만들어 읽기전용 마운트와 충돌하며 Kiro 내장 `use_aws` 와 기능이 겹친다.
-  임의 AWS API 호출은 `use_aws` 또는 `aws` CLI 로 하며, 그래야 뮤테이션이 devops 에이전트의
-  plan → 승인 → execute 흐름 안에 남는다.
+  yanked 됐고(사유: 'load individual MCPs'), 대체 후보 `awslabs.aws-api-mcp-server`는 Kiro 내장
+  `use_aws` 와 기능이 겹친다. 임의 AWS API 호출은 `use_aws` 또는 `aws` CLI 로 하며, 그래야 뮤테이션이
+  devops 에이전트의 plan → 승인 → execute 흐름 안에 남는다.
 - **호스트 특정 로컬 stdio** — GitKraken(로컬 바이너리 경로), playwright(로컬 브라우저) 등은 프록시를 안 거치고
   클라이언트가 직접 띄운다. 하네스는 이를 관리하지 않는다.
 
 ## 서버 추가/변경
 
-1. 범용 서버는 `config.json`, AWS/인프라 서버는 `config.devops.json`의 `mcpServers`에 항목 추가
+1. `config.json`의 `mcpServers`에 항목 추가
 2. 시크릿이 필요하면 셸 프로필 export(또는 `.env`) + `docker-compose.yaml`의 `environment:`에 키 추가
-3. `docker compose up -d <서비스>` (config는 `:ro` 마운트라 재기동만 하면 반영)
-4. 하네스에서도 쓰려면 `mcp-configs/mcp-servers.json`의 `mcpProxy.servers`(범용) 또는
-   `mcpProxyDevops.servers`(devops)에 이름 추가 — 두 곳이 어긋나면 `npm test` 가 죽은 URL 로 잡아낸다
+3. `docker compose up -d mcp-proxy` (config는 `:ro` 마운트라 재기동만 하면 반영)
+4. 프록시 경유로 하네스에서도 쓰려면 `mcp-configs/mcp-servers.json`의 `mcpProxy.servers`에 이름 추가
+   — 두 곳이 어긋나면 `npm test` 가 죽은 URL 로 잡아낸다
 
-### 버전 갱신 (devops 백엔드)
+### devops 백엔드 버전 갱신
 
-`config.devops.json`의 awslabs 패키지 버전은 재현성을 위해 핀돼 있다(`@latest`는 컨테이너가 뜰 때마다
-재해석되고, 테스트가 이를 금지한다). 올릴 때:
+devops/AWS 서버는 이 프록시가 아니라 `mcp-configs/mcp-servers.json` 의 `mcpServersDevops` 가 정의한다.
+버전은 재현성을 위해 핀돼 있다(`@latest`는 실행마다 재해석되어 콜드스타트를 되살리고, 테스트가 이를 금지한다):
 
 ```bash
 # 최신 버전 확인
 curl -s https://pypi.org/pypi/awslabs.cloudwatch-mcp-server/json | python3 -c 'import json,sys;print(json.load(sys.stdin)["info"]["version"])'
-# config.devops.json 수정 후 재생성
-docker compose up -d --force-recreate devops-mcp-proxy
 ```
 
-`aws-iam` 에 `--allow-write` 를 추가하면 안 된다 — 서버 기본값이 read-only 이며, 쓰기는 devops 에이전트의
-승인 흐름(`use_aws`/`aws` CLI)이 담당한다. 테스트가 쓰기 플래그를 금지한다.
+`mcpServersDevops.servers` 와 `agents/cli/global/devops.json` 을 함께 고친 뒤 재설치한다(테스트가 두 곳의
+일치를 검사한다). `aws-iam` 에 `--allow-write` 를 추가하면 안 된다 — 서버 기본값이 read-only 이며, 쓰기는
+devops 에이전트의 승인 흐름(`use_aws`/`aws` CLI)이 담당한다.
 
 ## 트러블슈팅
 
@@ -168,8 +149,7 @@ docker compose up -d --force-recreate devops-mcp-proxy
 | 컨테이너→호스트 접속 실패 (Obsidian 등) | `host.docker.internal` 사용. compose의 `extra_hosts`로 Colima에서도 매핑됨 |
 | `${VAR}`가 치환 안 됨 | 셸 프로필 export 후 `source` 했는지, 또는 `.env` 키가 `docker-compose.yaml`의 `environment:`에도 있는지 확인 후 `up -d` 재실행 |
 | terraform 서버 안 붙음 | 별도 컨테이너(`terraform-mcp`)로 뜸. 프록시가 내부망 `terraform-mcp:8080`으로 접근 — 호스트엔 미노출 |
-| 설정 바꿨는데 반영 안 됨 | `docker compose up -d <서비스>` (또는 `restart <서비스>`)로 재기동 |
-| devops `@`-도구가 **전부** 안 붙음 | `devops-mcp-proxy` 컨테이너가 없다. `docker compose up -d devops-mcp-proxy` 후 로그에서 `Handling requests at` 7개 확인 |
-| devops 서버 일부만 안 붙음 | 첫 기동 중 `uvx` 다운로드가 아직 진행 중일 수 있다(30~60초). `docker compose logs devops-mcp-proxy \| grep -E 'Connecting\|Handling'` 로 확인 |
-| AWS 도구가 자격증명 오류 | SSO 토큰 만료. 호스트에서 `aws sso login --profile <이름>` (컨테이너는 ro 마운트라 갱신 불가). 프로필이 다르면 `AWS_PROFILE` 을 export 후 `up -d --force-recreate devops-mcp-proxy` |
-| `:9092` 포트 충돌 | 다른 프로세스가 점유 중. `lsof -nP -iTCP:9092 -sTCP:LISTEN` 로 확인 후 정리하거나, `docker-compose.yaml`·`config.devops.json`·`mcp-configs/mcp-servers.json` 세 곳의 포트를 함께 바꾼다(테스트가 정합성을 검사한다) |
+| 설정 바꿨는데 반영 안 됨 | `docker compose up -d mcp-proxy` (또는 `restart mcp-proxy`)로 재기동 |
+| devops `@`-도구가 **전부** 안 붙음 | 프록시 문제가 아니다. 호스트에 `uv` 가 없을 가능성이 크다 — `command -v uvx` 확인 후 `brew install uv`. terraform 만 안 붙으면 Docker 를 확인한다 |
+| devops 첫 호출이 느림(~30초) | `uv` 캐시가 비어 있어 핀된 버전을 받는 중이다. 한 번 받으면 이후 0.5~5초. 미리 워밍하려면 `docs/kr/mcp-reference.md` 의 콜드스타트 절 참고 |
+| AWS 도구가 자격증명 오류 | SSO 토큰 만료. `aws sso login --profile <이름>` — stdio 는 호스트 프로세스라 즉시 반영된다. 프로필을 바꾸려면 `AWS_PROFILE` 을 export 하고 세션을 다시 시작 |

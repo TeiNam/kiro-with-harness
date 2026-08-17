@@ -1,6 +1,6 @@
 {
   "name": "kiro-with-harness",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Kiro Harness — 프로필 기반 설치기와 steering·hook·agent·skill·MCP 자산 모음",
   "private": true,
   "type": "commonjs",

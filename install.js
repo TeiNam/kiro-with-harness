@@ -340,15 +340,6 @@ function runInstall(opts) {
     ensureMcpProxy({ root: HARNESS_ROOT, dryRun: DRY_RUN });
   }
 
-  // devops MCP 프록시(:9092): cloud/finops 워크로드가 활성이면 티어와 무관하게 보장한다.
-  // devops 에이전트의 MCP 는 전부 이 프록시 URL 을 가리키므로(서버당 `docker run` 을 띄우면
-  // 첫 이미지 pull 이 초기화 타임아웃을 넘겨 전부 실패했다) 컨테이너가 없으면 도구가 하나도
-  // 안 붙는다. 자격증명은 이 컨테이너에만 마운트되어 범용 프록시와 격리된다.
-  if (selection.activeGroups.some((g) => g === 'cloud' || g === 'finops')) {
-    console.log('');
-    ensureMcpProxy({ root: HARNESS_ROOT, service: 'devops-mcp-proxy', dryRun: DRY_RUN });
-  }
-
   if (DRY_RUN) {
     console.log(`\nDRY-RUN complete. ${tracked.size} file(s) would be written. Re-run without --dry-run to apply.`);
     return;

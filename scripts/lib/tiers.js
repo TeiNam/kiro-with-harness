@@ -122,7 +122,7 @@ function mcpJsonContent({ general, devops, proxy }) {
   // proxy(중앙 프록시 :9090) 먼저 — general/devops 의 동명 서버는 select 단계에서 이미 제외됨
   for (const [k, v] of Object.entries(proxy || {})) mcpServers[k] = v;
   for (const [k, v] of Object.entries(general || {})) mcpServers[k] = v;
-  // devops 프록시(:9092) — 이미 { type:'http', url } 형태로 emit 되어 그대로 싣는다
+  // devops — select 단계에서 런타임 키만 남긴 온디맨드 stdio 정의를 그대로 싣는다
   for (const [k, v] of Object.entries(devops || {})) mcpServers[k] = v;
   return JSON.stringify({ mcpServers }, null, 2) + '\n';
 }
