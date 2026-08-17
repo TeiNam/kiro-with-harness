@@ -1,17 +1,43 @@
 {
   "mcpProxy": {
-    "_comment": "Central MCP aggregator (tbxark/mcp-proxy), bundled at repo mcp-proxy/ (docker compose up -d). When install.js runs with --mcp-proxy, each selected server below is emitted into the generated .kiro/settings/mcp.json as { type:http, url } pointing at the proxy — overriding its direct stdio/general or docker equivalent. Non-proxyable servers stay direct: credentialed AWS docker servers (aws-core/cloudwatch/aws-ecs/aws-iam/aws-pricing/aws-billing-cost-management) keep their docker run, and host-specific stdio (GitKraken, playwright) is left to the client. Kiro built-ins (github, context7, playwright, memory, sequential-thinking) are intentionally NOT listed — Kiro provides them natively, so they are never proxied into a Kiro config (the proxy still serves github/context7 backends for non-Kiro clients). workloads gate = same rule as mcpServers: [] or omitted means universal, otherwise include only when it intersects the active workloads.",
+    "_comment": "Central MCP aggregator (tbxark/mcp-proxy), bundled at repo mcp-proxy/ (docker compose up -d mcp-proxy). When install.js runs with --mcp-proxy, each selected server below is emitted into the generated .kiro/settings/mcp.json as { type:http, url } pointing at the proxy — overriding its direct stdio equivalent. AWS/Terraform servers are NOT here: they live on the separate devops proxy (mcpProxyDevops, :9092) so that AWS credentials are mounted into one container only, isolated from general backends like brave/github/obsidian. Host-specific stdio (GitKraken, playwright) is left to the client. Kiro built-ins (github, context7, playwright, memory, sequential-thinking) are intentionally NOT listed — Kiro provides them natively. workloads gate = same rule as mcpServers: [] or omitted means universal, otherwise include only when it intersects the active workloads.",
     "baseURL": "http://localhost:9090",
     "servers": {
-      "fetch": { "workloads": [] },
-      "time": { "workloads": [] },
-      "brave-search": { "workloads": ["research", "writing"] },
-      "exa": { "workloads": ["research", "writing"] },
-      "drawio": { "workloads": ["architecture", "writing"] },
-      "token-optimizer": { "workloads": ["ai-agent", "ai"] },
-      "obsidian": { "workloads": ["obsidian"] },
-      "aws-documentation": { "workloads": ["cloud"] },
-      "terraform": { "workloads": ["cloud"] }
+      "fetch": {
+        "workloads": []
+      },
+      "time": {
+        "workloads": []
+      },
+      "brave-search": {
+        "workloads": [
+          "research",
+          "writing"
+        ]
+      },
+      "exa": {
+        "workloads": [
+          "research",
+          "writing"
+        ]
+      },
+      "drawio": {
+        "workloads": [
+          "architecture",
+          "writing"
+        ]
+      },
+      "token-optimizer": {
+        "workloads": [
+          "ai-agent",
+          "ai"
+        ]
+      },
+      "obsidian": {
+        "workloads": [
+          "obsidian"
+        ]
+      }
     }
   },
   "mcpServers": {
@@ -20,88 +46,90 @@
       "type": "http",
       "url": "https://docs.mcp.cloudflare.com/mcp",
       "description": "Cloudflare documentation search",
-      "workloads": ["cloud"]
+      "workloads": [
+        "cloud"
+      ]
     },
     "mcpydoc": {
       "command": "python",
-      "args": ["-m", "mcpydoc"],
+      "args": [
+        "-m",
+        "mcpydoc"
+      ],
       "env": {},
       "description": "Python package documentation and code analysis server (auto-detects venv). Install: pip install mcpydoc. Alt: use command='uvx', args=['mcpydoc'] for zero-install.",
-      "autoApprove": ["search_symbols"],
+      "autoApprove": [
+        "search_symbols"
+      ],
       "disabled": true,
-      "workloads": ["python"]
+      "workloads": [
+        "python"
+      ]
     }
   },
-  "mcpServersDocker": {
-    "_comment": "Docker-based MCP servers (FinOps + DevOps essentials for the devops agent). Run the pull command before first use. Images: hashicorp/* (official), Docker-official mcp/* (built from awslabs sources), acuvity/* (curated awslabs mirrors).",
-    "_credentials": "AWS servers need credentials at runtime. The args forward host env (AWS_REGION/AWS_PROFILE + static keys). For SSO/named profiles, also mount your config dir — add: \"-v\", \"$HOME/.aws:/root/.aws:ro\". terraform (registry) and aws-pricing/aws-documentation (public APIs) work without credentials.",
-
-    "_devops": "===== DevOps / Infrastructure =====",
-    "terraform": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server"],
-      "description": "Terraform Registry integration — provider docs, module specs, version/registry metadata for IaC (HashiCorp official, GA)",
-      "pull": "docker pull hashicorp/terraform-mcp-server",
-      "category": "devops",
-      "usedBy": ["devops"]
-    },
-    "aws-documentation": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "acuvity/mcp-server-aws-documentation"],
-      "description": "AWS documentation search, content recommendations, and markdown conversion",
-      "pull": "docker pull acuvity/mcp-server-aws-documentation",
-      "category": "devops",
-      "usedBy": ["devops"]
-    },
-    "aws-core": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "-e", "AWS_PROFILE", "-e", "AWS_ACCESS_KEY_ID", "-e", "AWS_SECRET_ACCESS_KEY", "-e", "AWS_SESSION_TOKEN", "acuvity/mcp-server-aws-core"],
-      "description": "AWS core API operations and task orchestration (S3, EC2, IAM, etc.)",
-      "pull": "docker pull acuvity/mcp-server-aws-core",
-      "category": "devops",
-      "usedBy": ["devops"]
-    },
-    "cloudwatch": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "-e", "AWS_PROFILE", "-e", "AWS_ACCESS_KEY_ID", "-e", "AWS_SECRET_ACCESS_KEY", "-e", "AWS_SESSION_TOKEN", "mcp/cloudwatch-mcp-server"],
-      "description": "CloudWatch metrics, alarms, and Logs Insights — operational troubleshooting (supersedes the narrower cloudwatch-logs)",
-      "pull": "docker pull mcp/cloudwatch-mcp-server",
-      "category": "devops",
-      "usedBy": ["devops"]
-    },
-    "aws-ecs": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "-e", "AWS_PROFILE", "-e", "AWS_ACCESS_KEY_ID", "-e", "AWS_SECRET_ACCESS_KEY", "-e", "AWS_SESSION_TOKEN", "acuvity/mcp-server-aws-ecs"],
-      "description": "ECS containerization, deployment, troubleshooting, and infrastructure management",
-      "pull": "docker pull acuvity/mcp-server-aws-ecs",
-      "category": "devops",
-      "usedBy": ["devops"]
-    },
-    "aws-iam": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "-e", "AWS_PROFILE", "-e", "AWS_ACCESS_KEY_ID", "-e", "AWS_SECRET_ACCESS_KEY", "-e", "AWS_SESSION_TOKEN", "mcp/iam-mcp-server"],
-      "description": "IAM users, roles, groups, and policy management with security best practices (sensitive — enable per task)",
-      "pull": "docker pull mcp/iam-mcp-server",
-      "category": "devops",
-      "usedBy": ["devops"]
-    },
-
-    "_finops": "===== FinOps / Cost =====",
-    "aws-pricing": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "mcp/aws-pricing-mcp-server"],
-      "description": "Pre-deployment cost estimation and optimization from the AWS Price List API — answer 'what will this cost before I deploy?'",
-      "pull": "docker pull mcp/aws-pricing-mcp-server",
-      "category": "finops",
-      "usedBy": ["devops"]
-    },
-    "aws-billing-cost-management": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "AWS_REGION", "-e", "AWS_PROFILE", "-e", "AWS_ACCESS_KEY_ID", "-e", "AWS_SECRET_ACCESS_KEY", "-e", "AWS_SESSION_TOKEN", "mcp/billing-cost-management-mcp-server"],
-      "description": "Actual spend, budgets, Cost Explorer, Compute Optimizer, Cost Optimization Hub, and pricing calculator (supersedes the narrower cost-explorer)",
-      "pull": "docker pull mcp/billing-cost-management-mcp-server",
-      "category": "finops",
-      "usedBy": ["devops"]
+  "mcpProxyDevops": {
+    "_comment": "DevOps/FinOps MCP servers for the devops agent, served by the dedicated mcp-proxy container on :9092 (mcp-proxy/config.devops.json + the devops-mcp-proxy compose service). Clients get { type:http, url } — no per-call `docker run`, so no cold-start pull timeout, and one AWS-credentialed container instead of seven. Backends are the official AWS awslabs servers run via uvx (pinned), replacing the 3rd-party acuvity mirrors. Start with: cd mcp-proxy && docker compose up -d devops-mcp-proxy",
+    "_credentials": "The proxy container mounts ~/.aws read-only and receives AWS_PROFILE/AWS_REGION. SSO profiles need `aws sso login --profile <name>` on the host (the container cannot refresh a read-only mount). terraform, aws-documentation and aws-pricing need no credentials.",
+    "_write_policy": "Read-biased by design: aws-ecs runs with ALLOW_WRITE=false and aws-iam is read-only unless started with --allow-write (its own default), which must never be added. Mutations go through the devops agent's plan->approve->execute flow using use_aws / the aws CLI, not through MCP.",
+    "_removed_aws_core": "aws-core is gone: awslabs.core-mcp-server was yanked upstream (reason: 'load individual MCPs'). Its candidate replacement awslabs.aws-api-mcp-server unconditionally mkdirs ~/.aws/aws-api-mcp/ at startup, which conflicts with the read-only credential mount, and it duplicates Kiro's built-in use_aws tool. General AWS API calls therefore use use_aws / aws CLI.",
+    "baseURL": "http://localhost:9092",
+    "servers": {
+      "terraform": {
+        "description": "Terraform Registry integration — provider docs, module specs, version/registry metadata for IaC (HashiCorp official, GA)",
+        "category": "devops",
+        "workloads": [
+          "cloud"
+        ],
+        "backend": "http://terraform-mcp:8080/mcp (hashicorp/terraform-mcp-server:1.0.0 sidecar)"
+      },
+      "aws-documentation": {
+        "description": "AWS documentation search, content recommendations, and markdown conversion",
+        "category": "devops",
+        "workloads": [
+          "cloud"
+        ],
+        "backend": "uvx awslabs.aws-documentation-mcp-server@1.1.30"
+      },
+      "cloudwatch": {
+        "description": "CloudWatch metrics, alarms, and Logs Insights — operational troubleshooting (supersedes the narrower cloudwatch-logs)",
+        "category": "devops",
+        "workloads": [
+          "cloud"
+        ],
+        "backend": "uvx awslabs.cloudwatch-mcp-server@0.1.8"
+      },
+      "aws-ecs": {
+        "description": "ECS containerization, deployment, troubleshooting, and infrastructure management",
+        "category": "devops",
+        "workloads": [
+          "cloud"
+        ],
+        "backend": "uvx --from awslabs-ecs-mcp-server@0.1.34 ecs-mcp-server"
+      },
+      "aws-iam": {
+        "description": "IAM users, roles, groups, and policy management with security best practices (sensitive — enable per task)",
+        "category": "devops",
+        "workloads": [
+          "cloud"
+        ],
+        "backend": "uvx awslabs.iam-mcp-server@1.0.25"
+      },
+      "aws-pricing": {
+        "description": "Pre-deployment cost estimation and optimization from the AWS Price List API — answer 'what will this cost before I deploy?'",
+        "category": "finops",
+        "workloads": [
+          "finops"
+        ],
+        "backend": "uvx awslabs.aws-pricing-mcp-server@1.0.34"
+      },
+      "aws-billing-cost-management": {
+        "description": "Actual spend, budgets, Cost Explorer, Compute Optimizer, Cost Optimization Hub, and pricing calculator (supersedes the narrower cost-explorer)",
+        "category": "finops",
+        "workloads": [
+          "finops"
+        ],
+        "backend": "uvx awslabs.billing-cost-management-mcp-server@0.0.33"
+      }
     }
   },
   "_disabled": {
@@ -114,13 +142,19 @@
     },
     "railway": {
       "command": "npx",
-      "args": ["-y", "@railway/mcp-server"],
+      "args": [
+        "-y",
+        "@railway/mcp-server"
+      ],
       "description": "Railway deployments"
     },
     "_category_frontend": "===== Frontend/UI (프론트엔드/UI) =====",
     "magic": {
       "command": "npx",
-      "args": ["-y", "@magicuidesign/mcp@latest"],
+      "args": [
+        "-y",
+        "@magicuidesign/mcp@latest"
+      ],
       "description": "Magic UI components (frontend projects)"
     },
     "laraplugins": {
@@ -131,7 +165,9 @@
     "_category_enterprise": "===== Enterprise Collaboration (엔터프라이즈 협업) =====",
     "jira": {
       "command": "uvx",
-      "args": ["mcp-atlassian==0.21.0"],
+      "args": [
+        "mcp-atlassian==0.21.0"
+      ],
       "env": {
         "JIRA_URL": "YOUR_JIRA_URL_HERE",
         "JIRA_EMAIL": "YOUR_JIRA_EMAIL_HERE",
@@ -141,7 +177,10 @@
     },
     "confluence": {
       "command": "npx",
-      "args": ["-y", "confluence-mcp-server"],
+      "args": [
+        "-y",
+        "confluence-mcp-server"
+      ],
       "env": {
         "CONFLUENCE_BASE_URL": "YOUR_CONFLUENCE_URL_HERE",
         "CONFLUENCE_EMAIL": "YOUR_EMAIL_HERE",
@@ -152,7 +191,11 @@
     "_category_db": "===== Database/Analytics (데이터베이스/분석) =====",
     "supabase": {
       "command": "npx",
-      "args": ["-y", "@supabase/mcp-server-supabase@latest", "--project-ref=YOUR_PROJECT_REF"],
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref=YOUR_PROJECT_REF"
+      ],
       "description": "Supabase database operations"
     },
     "clickhouse": {
@@ -163,7 +206,10 @@
     "_category_research": "===== Web Search/Scraping (웹 검색/스크래핑) =====",
     "firecrawl": {
       "command": "npx",
-      "args": ["-y", "firecrawl-mcp"],
+      "args": [
+        "-y",
+        "firecrawl-mcp"
+      ],
       "env": {
         "FIRECRAWL_API_KEY": "YOUR_FIRECRAWL_KEY_HERE"
       },
@@ -171,7 +217,10 @@
     },
     "exa-web-search": {
       "command": "npx",
-      "args": ["-y", "exa-mcp-server"],
+      "args": [
+        "-y",
+        "exa-mcp-server"
+      ],
       "env": {
         "EXA_API_KEY": "YOUR_EXA_API_KEY_HERE"
       },
@@ -179,7 +228,12 @@
     },
     "brave-search": {
       "command": "npx",
-      "args": ["-y", "@brave/brave-search-mcp-server", "--transport", "stdio"],
+      "args": [
+        "-y",
+        "@brave/brave-search-mcp-server",
+        "--transport",
+        "stdio"
+      ],
       "env": {
         "BRAVE_API_KEY": "YOUR_BRAVE_API_KEY_HERE"
       },
@@ -193,13 +247,18 @@
     },
     "time": {
       "command": "uvx",
-      "args": ["mcp-server-time"],
+      "args": [
+        "mcp-server-time"
+      ],
       "description": "Current time + IANA timezone conversion. Requires uv (brew install uv)."
     },
     "_category_ai_media": "===== AI Media Generation (AI 미디어 생성) =====",
     "fal-ai": {
       "command": "npx",
-      "args": ["-y", "fal-ai-mcp-server"],
+      "args": [
+        "-y",
+        "fal-ai-mcp-server"
+      ],
       "env": {
         "FAL_KEY": "YOUR_FAL_KEY_HERE"
       },
@@ -208,7 +267,10 @@
     "_category_browser": "===== Browser Automation (브라우저 자동화) =====",
     "browserbase": {
       "command": "npx",
-      "args": ["-y", "@browserbasehq/mcp-server-browserbase"],
+      "args": [
+        "-y",
+        "@browserbasehq/mcp-server-browserbase"
+      ],
       "env": {
         "BROWSERBASE_API_KEY": "YOUR_BROWSERBASE_KEY_HERE"
       },
@@ -241,12 +303,19 @@
     "_category_agent_tools": "===== Advanced Agent Tools (고급 에이전트 도구) =====",
     "omega-memory": {
       "command": "uvx",
-      "args": ["omega-memory", "serve"],
+      "args": [
+        "omega-memory",
+        "serve"
+      ],
       "description": "Persistent agent memory with semantic search, multi-agent coordination, and knowledge graphs (richer than basic memory store)"
     },
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/your/projects"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/path/to/your/projects"
+      ],
       "description": "Filesystem operations — replace /path/to/your/projects with your actual path"
     },
     "devfleet": {
@@ -256,7 +325,12 @@
     },
     "evalview": {
       "command": "python3",
-      "args": ["-m", "evalview", "mcp", "serve"],
+      "args": [
+        "-m",
+        "evalview",
+        "mcp",
+        "serve"
+      ],
       "env": {
         "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY_HERE"
       },
@@ -265,7 +339,7 @@
   },
   "_comments": {
     "usage": "Copy needed servers to .kiro/settings/mcp.json",
-    "docker": "For mcpServersDocker entries, run the pull command first: docker pull <image>",
+    "proxies": "Two local proxies serve the MCP backends: mcpProxy (:9090, general, opt-in via --mcp-proxy) and mcpProxyDevops (:9092, AWS/Terraform, auto-started for cloud/finops). Both are defined under mcp-proxy/ (config.json / config.devops.json + docker-compose.yaml). Start with `cd mcp-proxy && docker compose up -d <mcp-proxy|devops-mcp-proxy>` — no `docker pull` step is needed since backends run via uvx/npx inside the proxy container.",
     "env_vars": "Replace YOUR_*_HERE placeholders in _disabled section with actual values before moving to mcpServers",
     "excluded": "memory, sequential-thinking, context7, github, playwright are built into Kiro — not listed here",
     "context_warning": "Keep active MCP servers under 10 to preserve context window",

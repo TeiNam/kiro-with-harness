@@ -32,10 +32,14 @@ test('writing: brave-search/exa/drawio 추가, cloud 전용은 제외', () => {
   assert.ok(!selectedNames.includes('terraform') && !selectedNames.includes('aws-documentation'), 'cloud 전용 제외');
 });
 
-test('cloud: aws-documentation/terraform 추가, writing 전용은 제외', () => {
+test('cloud: 범용 프록시는 AWS/Terraform 을 담지 않는다(devops 프록시 :9092 담당)', () => {
   const { selectedNames } = buildProxyConfig({ root: ROOT, activeGroups: ['core', 'cloud'] });
-  for (const n of ['aws-documentation', 'terraform']) assert.ok(selectedNames.includes(n), `${n} 포함`);
+  // AWS 자격증명을 쥔 백엔드는 devops-mcp-proxy 컨테이너에만 두어 범용 백엔드와 격리한다.
+  for (const n of ['aws-documentation', 'terraform', 'cloudwatch', 'aws-ecs', 'aws-iam', 'aws-pricing', 'aws-billing-cost-management']) {
+    assert.ok(!selectedNames.includes(n), `${n} 은 범용 프록시(:9090) 제외`);
+  }
   assert.ok(!selectedNames.includes('brave-search') && !selectedNames.includes('exa'), 'writing 전용 제외');
+  assert.deepStrictEqual(selectedNames.sort(), ['fetch', 'time'], 'cloud 는 무태그 범용 서버만');
 });
 
 test('Kiro 내장(github/context7)은 게이트에 없어 프록시 config 에서 제외', () => {

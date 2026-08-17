@@ -155,22 +155,37 @@ function selectAssets({ root = ROOT, tier, scope, workloads = [], reviewBackend 
 
 function loadMcpCatalog(root) {
   const p = path.join(root, 'mcp-configs', 'mcp-servers.json');
-  if (!fs.existsSync(p)) return { mcpServers: {}, mcpServersDocker: {} };
-  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return { mcpServers: {}, mcpServersDocker: {} }; }
+  if (!fs.existsSync(p)) return { mcpServers: {}, mcpProxyDevops: {} };
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return { mcpServers: {}, mcpProxyDevops: {} }; }
+}
+
+/** {baseURL, servers} 게이트를 { name: {type:'http', url} } 로 펼친다(mcpProxy/mcpProxyDevops 공용). */
+function expandProxy(section, active, defaultBaseURL, gate) {
+  const out = {};
+  if (!section || !section.servers) return out;
+  const baseURL = (section.baseURL || defaultBaseURL).replace(/\/+$/, '');
+  for (const [name, def] of Object.entries(section.servers)) {
+    if (name.startsWith('_')) continue;
+    if (!gate(def, active)) continue;
+    out[name] = { type: 'http', url: `${baseURL}/${name}/mcp` };
+  }
+  return out;
 }
 
 /**
  * 활성 워크로드에 맞는 카탈로그 MCP 서버 선택.
- *   - proxy:   useProxy=true 일 때만. mcpProxy.servers 중 활성 워크로드에 맞는 것을
+ *   - proxy:   useProxy=true 일 때만. mcpProxy.servers(:9090) 중 활성 워크로드에 맞는 것을
  *              { type:'http', url } 로 emit(중앙 프록시 경유). 프록시로 나가는 이름은
- *              general/docker 출력에서 제외한다(proxied wins). Kiro 내장(github/context7 등)은
+ *              general/devops 출력에서 제외한다(proxied wins). Kiro 내장(github/context7 등)은
  *              애초에 mcpProxy.servers 에 없어 프록시로도 나가지 않는다.
- *   - general: 비-docker 서버. `workloads` 태그가 없으면 범용 포함, 있으면 활성
+ *   - general: 비-프록시 stdio 서버. `workloads` 태그가 없으면 범용 포함, 있으면 활성
  *              워크로드와 교집합일 때만 포함(mcpydoc→python, cloudflare-docs→cloud).
- *   - docker:  워크로드 매칭 docker 서버 (devops 카테고리 → cloud, finops 카테고리 → finops). 자격증명이
- *              필요한 AWS 서버라 프록시화 불가 → useProxy 여도 그대로 docker 로 유지
- *              (단 terraform/aws-documentation 은 프록시 대상이면 proxy 로 이동).
- * CLI 티어는 보통 에이전트(devops.json)가 자체 mcpServers 를 들고 가므로 docker 는
+ *   - devops:  mcpProxyDevops.servers(:9092) 중 워크로드 매칭 서버(devops 카테고리 → cloud,
+ *              finops 카테고리 → finops)를 { type:'http', url } 로 emit. AWS 자격증명은 그
+ *              프록시 컨테이너 하나에만 마운트되므로 범용 백엔드와 격리된다. useProxy 와
+ *              무관하게 항상 프록시 경유다 — 클라이언트가 서버당 `docker run` 을 띄우면
+ *              첫 이미지 pull(14~20초)이 MCP 초기화 타임아웃을 넘겨 전부 실패했었다.
+ * CLI 글로벌 티어는 에이전트(devops.json)가 자체 mcpServers 를 들고 가므로 devops 는
  * IDE 티어 mcp.json 구성에 주로 쓰인다.
  */
 function selectMcpServers({ root = ROOT, activeGroups = [], useProxy = false } = {}) {
@@ -181,14 +196,11 @@ function selectMcpServers({ root = ROOT, activeGroups = [], useProxy = false } =
   const proxy = {};
   const proxied = new Set();
   if (useProxy && cat.mcpProxy && cat.mcpProxy.servers) {
-    const baseURL = (cat.mcpProxy.baseURL || 'http://localhost:9090').replace(/\/+$/, '');
-    for (const [name, def] of Object.entries(cat.mcpProxy.servers)) {
-      if (name.startsWith('_')) continue;
+    Object.assign(proxy, expandProxy(cat.mcpProxy, active, 'http://localhost:9090', (def, act) => {
       const wl = Array.isArray(def && def.workloads) ? def.workloads : [];
-      if (wl.length && !wl.some((w) => active.has(w))) continue; // 태그 있으면 워크로드 게이트
-      proxy[name] = { type: 'http', url: `${baseURL}/${name}/mcp` };
-      proxied.add(name);
-    }
+      return !wl.length || wl.some((w) => act.has(w)); // 태그 있으면 워크로드 게이트
+    }));
+    for (const name of Object.keys(proxy)) proxied.add(name);
   }
 
   const general = {};
@@ -200,16 +212,14 @@ function selectMcpServers({ root = ROOT, activeGroups = [], useProxy = false } =
     const { workloads, ...serverDef } = def; // 제어 필드는 출력 mcp.json 에 싣지 않음
     general[name] = serverDef;
   }
-  const docker = {};
-  for (const [name, def] of Object.entries(cat.mcpServersDocker || {})) {
-    if (name.startsWith('_')) continue;
-    if (proxied.has(name)) continue; // terraform/aws-documentation 등은 프록시로 이동
+  // devops 프록시(:9092): 세분화 게이트 — devops 카테고리는 cloud, finops 카테고리는 finops
+  // 워크로드에서만. (--category=cloud 는 cloud+finops 를 모두 켜므로 전체 설치)
+  const devops = expandProxy(cat.mcpProxyDevops, active, 'http://localhost:9092', (def, act) => {
     const c = def && def.category;
-    // 세분화 게이트: devops 서버는 cloud, finops 서버는 finops 워크로드에서만.
-    // (--category=cloud 는 cloud+finops 를 모두 켜므로 종전과 동일한 전체 설치)
-    if ((c === 'devops' && active.has('cloud')) || (c === 'finops' && active.has('finops'))) docker[name] = def;
-  }
-  return { general, docker, proxy };
+    return (c === 'devops' && act.has('cloud')) || (c === 'finops' && act.has('finops'));
+  });
+  for (const name of Object.keys(devops)) if (proxied.has(name)) delete devops[name];
+  return { general, devops, proxy };
 }
 
 function parseArgs(argv) {

@@ -18,6 +18,9 @@ const ROOT = path.join(__dirname, '..');
 const { selectAssets } = require(path.join(ROOT, 'scripts/lib/select-assets'));
 const tiers = require(path.join(ROOT, 'scripts/lib/tiers'));
 
+// e2e 는 실제 install.js 를 실행한다 — 호스트 docker 상태(프록시 컨테이너)를 바꾸지 않도록 프로비저닝만 끈다.
+process.env.KIRO_HARNESS_SKIP_PROXY_PROVISION = '1';
+
 function planFor(cliVersion) {
   const sel = selectAssets({ root: ROOT, tier: 'cli', scope: 'global', workloads: [], reviewBackend: 'claude' });
   return tiers.plan('cli', sel, { root: ROOT, cliVersion });

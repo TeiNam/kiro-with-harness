@@ -15,6 +15,9 @@ const {
 } = require(path.join(ROOT, 'scripts/lib/categories'));
 const { GROUPS } = require(path.join(ROOT, 'scripts/lib/workloads'));
 
+// e2e 는 실제 install.js 를 실행한다 — 호스트 docker 상태(프록시 컨테이너)를 바꾸지 않도록 프로비저닝만 끈다.
+process.env.KIRO_HARNESS_SKIP_PROXY_PROVISION = '1';
+
 // ── 트리 무결성 ─────────────────────────────────────────────
 
 test('treeDrift: 모든 leaf 워크로드가 GROUPS 에 존재(드리프트 0)', () => {

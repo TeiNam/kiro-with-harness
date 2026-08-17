@@ -241,11 +241,20 @@ Per-event agent automations (review-on-stop, capture-lessons, changelog-on-commi
 
 Curated MCP server catalog installed to `.kiro/settings/mcp.json` (or `~/.kiro/settings/mcp.json` for CLI global).
 
-**Cloud workload** includes: terraform, aws-documentation, aws-core, cloudwatch, aws-ecs, aws-iam (DevOps); aws-pricing, aws-billing-cost-management (FinOps).
+**Cloud workload** includes: terraform, aws-documentation, cloudwatch, aws-ecs, aws-iam (DevOps); aws-pricing, aws-billing-cost-management (FinOps). These run behind a dedicated local proxy on `:9092` — see below.
 
 Full catalog (general / DevOps / FinOps / opt-in incl. brave-search, sentry, time) and config notes: `docs/en/mcp-reference.md`.
 
-**Central proxy (`--mcp-proxy`, IDE tier):** route proxyable MCP servers through one local [mcp-proxy](mcp-proxy/README.md) container (`mcp.json` entries become `{"type":"http","url":"http://localhost:9090/<server>/mcp"}`), so multiple clients don't each spawn duplicate server processes. The installer also **auto-provisions the container**: it checks `docker ps`, runs `docker compose up -d` in `mcp-proxy/` when `mcp-proxy` isn't running, and skips when it already is. It also generates a **workload-filtered `config.generated.json`** so the proxy serves only the backends your active workloads need (the full `config.json` stays as a template/manual fallback), keeping the proxy's served set consistent with the client `mcp.json`. No Docker → it tells you to install Docker and re-run; daemon down → start it and re-run; `--dry-run` and failures degrade gracefully (the install still completes). Credential-backed AWS servers and Kiro built-ins stay off the proxy — see [`mcp-proxy/README.md`](mcp-proxy/README.md).
+**Two local proxies.** MCP servers run behind [mcp-proxy](mcp-proxy/README.md) containers instead of a process per client, so `mcp.json` entries become `{"type":"http","url":"http://localhost:<port>/<server>/mcp"}`. They are split for **credential isolation** — only the devops container mounts `~/.aws` (read-only), so general backends like brave/github/obsidian never share a filesystem with your AWS profiles and SSO tokens. Both bind to `127.0.0.1` only; the endpoints are unauthenticated, so don't widen the binding.
+
+| Proxy | Port | Contents | When it starts |
+|-------|------|----------|----------------|
+| General | 9090 | fetch, time, brave-search, exa, drawio, token-optimizer, obsidian | opt-in via `--mcp-proxy` (IDE tier) |
+| DevOps | 9092 | terraform + AWS servers (official `awslabs` servers via pinned `uvx`) | automatically whenever `cloud`/`finops` is active, on either tier |
+
+The installer **auto-provisions whichever proxy it needs**: it checks `docker ps`, runs `docker compose up -d <service>` in `mcp-proxy/` when the container is absent, and skips when it is already running. For the general proxy it also generates a **workload-filtered `config.generated.json`** so the proxy serves only the backends your active workloads need (the full `config.json` stays as a template/manual fallback). No Docker → it tells you to install Docker and re-run; daemon down → start it and re-run; `--dry-run` and failures degrade gracefully (the install still completes).
+
+The devops proxy is not a performance tweak — it is what makes those servers work at all. Previously each was a client-spawned `docker run -i --rm <image>`, and the first image pull (14–20s) blew past the MCP initialization timeout, so **every** devops MCP server failed at once. There is deliberately no general-purpose AWS API server: `awslabs.core-mcp-server` was yanked upstream, and its replacement duplicates Kiro's built-in `use_aws`. Details: [`mcp-proxy/README.md`](mcp-proxy/README.md), [MCP reference](docs/en/mcp-reference.md).
 
 ## Project Structure
 
@@ -291,7 +300,8 @@ Options:
   --provider <anthropic|openai>  Model family profile (default: anthropic); writes role models, effort guidance, operating notes, and cross-family priority into installed agents
   --cli-version <2|3>            CLI-tier hook format (default 2 = agent-embedded; 3 = standalone .kiro/hooks/*.json for the CLI 3.0 engine)
   --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
-  --mcp-proxy                    IDE only: route mcp.json through mcp-proxy (:9090) and auto-start the proxy container (docker compose up -d) if not already running
+  --mcp-proxy                    IDE only: route mcp.json through the general mcp-proxy (:9090) and auto-start that container if not already running
+                                 (the devops proxy on :9092 is provisioned automatically for cloud/finops on either tier — no flag needed)
   --target <path>                Install to specified directory
   --dry-run                      Preview changes without writing
   --list                         Show category tree
