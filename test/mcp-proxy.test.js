@@ -1,11 +1,11 @@
 
 // MCP 프록시 라우팅 테스트.
-//   두 개의 프록시가 있다:
-//     - 범용 프록시 :9090 (mcpProxy)      — opt-in(--mcp-proxy). fetch/time/brave/exa/drawio/obsidian 등.
-//     - devops 프록시 :9092 (mcpProxyDevops) — 항상 프록시 경유. AWS/Terraform 서버 전용이며
-//       AWS 자격증명은 이 컨테이너 하나에만 마운트되어 범용 백엔드와 격리된다.
-//   검증: 워크로드 게이트, 두 프록시 간 이름 충돌 없음, dangling URL 없음(백엔드 실재),
-//         emit 형태({type:http,url}), mcpJsonContent 병합, e2e 설치 결과.
+//   프록시는 하나뿐이다: 범용 :9090 (mcpProxy) — opt-in(--mcp-proxy).
+//   devops/AWS 서버(mcpServersDevops)는 프록시를 쓰지 않는다 — 온디맨드 stdio 프로세스로,
+//   호스트 uvx(awslabs 공식, 버전 핀) 또는 terraform 의 `docker run -i --rm`(핀된 이미지)이다.
+//   상주 컨테이너가 없어 평소 리소스를 쓰지 않고, 무인증 HTTP 엔드포인트도 없다.
+//   검증: 워크로드 게이트, 프록시/devops 이름 충돌 없음, dangling URL 없음, 버전 핀,
+//         쓰기 플래그 금지, 에이전트↔카탈로그 정합, mcpJsonContent 병합, e2e 설치 결과.
 
 const test = require('node:test');
 const assert = require('node:assert');
@@ -24,39 +24,52 @@ const tiers = require(path.join(ROOT, 'scripts/lib/tiers'));
 process.env.KIRO_HARNESS_SKIP_PROXY_PROVISION = '1';
 
 const PROXY_BASE = 'http://localhost:9090';
-const DEVOPS_BASE = 'http://localhost:9092';
 const DEVOPS_SERVERS = ['terraform', 'aws-documentation', 'cloudwatch', 'aws-ecs', 'aws-iam'];
 const FINOPS_SERVERS = ['aws-pricing', 'aws-billing-cost-management'];
 
-test('devops 프록시는 --mcp-proxy 와 무관하게 항상 :9092 URL 로 emit', () => {
-  // 서버당 `docker run` stdio 를 띄우던 구조는 첫 이미지 pull(14~20초)이 MCP 초기화
-  // 타임아웃을 넘겨 전부 실패했다. 상주 프록시 경유가 유일한 경로다.
+test('devops MCP 는 --mcp-proxy 와 무관하게 온디맨드 stdio 로 emit (HTTP 엔드포인트 없음)', () => {
   for (const useProxy of [false, true]) {
     const s = selectMcpServers({ root: ROOT, activeGroups: ['core', 'cloud'], useProxy });
     for (const n of DEVOPS_SERVERS) {
-      assert.deepStrictEqual(s.devops[n], { type: 'http', url: `${DEVOPS_BASE}/${n}/mcp` }, `useProxy=${useProxy}: ${n}`);
+      const def = s.devops[n];
+      assert.ok(def, `useProxy=${useProxy}: ${n} 선택됨`);
+      assert.ok(def.command, `${n} 은 stdio command 보유`);
+      assert.ok(!def.url && !def.type, `${n} 에 url/type 없어야 함(프록시 아님)`);
+    }
+    // terraform 만 docker(Go 바이너리), 나머지는 호스트 uvx
+    assert.strictEqual(s.devops.terraform.command, 'docker');
+    assert.deepStrictEqual(s.devops.terraform.args, ['run', '-i', '--rm', 'hashicorp/terraform-mcp-server:1.0.0']);
+    for (const n of DEVOPS_SERVERS.filter((x) => x !== 'terraform')) {
+      assert.strictEqual(s.devops[n].command, 'uvx', `${n} 은 uvx`);
     }
   }
 });
 
-test('devops MCP 는 docker command 를 쓰지 않는다(콜드스타트 회귀 가드)', () => {
+test('devops MCP 에 상주 프록시 흔적이 없다(:9092 회귀 가드)', () => {
   const s = selectMcpServers({ root: ROOT, activeGroups: ['core', 'cloud', 'finops'], useProxy: false });
   const json = tiers.mcpJsonContent(s);
-  assert.ok(!json.includes('"docker"'), 'mcp.json 에 docker command 없어야 함');
+  assert.ok(!json.includes('9092'), 'mcp.json 에 :9092 참조 없어야 함');
   assert.ok(!json.includes('acuvity/'), '3rd-party acuvity 이미지 참조 없어야 함');
-  for (const [n, def] of Object.entries(s.devops)) {
-    assert.ok(!def.command, `${n} 에 command 없어야 함`);
-    assert.strictEqual(def.type, 'http', `${n} 은 http 타입`);
+  // docker 는 terraform 한 곳만, 반드시 --rm 으로 종료 시 정리되어야 한다.
+  const dockerServers = Object.entries(s.devops).filter(([, d]) => d.command === 'docker');
+  assert.strictEqual(dockerServers.length, 1, 'docker 백엔드는 terraform 하나');
+  for (const [n, d] of dockerServers) {
+    assert.ok(d.args.includes('--rm'), `${n}: --rm 필수(컨테이너 잔존 금지)`);
+    assert.ok(d.args.includes('-i'), `${n}: -i 필수(stdio)`);
+    assert.ok(d.args.some((a) => /:\d+\.\d+\.\d+$/.test(a)), `${n}: 이미지 태그 핀 필수(latest 는 pull 지연 유발)`);
   }
+  // 프록시 자산이 남아 있지 않은지
+  assert.ok(!fs.existsSync(path.join(ROOT, 'mcp-proxy/config.devops.json')), 'config.devops.json 제거됨');
+  const compose = fs.readFileSync(path.join(ROOT, 'mcp-proxy/docker-compose.yaml'), 'utf8');
+  assert.ok(!compose.includes('devops-mcp-proxy'), 'compose 에 devops-mcp-proxy 서비스 없어야 함');
+  assert.ok(!compose.includes('9092'), 'compose 에 9092 포트 없어야 함');
 });
 
 test('aws-core 는 카탈로그에서 제거됐다(upstream yanked 회귀 가드)', () => {
   // awslabs.core-mcp-server 는 upstream 에서 yanked('load individual MCPs') 되어 uvx 로 설치 불가.
   const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-configs/mcp-servers.json'), 'utf8'));
-  assert.ok(!cat.mcpProxyDevops.servers['aws-core'], 'mcpProxyDevops 에 aws-core 없어야 함');
+  assert.ok(!cat.mcpServersDevops.servers['aws-core'], 'mcpServersDevops 에 aws-core 없어야 함');
   assert.ok(!cat.mcpProxy.servers['aws-core'], 'mcpProxy 에 aws-core 없어야 함');
-  const proxyCfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-proxy/config.devops.json'), 'utf8'));
-  assert.ok(!proxyCfg.mcpServers['aws-core'], 'config.devops.json 에 aws-core 없어야 함');
   const agent = JSON.parse(fs.readFileSync(path.join(ROOT, 'agents/cli/global/devops.json'), 'utf8'));
   assert.ok(!agent.mcpServers['aws-core'], 'devops 에이전트에 aws-core 없어야 함');
   assert.ok(!agent.tools.includes('@aws-core'), 'devops tools 에 @aws-core 없어야 함');
@@ -66,11 +79,13 @@ test('aws-core 는 카탈로그에서 제거됐다(upstream yanked 회귀 가드
 test('devops 에이전트(CLI)의 mcpServers 는 카탈로그와 정합하다', () => {
   const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-configs/mcp-servers.json'), 'utf8'));
   const agent = JSON.parse(fs.readFileSync(path.join(ROOT, 'agents/cli/global/devops.json'), 'utf8'));
-  const catalog = Object.keys(cat.mcpProxyDevops.servers).sort();
-  assert.deepStrictEqual(Object.keys(agent.mcpServers).sort(), catalog, '에이전트 ↔ 카탈로그 서버 집합 일치');
+  const srv = cat.mcpServersDevops.servers;
+  assert.deepStrictEqual(Object.keys(agent.mcpServers).sort(), Object.keys(srv).sort(), '에이전트 ↔ 카탈로그 서버 집합 일치');
   for (const [n, def] of Object.entries(agent.mcpServers)) {
-    assert.strictEqual(def.type, 'http', `${n} 은 http`);
-    assert.strictEqual(def.url, `${DEVOPS_BASE}/${n}/mcp`, `${n} URL`);
+    // command/args/env 가 카탈로그와 한 글자도 다르면 안 된다(드리프트 방지).
+    assert.strictEqual(def.command, srv[n].command, `${n} command`);
+    assert.deepStrictEqual(def.args, srv[n].args, `${n} args`);
+    assert.deepStrictEqual(def.env || undefined, srv[n].env || undefined, `${n} env`);
   }
   // aws-iam 은 보안 민감이라 기본 비활성, 나머지는 활성.
   assert.strictEqual(agent.mcpServers['aws-iam'].disabled, true, 'aws-iam 기본 비활성');
@@ -82,7 +97,7 @@ test('devops 에이전트(CLI)의 mcpServers 는 카탈로그와 정합하다', 
 test('useProxy=true: 범용 프록시는 :9090, devops 는 :9092 — 이름 충돌 없음', () => {
   const on = selectMcpServers({ root: ROOT, activeGroups: ['core', 'cloud', 'writing'], useProxy: true });
   assert.strictEqual(on.proxy.fetch.url, `${PROXY_BASE}/fetch/mcp`);
-  // AWS/Terraform 은 범용 프록시가 아니라 devops 프록시가 담당한다(자격증명 격리)
+  // AWS/Terraform 은 범용 프록시가 아니라 온디맨드 stdio 로 돈다
   for (const n of [...DEVOPS_SERVERS, ...FINOPS_SERVERS]) {
     assert.ok(!on.proxy[n], `${n} 은 범용 프록시(:9090) 대상 아님`);
   }
@@ -97,7 +112,7 @@ test('finops 게이트: cloud 만으로는 FinOps 서버 미포함, finops 에�
 
   const finopsOnly = selectMcpServers({ root: ROOT, activeGroups: ['core', 'finops'], useProxy: false });
   for (const n of FINOPS_SERVERS) {
-    assert.deepStrictEqual(finopsOnly.devops[n], { type: 'http', url: `${DEVOPS_BASE}/${n}/mcp` }, `finops → ${n}`);
+    assert.strictEqual(finopsOnly.devops[n].command, 'uvx', `finops → ${n}`);
   }
   assert.ok(!finopsOnly.devops.cloudwatch, 'finops 만: devops 서버 제외');
 
@@ -134,14 +149,15 @@ test('mcpJsonContent: 두 프록시 병합, 모든 프록시 항목은 http url 
   const on = selectMcpServers({ root: ROOT, activeGroups: ['core', 'cloud'], useProxy: true });
   const json = JSON.parse(tiers.mcpJsonContent(on));
   assert.strictEqual(json.mcpServers.fetch.url, `${PROXY_BASE}/fetch/mcp`);
-  assert.strictEqual(json.mcpServers.terraform.type, 'http');
-  assert.strictEqual(json.mcpServers.terraform.url, `${DEVOPS_BASE}/terraform/mcp`);
-  assert.ok(!json.mcpServers.terraform.command, 'proxy terraform 에는 command 없음');
+  assert.strictEqual(json.mcpServers.terraform.command, 'docker', 'terraform 은 stdio docker --rm');
+  assert.ok(!json.mcpServers.terraform.url, 'terraform 은 프록시 URL 아님');
+  assert.ok(!json.mcpServers.cloudwatch.description, '문서 필드는 mcp.json 에 싣지 않음');
+  assert.ok(!json.mcpServers.cloudwatch.category, '제어 필드는 mcp.json 에 싣지 않음');
 });
 
 test('두 프록시 카탈로그 모두 Kiro 내장을 나열하지 않는다', () => {
   const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-configs/mcp-servers.json'), 'utf8'));
-  for (const section of ['mcpProxy', 'mcpProxyDevops']) {
+  for (const section of ['mcpProxy', 'mcpServersDevops']) {
     const names = Object.keys(cat[section].servers);
     for (const builtin of ['github', 'context7', 'playwright', 'memory', 'sequential-thinking']) {
       assert.ok(!names.includes(builtin), `${builtin}(Kiro 내장)은 ${section}.servers 에 없어야 함`);
@@ -149,41 +165,23 @@ test('두 프록시 카탈로그 모두 Kiro 내장을 나열하지 않는다', 
   }
 });
 
-test('정합성: 두 프록시 카탈로그의 모든 이름은 대응 config 가 실제 서빙한다(dangling URL 방지)', () => {
+test('정합성: 범용 프록시 카탈로그의 모든 이름은 config.json 이 실제 서빙한다(dangling URL 방지)', () => {
   const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-configs/mcp-servers.json'), 'utf8'));
-  for (const [section, cfgFile] of [['mcpProxy', 'config.json'], ['mcpProxyDevops', 'config.devops.json']]) {
-    const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-proxy', cfgFile), 'utf8'));
-    const served = new Set(Object.keys(cfg.mcpServers || {}));
-    for (const name of Object.keys(cat[section].servers)) {
-      assert.ok(served.has(name), `${section}.servers.${name} 는 mcp-proxy/${cfgFile} 에 백엔드가 있어야 함(없으면 죽은 URL)`);
-    }
+  const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-proxy/config.json'), 'utf8'));
+  const served = new Set(Object.keys(cfg.mcpServers || {}));
+  for (const name of Object.keys(cat.mcpProxy.servers)) {
+    assert.ok(served.has(name), `mcpProxy.servers.${name} 는 mcp-proxy/config.json 에 백엔드가 있어야 함(없으면 죽은 URL)`);
   }
 });
 
-test('정합성: config.devops.json 의 addr/baseURL 은 카탈로그 baseURL 포트(:9092)와 일치', () => {
-  const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-configs/mcp-servers.json'), 'utf8'));
-  const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-proxy/config.devops.json'), 'utf8'));
-  const port = new URL(cat.mcpProxyDevops.baseURL).port;
-  assert.strictEqual(port, '9092', '카탈로그 baseURL 포트는 9092');
-  assert.strictEqual(cfg.mcpProxy.addr, `:${port}`, 'config.devops.json addr 일치');
-  assert.strictEqual(cfg.mcpProxy.baseURL, cat.mcpProxyDevops.baseURL, 'baseURL 일치');
-  assert.strictEqual(cfg.mcpProxy.type, 'streamable-http', 'streamable-http 타입');
-
-  // compose 가 같은 포트를 루프백에만 발행하는지 (LAN 노출 금지 — 무인증 + AWS 자격증명 보유)
-  const compose = fs.readFileSync(path.join(ROOT, 'mcp-proxy/docker-compose.yaml'), 'utf8');
-  assert.ok(compose.includes(`127.0.0.1:${port}:${port}`), `compose 는 127.0.0.1:${port} 로만 바인딩`);
-  assert.ok(/\$\{HOME\}\/\.aws:\/root\/\.aws:ro/.test(compose), '~/.aws 는 읽기전용 마운트');
-  assert.ok(/container_name: devops-mcp-proxy/.test(compose), 'devops-mcp-proxy 컨테이너명 고정');
-});
-
 test('devops 백엔드 버전은 핀되어 있다(floating latest 금지)', () => {
-  const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-proxy/config.devops.json'), 'utf8'));
-  for (const [name, def] of Object.entries(cfg.mcpServers)) {
-    if (!def.args) continue; // url 백엔드(terraform)는 대상 아님
-    const pkg = def.args.find((a) => a.startsWith('awslabs'));
-    assert.ok(pkg, `${name}: awslabs 패키지 인자 존재`);
-    assert.ok(!pkg.endsWith('@latest'), `${name}: @latest 금지(재현성) — ${pkg}`);
-    assert.match(pkg, /@\d+\.\d+\.\d+$/, `${name}: 정확한 버전 핀 필요 — ${pkg}`);
+  // @latest 는 실행마다 재해석되어 콜드스타트를 되살린다 — 그게 원래 전면 실패의 원인이었다.
+  const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-configs/mcp-servers.json'), 'utf8'));
+  for (const [name, def] of Object.entries(cat.mcpServersDevops.servers)) {
+    const pinned = def.args.find((a) => /^awslabs/.test(a) || /^hashicorp\//.test(a));
+    assert.ok(pinned, `${name}: 패키지/이미지 인자 존재`);
+    assert.ok(!/@latest$|:latest$/.test(pinned), `${name}: latest 금지(재현성) — ${pinned}`);
+    assert.match(pinned, /[@:]\d+\.\d+\.\d+$/, `${name}: 정확한 버전 핀 필요 — ${pinned}`);
   }
 });
 
@@ -191,15 +189,15 @@ test('devops 백엔드는 쓰기 권한을 켜지 않는다(read-biased 가드)'
   // 뮤테이션은 devops 에이전트의 plan→승인→execute 흐름(use_aws / aws CLI)이 담당한다.
   // aws-iam 은 서버 기본값이 read-only 이므로 `--allow-write` 가 없어야 하고,
   // aws-ecs 는 env 로 명시 차단한다. 둘 중 하나라도 뒤집히면 이 테스트가 실패한다.
-  const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-proxy/config.devops.json'), 'utf8'));
-  for (const [name, def] of Object.entries(cfg.mcpServers)) {
+  const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-configs/mcp-servers.json'), 'utf8'));
+  for (const [name, def] of Object.entries(cat.mcpServersDevops.servers)) {
     const args = (def.args || []).join(' ');
     assert.ok(!/--allow-write|--no-confirmation|--allow-sensitive-data-access/.test(args), `${name}: 쓰기 허용 플래그 금지 — ${args}`);
     for (const [k, v] of Object.entries(def.env || {})) {
       if (/^ALLOW_(WRITE|SENSITIVE_DATA)$/.test(k)) assert.strictEqual(v, 'false', `${name}: ${k} 는 false 여야 함`);
     }
   }
-  assert.strictEqual(cfg.mcpServers['aws-ecs'].env.ALLOW_WRITE, 'false', 'aws-ecs 는 ALLOW_WRITE 를 명시 차단');
+  assert.strictEqual(cat.mcpServersDevops.servers['aws-ecs'].env.ALLOW_WRITE, 'false', 'aws-ecs 는 ALLOW_WRITE 를 명시 차단');
 });
 
 test('baseURL 후행 슬래시 정규화: 이중 슬래시 URL 생성 안 함', () => {
@@ -208,12 +206,10 @@ test('baseURL 후행 슬래시 정규화: 이중 슬래시 URL 생성 안 함', 
     fs.mkdirSync(path.join(tmp, 'mcp-configs'), { recursive: true });
     fs.writeFileSync(path.join(tmp, 'mcp-configs', 'mcp-servers.json'), JSON.stringify({
       mcpProxy: { baseURL: 'http://localhost:9090///', servers: { fetch: { workloads: [] } } },
-      mcpProxyDevops: { baseURL: 'http://localhost:9092//', servers: { cloudwatch: { category: 'devops' } } },
       mcpServers: {},
     }));
     const on = selectMcpServers({ root: tmp, activeGroups: ['core', 'cloud'], useProxy: true });
     assert.strictEqual(on.proxy.fetch.url, 'http://localhost:9090/fetch/mcp', '후행 슬래시 제거되어 단일 슬래시 경로');
-    assert.strictEqual(on.devops.cloudwatch.url, 'http://localhost:9092/cloudwatch/mcp', 'devops 도 동일 정규화');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -242,11 +238,12 @@ test('e2e: install.js ide --mcp-proxy → settings/mcp.json 이 :9090 + :9092 �
     // 범용 프록시(:9090)
     assert.strictEqual(mcpServers.fetch.url, `${PROXY_BASE}/fetch/mcp`);
     assert.strictEqual(mcpServers['brave-search'].url, `${PROXY_BASE}/brave-search/mcp`);
-    // devops 프록시(:9092) — 자격증명 서버까지 전부 http
+    // devops — 온디맨드 stdio (프록시 URL 아님)
     for (const n of [...DEVOPS_SERVERS, ...FINOPS_SERVERS]) {
-      assert.strictEqual(mcpServers[n].url, `${DEVOPS_BASE}/${n}/mcp`, `${n} 은 devops 프록시 URL`);
-      assert.ok(!mcpServers[n].command, `${n} 에 command 없어야 함`);
+      assert.ok(mcpServers[n].command, `${n} 은 stdio command 보유`);
+      assert.ok(!mcpServers[n].url, `${n} 에 url 없어야 함`);
     }
+    assert.strictEqual(mcpServers.cloudwatch.command, 'uvx');
 
     const m = JSON.parse(fs.readFileSync(path.join(tmp, '.kiro', '.harness-manifest.json'), 'utf8'));
     assert.strictEqual(m.mcpProxy, true, '매니페스트 mcpProxy=true');
@@ -256,14 +253,15 @@ test('e2e: install.js ide --mcp-proxy → settings/mcp.json 이 :9090 + :9092 �
   }
 });
 
-test('e2e: install.js ide (프록시 옵션 없음) → devops MCP 는 여전히 :9092 URL', () => {
+test('e2e: install.js ide (프록시 옵션 없음) → devops MCP 는 stdio 로 구성', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kh-noproxy-'));
   try {
     const r = spawnSync('node', [path.join(ROOT, 'install.js'), 'ide', '--workload=cloud', `--target=${tmp}`],
       { cwd: ROOT, encoding: 'utf8', timeout: 60000 });
     assert.strictEqual(r.status, 0, `install exit 0 (${r.stderr})`);
     const { mcpServers } = JSON.parse(fs.readFileSync(path.join(tmp, '.kiro', 'settings', 'mcp.json'), 'utf8'));
-    assert.strictEqual(mcpServers.cloudwatch.url, `${DEVOPS_BASE}/cloudwatch/mcp`);
+    assert.strictEqual(mcpServers.cloudwatch.command, 'uvx');
+    assert.deepStrictEqual(mcpServers.cloudwatch.args, ['awslabs.cloudwatch-mcp-server@0.1.8']);
     assert.ok(!mcpServers.fetch || !mcpServers.fetch.url, '범용 프록시는 opt-in 이라 URL 아님');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });

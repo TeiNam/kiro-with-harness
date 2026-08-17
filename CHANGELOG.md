@@ -3,6 +3,27 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-08-18 — v3.2.0
+
+### Changed
+
+- **devops MCP 를 상주 프록시(:9092)에서 온디맨드 stdio 로 전환.** 이제 도구를 실제로 쓸 때만 프로세스가 뜨고 세션과 함께 사라진다 — 평소 `docker ps` 에 아무것도 없고, 지켜야 할 HTTP 엔드포인트도 없다. 백엔드는 호스트 `uvx`(awslabs 공식, 버전 핀) + terraform 의 `docker run -i --rm`(핀된 이미지)이다.
+
+  v3.1.0 의 프록시는 **콜드스타트를 우회하려고** 만든 것이지 원인을 고친 게 아니었다. 원래 실패는 서버마다 `docker run` 을 띄우면서 태그를 핀하지 않아 첫 이미지 pull 이 14~20초 걸려 MCP 초기화 타임아웃을 넘긴 것이었다. 버전을 핀하고 호스트 `uvx` 로 옮기면 pull 자체가 없어진다 — 실측 warm-cache handshake 는 terraform 0.47초, aws-documentation 0.58초, cloudwatch 1.6초, aws-pricing 2.0초, aws-iam 2.1초, aws-billing 3.1초, aws-ecs 4.9초로 전부 타임아웃 여유 안에 든다. 따라서 프록시는 불필요했다.
+
+  부수 효과로 보안·운영이 개선된다: `~/.aws` 를 마운트한 **무인증 `:9092` 엔드포인트가 사라지고**, stdio 는 호스트 프로세스라 `aws sso login --profile <name>` 이 읽기전용 마운트에 막히지 않고 즉시 반영된다. Colima 기준 상주 컨테이너 1개와 uv 캐시 볼륨 1.1GB 도 회수된다.
+- **SSOT 키 변경** — `mcpProxyDevops`(baseURL + 게이트) → `mcpServersDevops`(stdio 정의). `selectMcpServers` 의 `devops` 섹션은 이제 `{command,args,env}` 를 emit 하며, 문서/제어 필드(`description`/`category`/`workloads`)는 출력 `mcp.json` 에서 제외한다.
+- `ensureMcpProxy` 는 다시 범용 프록시(:9090) 전용이다. devops 쪽은 보장할 컨테이너가 없어 프로비저닝 대상이 아니다.
+
+### Removed
+
+- `mcp-proxy/config.devops.json`, compose 의 `devops-mcp-proxy` 서비스, `devops-uv-cache` 볼륨, install.js 의 devops 프록시 프로비저닝 — 모두 stdio 전환으로 불필요해졌다.
+
+### Added
+
+- 테스트 — devops MCP 가 stdio 형태(`command` 보유, `url`/`type` 없음)인지, `:9092` 흔적이 남지 않았는지(compose·config·mcp.json), docker 백엔드는 terraform 하나뿐이며 `-i --rm` + 태그 핀을 갖췄는지, 에이전트 `mcpServers` 가 카탈로그와 `command`/`args`/`env` 까지 완전히 일치하는지(드리프트 방지). 358 → 355(프록시 전용 테스트 4건 제거, stdio 검증 1건 추가).
+- 문서 — `docs/{en,kr}/mcp-reference.md` 에 "왜 프록시가 아니라 stdio 인가"와 실측 지연표, 콜드스타트 워밍 명령 추가. `mcp-proxy/README.md` 는 범용 프록시 전용으로 되돌리고 devops 는 stdio 임을 명시. README 영/국문 동기화.
+
 ## 2026-08-17 — v3.1.0
 
 ### Fixed

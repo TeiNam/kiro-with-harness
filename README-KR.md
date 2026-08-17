@@ -241,20 +241,15 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 `.kiro/settings/mcp.json`(또는 CLI 글로벌의 경우 `~/.kiro/settings/mcp.json`)에 설치되는 큐레이션된 MCP 서버 카탈로그.
 
-**클라우드 워크로드**에는 다음이 포함됩니다: terraform, aws-documentation, cloudwatch, aws-ecs, aws-iam (DevOps); aws-pricing, aws-billing-cost-management (FinOps). 이들은 `:9092`의 전용 로컬 프록시 뒤에서 실행됩니다 — 아래를 참고하세요.
+**클라우드 워크로드**에는 다음이 포함됩니다: terraform, aws-documentation, cloudwatch, aws-ecs, aws-iam (DevOps); aws-pricing, aws-billing-cost-management (FinOps). 이들은 **온디맨드 stdio 프로세스**로 실행됩니다 — 아래를 참고하세요.
 
 전체 카탈로그(general / DevOps / FinOps / opt-in: brave-search·sentry·time 포함)와 설정 안내: `docs/kr/mcp-reference.md`.
 
-**중앙 프록시 2개.** MCP 서버는 클라이언트당 프로세스 하나씩 띄우는 대신 [mcp-proxy](mcp-proxy/README.md) 컨테이너 뒤에서 실행됩니다(`mcp.json`이 `{"type":"http","url":"http://localhost:<포트>/<서버>/mcp"}` 형태가 됨). **자격증명 격리**를 위해 나뉜 것입니다 — devops 컨테이너만 `~/.aws`를 읽기전용으로 마운트하므로, brave/github/obsidian 같은 범용 백엔드는 AWS 프로필·SSO 토큰과 같은 filesystem을 절대 공유하지 않습니다. 둘 다 `127.0.0.1`로만 바인드되며, 엔드포인트는 인증 없으므로 바인딩을 확대하지 마세요.
+**DevOps MCP는 상주하지 않습니다(온디맨드).** terraform + AWS 서버들은 도구가 실제 사용될 때 클라이언트가 시작하는 stdio 프로세스로 실행되며, 세션과 함께 종료됩니다 — 도구를 사용 중이 아닐 때는 `docker ps`에 아무것도 뜨지 않으며, 보안해야 할 HTTP 엔드포인트도 없습니다. 백엔드는 호스트의 `uvx`로 버전 핀된 공식 AWS `awslabs` 서버이고, terraform은 버전 핀된 이미지로 `docker run -i --rm`으로 실행됩니다. 호스트에 `uv` 필요(`brew install uv`); Docker는 terraform에만 필요합니다.
 
-| 프록시 | 포트 | 내용 | 기동 시점 |
-|--------|------|------|----------|
-| General | 9090 | fetch, time, brave-search, exa, drawio, token-optimizer, obsidian | `--mcp-proxy` 플래그로 opt-in (IDE 티어) |
-| DevOps | 9092 | terraform + AWS 서버들 (공식 `awslabs` 서버, uvx로 버전 핀) | `cloud`/`finops` 워크로드 활성 시 자동 (티어 무관) |
+이는 `:9092`의 상주 프록시를 대체합니다. 그 프록시는 콜드스타트를 '우회'하기 위해 존재했지, 원인을 고친 것이 아니었습니다. 원래 실패는 이렇습니다: 각 서버가 버전 핀 없는 `docker run`이었고, **첫 이미지 pull이 14~20초 걸려** MCP 초기화 타임아웃을 초과했으므로 **devops MCP 전부가 한 번에 실패**했습니다. 버전을 핀하고 호스트 `uvx`로 옮기면 pull이 사라지므로, warm-cache handshake는 **서버당 0.5~4.9초**로 프록시가 필요 없습니다. 또한 `~/.aws`를 마운트한 인증 없는 `:9092` 엔드포인트도 사라졌고, stdio는 호스트 프로세스이므로 `aws sso login` 이 읽기전용 마운트에 막히지 않고 즉시 반영됩니다.
 
-설치기는 필요한 프록시를 자동 보장합니다: `docker ps`로 확인해 컨테이너가 없으면 `mcp-proxy/`에서 `docker compose up -d <service>`를 실행하고, 이미 떠 있으면 스킵합니다. 범용 프록시의 경우 활성 워크로드에 맞는 백엔드만 담은 **`config.generated.json`**도 생성하므로 프록시가 "필요한 것만" 서빙하고(전체 `config.json`은 템플릿/수동 fallback으로 남음), 클라이언트 `mcp.json`과 서빙 목록이 정합합니다. Docker 미설치면 "Docker 설치 후 재실행", 데몬 미실행이면 "데몬 시작 후 재실행"을 안내하며, `--dry-run`·기동 실패는 graceful하게 넘어갑니다(설치는 계속됩니다).
-
-DevOps 프록시는 단순 성능 개선이 아닙니다 — 이 서버들이 **작동하는 이유**입니다. 과거에는 서버당 `docker run -i --rm <image>`로 클라이언트가 띄웠고, 첫 사용 시 각 이미지 pull이 14~20초 걸려 MCP 초기화 타임아웃을 초과했으므로 **devops MCP 전부가 한 번에 실패**했습니다. 상주 프록시는 그 비용을 컨테이너 시작 때 한 번만 지불합니다. 자세한 것: [`mcp-proxy/README.md`](mcp-proxy/README.md), [MCP 레퍼런스](docs/kr/mcp-reference.md).
+**범용 프록시(`--mcp-proxy`, IDE 계층).** 범용 서버들을 선택적으로 하나의 로컬 [mcp-proxy](mcp-proxy/README.md) 컨테이너에 집중화할 수 있으므로, 클라이언트가 각각 중복을 띄우지 않습니다. `mcp.json` 항목은 `{"type":"http","url":"http://localhost:9090/<server>/mcp"}`로 변환됩니다. 설치기가 자동 보장합니다: `docker ps`로 확인해 컨테이너가 없으면 `docker compose up -d mcp-proxy`를 실행하고, 이미 떠 있으면 스킵합니다. 활성 워크로드에 맞는 백엔드만 담은 **`config.generated.json`**도 생성하므로 프록시가 "필요한 것만" 서빙합니다. `127.0.0.1`로만 바인드되며 인증 없으므로 바인딩을 확대하지 마세요. Docker 미설치면 Docker 설치 후 재실행 안내, 데몬 미실행이면 시작 후 재실행 안내, `--dry-run`과 실패는 graceful하게 넘어갑니다. 자세한 것: [`mcp-proxy/README.md`](mcp-proxy/README.md), [MCP 레퍼런스](docs/kr/mcp-reference.md).
 
 ## 프로젝트 구조
 
@@ -298,7 +293,7 @@ node install.js <tier> [options]
   --cli-version <2|3>            CLI 계층 훅 포맷 (기본 2 = agent 임베디드; 3 = 독립 .kiro/hooks/*.json for CLI 3.0 engine)
   --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE 전용: mcp.json을 범용 mcp-proxy(:9090) 경유로 구성 + 그 컨테이너 자동 기동
-                                 (DevOps 프록시 :9092는 cloud/finops 워크로드 활성 시 자동 보장 — 플래그 불필요)
+                                 (DevOps/AWS MCP는 영향을 받지 않습니다 — 온디맨드 stdio로 실행되며, 컨테이너 없음)
   --target <path>                지정 디렉토리에 설치
   --dry-run                      파일을 쓰지 않고 변경 사항 미리보기
   --list                         카테고리 트리 표시

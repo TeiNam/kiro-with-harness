@@ -24,24 +24,26 @@ const path = require('path');
 const fs = require('fs');
 const { spawnSync } = require('child_process');
 
-/** docker ps 출력에서 정확히 해당 컨테이너가 실행 중인지 판정. */
-function isRunning(stdout, container = 'mcp-proxy') {
+/** docker ps 출력에서 정확히 'mcp-proxy' 컨테이너가 실행 중인지 판정. */
+function isRunning(stdout) {
   return String(stdout || '')
     .split('\n')
     .map((s) => s.trim())
-    .includes(container);
+    .includes('mcp-proxy');
 }
 
 /**
- * @param {{ root:string, service?:string, dryRun?:boolean, run?:Function, log?:Function }} opts
- *   root    — 하네스 소스 루트(mcp-proxy/ 가 있는 곳)
- *   service — compose 서비스명. 'mcp-proxy'(범용 :9090) 또는 'devops-mcp-proxy'(AWS 전용 :9092).
- *             컨테이너명은 compose 에서 서비스명과 동일하게 고정돼 있다.
- *   run     — spawnSync 호환 (cmd, args, opts) → { status, stdout, stderr }
- *   log     — console.log 호환
+ * @param {{ root:string, dryRun?:boolean, run?:Function, log?:Function }} opts
+ *   root  — 하네스 소스 루트(mcp-proxy/ 가 있는 곳)
+ *   run   — spawnSync 호환 (cmd, args, opts) → { status, stdout, stderr }
+ *   log   — console.log 호환
+ *
+ * devops/AWS MCP 는 여기서 다루지 않는다 — 온디맨드 stdio 프로세스(호스트 uvx / docker run --rm)라
+ * 보장할 컨테이너가 없다. 자세한 이유는 mcp-configs/mcp-servers.json 의 mcpServersDevops._why_stdio.
  * @returns {'no-assets'|'skipped-env'|'no-docker'|'docker-not-running'|'already-running'|'skipped-dry-run'|'started'|'failed'}
  */
-function ensureMcpProxy({ root, service = 'mcp-proxy', dryRun = false, run = spawnSync, log = console.log } = {}) {
+function ensureMcpProxy({ root, dryRun = false, run = spawnSync, log = console.log } = {}) {
+  const service = 'mcp-proxy';
   const dir = path.join(root, 'mcp-proxy');
   const compose = path.join(dir, 'docker-compose.yaml');
   if (!fs.existsSync(compose)) {
@@ -54,10 +56,6 @@ function ensureMcpProxy({ root, service = 'mcp-proxy', dryRun = false, run = spa
     log(`  SKIP: KIRO_HARNESS_SKIP_PROXY_PROVISION 설정됨 — ${service} 기동을 건너뜁니다.`);
     return 'skipped-env';
   }
-  // 범용 프록시만 워크로드 필터본(config.generated.json)을 쓴다. devops 프록시는
-  // config.devops.json 을 compose 에서 직접 마운트하므로 주입할 env 가 없다.
-  const generic = service === 'mcp-proxy';
-
   // 1) docker CLI 설치 확인 — 미설치면 "먼저 설치하고 다시 실행"하도록 안내
   const ver = run('docker', ['--version'], { encoding: 'utf8' });
   if (!ver || ver.status !== 0) {
@@ -77,7 +75,7 @@ function ensureMcpProxy({ root, service = 'mcp-proxy', dryRun = false, run = spa
   }
   if (isRunning(ps.stdout, service)) {
     log(`  ${service}: 이미 실행 중 — 스킵합니다.`);
-    if (generic && fs.existsSync(path.join(dir, 'config.generated.json'))) {
+    if (fs.existsSync(path.join(dir, 'config.generated.json'))) {
       log('      워크로드 구성을 프록시에 반영하려면(공유 프록시라 자동 재기동 안 함):');
       log('      cd mcp-proxy && MCP_PROXY_CONFIG=./config.generated.json docker compose up -d mcp-proxy');
     }
@@ -92,17 +90,12 @@ function ensureMcpProxy({ root, service = 'mcp-proxy', dryRun = false, run = spa
 
   // 4) 미실행 → 기동 (범용 프록시는 워크로드 필터본 config.generated.json 이 있으면 그것을 마운트)
   const gen = path.join(dir, 'config.generated.json');
-  const env = generic && fs.existsSync(gen) ? { ...process.env, MCP_PROXY_CONFIG: './config.generated.json' } : process.env;
+  const env = fs.existsSync(gen) ? { ...process.env, MCP_PROXY_CONFIG: './config.generated.json' } : process.env;
   log(`  ${service}: 컨테이너가 없어 기동합니다 (docker compose up -d ${service})…`);
   const up = run('docker', ['compose', 'up', '-d', service], { cwd: dir, encoding: 'utf8', env });
   if (up && up.status === 0) {
-    if (generic) {
-      log('  OK: mcp-proxy 기동됨 → http://localhost:9090');
-      log('      (brave/github/obsidian 등 키가 필요한 백엔드는 mcp-proxy/README.md 의 키 설정을 참고하세요.)');
-    } else {
-      log('  OK: devops-mcp-proxy 기동됨 → http://localhost:9092');
-      log('      (awslabs 서버를 uvx 로 처음 받는 동안 30~60초 걸립니다. AWS SSO 프로필은 호스트에서 `aws sso login --profile <name>`.)');
-    }
+    log('  OK: mcp-proxy 기동됨 → http://localhost:9090');
+    log('      (brave/github/obsidian 등 키가 필요한 백엔드는 mcp-proxy/README.md 의 키 설정을 참고하세요.)');
     return 'started';
   }
   const detail = up && up.stderr ? `\n  ${String(up.stderr).trim()}` : '';

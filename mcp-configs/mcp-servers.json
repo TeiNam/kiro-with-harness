@@ -1,6 +1,6 @@
 {
   "mcpProxy": {
-    "_comment": "Central MCP aggregator (tbxark/mcp-proxy), bundled at repo mcp-proxy/ (docker compose up -d mcp-proxy). When install.js runs with --mcp-proxy, each selected server below is emitted into the generated .kiro/settings/mcp.json as { type:http, url } pointing at the proxy — overriding its direct stdio equivalent. AWS/Terraform servers are NOT here: they live on the separate devops proxy (mcpProxyDevops, :9092) so that AWS credentials are mounted into one container only, isolated from general backends like brave/github/obsidian. Host-specific stdio (GitKraken, playwright) is left to the client. Kiro built-ins (github, context7, playwright, memory, sequential-thinking) are intentionally NOT listed — Kiro provides them natively. workloads gate = same rule as mcpServers: [] or omitted means universal, otherwise include only when it intersects the active workloads.",
+    "_comment": "Central MCP aggregator (tbxark/mcp-proxy), bundled at repo mcp-proxy/ (docker compose up -d mcp-proxy). When install.js runs with --mcp-proxy, each selected server below is emitted into the generated .kiro/settings/mcp.json as { type:http, url } pointing at the proxy — overriding its direct stdio equivalent. AWS/Terraform servers are NOT here: they run as on-demand stdio processes (mcpServersDevops) so that nothing holding AWS credentials stays resident behind a shared HTTP endpoint. Host-specific stdio (GitKraken, playwright) is left to the client. Kiro built-ins (github, context7, playwright, memory, sequential-thinking) are intentionally NOT listed — Kiro provides them natively. workloads gate = same rule as mcpServers: [] or omitted means universal, otherwise include only when it intersects the active workloads.",
     "baseURL": "http://localhost:9090",
     "servers": {
       "fetch": {
@@ -67,68 +67,127 @@
       ]
     }
   },
-  "mcpProxyDevops": {
-    "_comment": "DevOps/FinOps MCP servers for the devops agent, served by the dedicated mcp-proxy container on :9092 (mcp-proxy/config.devops.json + the devops-mcp-proxy compose service). Clients get { type:http, url } — no per-call `docker run`, so no cold-start pull timeout, and one AWS-credentialed container instead of seven. Backends are the official AWS awslabs servers run via uvx (pinned), replacing the 3rd-party acuvity mirrors. Start with: cd mcp-proxy && docker compose up -d devops-mcp-proxy",
-    "_credentials": "The proxy container mounts ~/.aws read-only and receives AWS_PROFILE/AWS_REGION. SSO profiles need `aws sso login --profile <name>` on the host (the container cannot refresh a read-only mount). terraform, aws-documentation and aws-pricing need no credentials.",
+  "mcpServersDevops": {
+    "_comment": "DevOps/FinOps MCP servers for the devops agent. These run as on-demand stdio processes started by the client: the official AWS awslabs servers via host `uvx` (pinned versions), and terraform via `docker run -i --rm` on a pinned image. Nothing stays resident — a process exists only while the devops agent is using it. Requires `uv` on the host (https://docs.astral.sh/uv/getting-started/installation/, or `brew install uv`); terraform additionally needs Docker.",
+    "_why_stdio": "An earlier revision routed these through a resident mcp-proxy container on :9092. That existed only to dodge a cold-start problem: the old backends were `docker run` per call on unpinned acuvity/* images, and the first image pull took 14-20s — past the MCP initialization timeout, so every devops MCP server failed at once. Pinning the images and moving to host uvx removes the pull entirely: measured warm-cache handshake is 0.5-4.9s per server (terraform 0.5s, aws-ecs 4.9s worst case). The proxy is therefore unnecessary, and dropping it also removes an unauthenticated :9092 endpoint that had ~/.aws mounted into it.",
+    "_credentials": "stdio servers run as host processes, so they read ~/.aws directly — no mount, and `aws sso login --profile <name>` takes effect immediately. AWS_PROFILE/AWS_REGION come from the shell environment. terraform, aws-documentation and aws-pricing need no credentials.",
     "_write_policy": "Read-biased by design: aws-ecs runs with ALLOW_WRITE=false and aws-iam is read-only unless started with --allow-write (its own default), which must never be added. Mutations go through the devops agent's plan->approve->execute flow using use_aws / the aws CLI, not through MCP.",
-    "_removed_aws_core": "aws-core is gone: awslabs.core-mcp-server was yanked upstream (reason: 'load individual MCPs'). Its candidate replacement awslabs.aws-api-mcp-server unconditionally mkdirs ~/.aws/aws-api-mcp/ at startup, which conflicts with the read-only credential mount, and it duplicates Kiro's built-in use_aws tool. General AWS API calls therefore use use_aws / aws CLI.",
-    "baseURL": "http://localhost:9092",
+    "_removed_aws_core": "aws-core is gone: awslabs.core-mcp-server was yanked upstream (reason: 'load individual MCPs'). Its candidate replacement awslabs.aws-api-mcp-server duplicates Kiro's built-in use_aws tool. General AWS API calls therefore use use_aws / aws CLI.",
+    "_cold_start": "The very first run of a pinned version downloads it into the uv cache (~30s worst case). Warm it up ahead of time with: for p in awslabs.aws-documentation-mcp-server@1.1.30 awslabs.cloudwatch-mcp-server@0.1.8 awslabs.aws-pricing-mcp-server@1.0.34 awslabs.billing-cost-management-mcp-server@0.0.33 awslabs.iam-mcp-server@1.0.25; do uvx --help >/dev/null; uvx \"$p\" --help >/dev/null 2>&1; done",
     "servers": {
       "terraform": {
+        "command": "docker",
+        "args": [
+          "run",
+          "-i",
+          "--rm",
+          "hashicorp/terraform-mcp-server:1.0.0"
+        ],
         "description": "Terraform Registry integration — provider docs, module specs, version/registry metadata for IaC (HashiCorp official, GA)",
         "category": "devops",
         "workloads": [
           "cloud"
-        ],
-        "backend": "http://terraform-mcp:8080/mcp (hashicorp/terraform-mcp-server:1.0.0 sidecar)"
+        ]
       },
       "aws-documentation": {
+        "command": "uvx",
+        "args": [
+          "awslabs.aws-documentation-mcp-server@1.1.30"
+        ],
+        "env": {
+          "FASTMCP_LOG_LEVEL": "ERROR",
+          "AWS_DOCUMENTATION_PARTITION": "aws"
+        },
         "description": "AWS documentation search, content recommendations, and markdown conversion",
         "category": "devops",
         "workloads": [
           "cloud"
-        ],
-        "backend": "uvx awslabs.aws-documentation-mcp-server@1.1.30"
+        ]
       },
       "cloudwatch": {
+        "command": "uvx",
+        "args": [
+          "awslabs.cloudwatch-mcp-server@0.1.8"
+        ],
+        "env": {
+          "FASTMCP_LOG_LEVEL": "ERROR",
+          "AWS_REGION": "${AWS_REGION}",
+          "AWS_PROFILE": "${AWS_PROFILE}"
+        },
         "description": "CloudWatch metrics, alarms, and Logs Insights — operational troubleshooting (supersedes the narrower cloudwatch-logs)",
         "category": "devops",
         "workloads": [
           "cloud"
-        ],
-        "backend": "uvx awslabs.cloudwatch-mcp-server@0.1.8"
+        ]
       },
       "aws-ecs": {
+        "command": "uvx",
+        "args": [
+          "--from",
+          "awslabs-ecs-mcp-server@0.1.34",
+          "ecs-mcp-server"
+        ],
+        "env": {
+          "FASTMCP_LOG_LEVEL": "ERROR",
+          "AWS_REGION": "${AWS_REGION}",
+          "AWS_PROFILE": "${AWS_PROFILE}",
+          "ALLOW_WRITE": "false",
+          "ALLOW_SENSITIVE_DATA": "false"
+        },
         "description": "ECS containerization, deployment, troubleshooting, and infrastructure management",
         "category": "devops",
         "workloads": [
           "cloud"
-        ],
-        "backend": "uvx --from awslabs-ecs-mcp-server@0.1.34 ecs-mcp-server"
+        ]
       },
       "aws-iam": {
+        "command": "uvx",
+        "args": [
+          "awslabs.iam-mcp-server@1.0.25"
+        ],
+        "env": {
+          "FASTMCP_LOG_LEVEL": "ERROR",
+          "AWS_REGION": "${AWS_REGION}",
+          "AWS_PROFILE": "${AWS_PROFILE}"
+        },
         "description": "IAM users, roles, groups, and policy management with security best practices (sensitive — enable per task)",
         "category": "devops",
         "workloads": [
           "cloud"
         ],
-        "backend": "uvx awslabs.iam-mcp-server@1.0.25"
+        "disabled": true
       },
       "aws-pricing": {
+        "command": "uvx",
+        "args": [
+          "awslabs.aws-pricing-mcp-server@1.0.34"
+        ],
+        "env": {
+          "FASTMCP_LOG_LEVEL": "ERROR",
+          "AWS_REGION": "${AWS_REGION}",
+          "AWS_PROFILE": "${AWS_PROFILE}"
+        },
         "description": "Pre-deployment cost estimation and optimization from the AWS Price List API — answer 'what will this cost before I deploy?'",
         "category": "finops",
         "workloads": [
           "finops"
-        ],
-        "backend": "uvx awslabs.aws-pricing-mcp-server@1.0.34"
+        ]
       },
       "aws-billing-cost-management": {
+        "command": "uvx",
+        "args": [
+          "awslabs.billing-cost-management-mcp-server@0.0.33"
+        ],
+        "env": {
+          "FASTMCP_LOG_LEVEL": "ERROR",
+          "AWS_REGION": "${AWS_REGION}",
+          "AWS_PROFILE": "${AWS_PROFILE}"
+        },
         "description": "Actual spend, budgets, Cost Explorer, Compute Optimizer, Cost Optimization Hub, and pricing calculator (supersedes the narrower cost-explorer)",
         "category": "finops",
         "workloads": [
           "finops"
-        ],
-        "backend": "uvx awslabs.billing-cost-management-mcp-server@0.0.33"
+        ]
       }
     }
   },
@@ -339,7 +398,7 @@
   },
   "_comments": {
     "usage": "Copy needed servers to .kiro/settings/mcp.json",
-    "proxies": "Two local proxies serve the MCP backends: mcpProxy (:9090, general, opt-in via --mcp-proxy) and mcpProxyDevops (:9092, AWS/Terraform, auto-started for cloud/finops). Both are defined under mcp-proxy/ (config.json / config.devops.json + docker-compose.yaml). Start with `cd mcp-proxy && docker compose up -d <mcp-proxy|devops-mcp-proxy>` — no `docker pull` step is needed since backends run via uvx/npx inside the proxy container.",
+    "proxies": "One local proxy: mcpProxy (:9090, general, opt-in via --mcp-proxy), defined under mcp-proxy/ (config.json + docker-compose.yaml). Start with `cd mcp-proxy && docker compose up -d mcp-proxy`. The DevOps/AWS servers (mcpServersDevops) are NOT proxied — they are on-demand stdio processes via host uvx / `docker run --rm`.",
     "env_vars": "Replace YOUR_*_HERE placeholders in _disabled section with actual values before moving to mcpServers",
     "excluded": "memory, sequential-thinking, context7, github, playwright are built into Kiro — not listed here",
     "context_warning": "Keep active MCP servers under 10 to preserve context window",

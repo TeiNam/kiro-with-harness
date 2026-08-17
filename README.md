@@ -241,20 +241,15 @@ Per-event agent automations (review-on-stop, capture-lessons, changelog-on-commi
 
 Curated MCP server catalog installed to `.kiro/settings/mcp.json` (or `~/.kiro/settings/mcp.json` for CLI global).
 
-**Cloud workload** includes: terraform, aws-documentation, cloudwatch, aws-ecs, aws-iam (DevOps); aws-pricing, aws-billing-cost-management (FinOps). These run behind a dedicated local proxy on `:9092` — see below.
+**Cloud workload** includes: terraform, aws-documentation, cloudwatch, aws-ecs, aws-iam (DevOps); aws-pricing, aws-billing-cost-management (FinOps). These run as **on-demand stdio processes** — see below.
 
 Full catalog (general / DevOps / FinOps / opt-in incl. brave-search, sentry, time) and config notes: `docs/en/mcp-reference.md`.
 
-**Two local proxies.** MCP servers run behind [mcp-proxy](mcp-proxy/README.md) containers instead of a process per client, so `mcp.json` entries become `{"type":"http","url":"http://localhost:<port>/<server>/mcp"}`. They are split for **credential isolation** — only the devops container mounts `~/.aws` (read-only), so general backends like brave/github/obsidian never share a filesystem with your AWS profiles and SSO tokens. Both bind to `127.0.0.1` only; the endpoints are unauthenticated, so don't widen the binding.
+**DevOps MCP is on-demand, not resident.** The terraform + AWS servers run as stdio processes the client starts when a tool is actually used, and they exit with the session — nothing shows up in `docker ps` when you are not using them, and there is no HTTP endpoint to secure. Backends are the official AWS `awslabs` servers via host `uvx` at pinned versions, plus terraform via `docker run -i --rm` on a pinned image. Requires `uv` on the host (`brew install uv`); Docker is needed only for terraform.
 
-| Proxy | Port | Contents | When it starts |
-|-------|------|----------|----------------|
-| General | 9090 | fetch, time, brave-search, exa, drawio, token-optimizer, obsidian | opt-in via `--mcp-proxy` (IDE tier) |
-| DevOps | 9092 | terraform + AWS servers (official `awslabs` servers via pinned `uvx`) | automatically whenever `cloud`/`finops` is active, on either tier |
+This replaced an earlier resident proxy on `:9092`, which existed only to dodge a cold start rather than fix one. The original failure was that **every** devops MCP server died at once: each was a client-spawned `docker run` on an unpinned image, and the first pull took 14–20s — past the MCP initialization timeout. Pinning versions and moving to host `uvx` removes the pull, so warm-cache handshake is **0.5–4.9s** per server and no proxy is needed. There is deliberately no general-purpose AWS API server either: `awslabs.core-mcp-server` was yanked upstream, and its replacement duplicates Kiro's built-in `use_aws`.
 
-The installer **auto-provisions whichever proxy it needs**: it checks `docker ps`, runs `docker compose up -d <service>` in `mcp-proxy/` when the container is absent, and skips when it is already running. For the general proxy it also generates a **workload-filtered `config.generated.json`** so the proxy serves only the backends your active workloads need (the full `config.json` stays as a template/manual fallback). No Docker → it tells you to install Docker and re-run; daemon down → start it and re-run; `--dry-run` and failures degrade gracefully (the install still completes).
-
-The devops proxy is not a performance tweak — it is what makes those servers work at all. Previously each was a client-spawned `docker run -i --rm <image>`, and the first image pull (14–20s) blew past the MCP initialization timeout, so **every** devops MCP server failed at once. There is deliberately no general-purpose AWS API server: `awslabs.core-mcp-server` was yanked upstream, and its replacement duplicates Kiro's built-in `use_aws`. Details: [`mcp-proxy/README.md`](mcp-proxy/README.md), [MCP reference](docs/en/mcp-reference.md).
+**General proxy (`--mcp-proxy`, IDE tier).** The general servers can optionally be centralized in one local [mcp-proxy](mcp-proxy/README.md) container so multiple clients don't each spawn duplicates, turning `mcp.json` entries into `{"type":"http","url":"http://localhost:9090/<server>/mcp"}`. The installer auto-provisions it: it checks `docker ps`, runs `docker compose up -d mcp-proxy` when absent, skips when already running, and generates a **workload-filtered `config.generated.json`** so the proxy serves only the backends your active workloads need. It binds to `127.0.0.1` only and is unauthenticated, so don't widen the binding. No Docker → it tells you to install Docker and re-run; daemon down → start it and re-run; `--dry-run` and failures degrade gracefully. Details: [`mcp-proxy/README.md`](mcp-proxy/README.md), [MCP reference](docs/en/mcp-reference.md).
 
 ## Project Structure
 
@@ -301,7 +296,7 @@ Options:
   --cli-version <2|3>            CLI-tier hook format (default 2 = agent-embedded; 3 = standalone .kiro/hooks/*.json for the CLI 3.0 engine)
   --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE only: route mcp.json through the general mcp-proxy (:9090) and auto-start that container if not already running
-                                 (the devops proxy on :9092 is provisioned automatically for cloud/finops on either tier — no flag needed)
+                                 (devops/AWS MCP is unaffected — it runs as on-demand stdio, no container)
   --target <path>                Install to specified directory
   --dry-run                      Preview changes without writing
   --list                         Show category tree
