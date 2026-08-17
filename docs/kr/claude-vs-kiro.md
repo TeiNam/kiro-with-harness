@@ -259,8 +259,7 @@ Kiro IDE에만 있는 기능이다(CLI·Claude Code에는 없음). `.kiro/specs/
 │   └── <skill>.md               (manual)    ← skills/<skill>/SKILL.md
 ├── hooks/                              ← v1 JSON, 티어 설치기가 생성
 │   ├── pre-write-guard.json            (PreToolUse/write → agent)
-│   ├── review-on-stop.json             (Stop → agent)
-│   └── changelog-on-commit.json        (PreToolUse/shell → agent)
+│   └── git-pipeline-guard.json         (PreToolUse/shell → agent)
 ├── agents/                       ← IDE: *.md / CLI: *.json
 ├── specs/                        ← Kiro IDE 고유
 └── settings/

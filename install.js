@@ -278,10 +278,14 @@ function runInstall(opts) {
   const workloads = resolveWorkloads(opts.workload);
   const reviewBackend = opts.reviewBackend || 'claude';
   const provider = opts.provider || DEFAULT_PROVIDER;
+  const cliVersion = opts.cliVersion || 2;
   const useProxy = opts.mcpProxy === true;
 
   const kiroRoot = resolveKiroRoot(scope, opts.target);
-  console.log(`\ntier=${tier} scope=${scope} provider=${provider} workloads=[${workloads.join(',') || 'core'}] review-backend=${reviewBackend}${useProxy ? ' mcp-proxy=on' : ''}`);
+  console.log(`\ntier=${tier} scope=${scope} provider=${provider}${tier === 'cli' ? ` cli-version=${cliVersion}` : ''} workloads=[${workloads.join(',') || 'core'}] review-backend=${reviewBackend}${useProxy ? ' mcp-proxy=on' : ''}`);
+  if (tier === 'ide' && opts.cliVersion) {
+    console.log('  NOTE: --cli-version 은 CLI 티어 훅 포맷에만 적용됩니다. IDE 티어 훅은 이미 v1 JSON 독립 파일입니다.');
+  }
   console.log(`target: ${kiroRoot}`);
   if (useProxy && tier === 'cli') {
     console.log('  NOTE: --mcp-proxy 는 IDE 티어의 settings/mcp.json 에만 적용됩니다. CLI 티어는 mcp.json 을 생성하지 않아 효과가 없습니다.');
@@ -289,7 +293,7 @@ function runInstall(opts) {
 
   const selection = selectAssets({ root: HARNESS_ROOT, tier, scope, workloads, reviewBackend });
   selection.mcp = selectMcpServers({ root: HARNESS_ROOT, activeGroups: selection.activeGroups, useProxy });
-  const plan = tiers.plan(tier, selection, { root: HARNESS_ROOT });
+  const plan = tiers.plan(tier, selection, { root: HARNESS_ROOT, cliVersion });
 
   // 선택한 provider의 모델·운영 노트를 설치 산출물에만 굽는다.
   const profiledAgents = applyProviderToOps(plan.ops, provider);
@@ -300,6 +304,10 @@ function runInstall(opts) {
   if (hasOrchestrator) {
     console.log(`orchestrator(kiro-cli) model: ${orchModel} (ceiling tier: deep-reasoning)`);
     printEffortHint(orchModel, provider);
+    if (tier === 'cli' && cliVersion === 3) {
+      console.log('  cli-version=3: 훅을 독립 .kiro/hooks/*.json(v1 스키마)으로 설치하고 에이전트 embedded hooks 를 제거했습니다.');
+      console.log('  v3 엔진은 `kiro-cli --v3` 로 실행하며, toolsSettings→permissions 전환은 `/upgrade-agent` 또는 `kiro-cli agent migrate` 를 사용하세요.');
+    }
   }
 
   // 글로벌↔워크스페이스 중복 제거: 워크스페이스 설치 시 글로벌에 이미 있는 동일 파일은 상속(스킵)
@@ -315,7 +323,7 @@ function runInstall(opts) {
   const tracked = new Set();
   console.log('');
   executePlan(plan, kiroRoot, tracked);
-  writeManifest(kiroRoot, tracked, { tier, scope, provider, workloads, reviewBackend, mcpProxy: useProxy, ...(hasOrchestrator ? { orchestratorModel: orchModel } : {}) });
+  writeManifest(kiroRoot, tracked, { tier, scope, provider, ...(tier === 'cli' ? { cliVersion } : {}), workloads, reviewBackend, mcpProxy: useProxy, ...(hasOrchestrator ? { orchestratorModel: orchModel } : {}) });
   runPostInstall(plan.postInstall);
 
   // IDE + --mcp-proxy: 워크로드로 필터한 프록시 config 생성 후 mcp-proxy 컨테이너 보장
@@ -370,7 +378,7 @@ function showStatus(opts) {
     console.log('  (no harness manifest — not installed)\n');
     return;
   }
-  console.log(`  tier: ${m.tier || '?'}  provider: ${m.provider || DEFAULT_PROVIDER}  workloads: [${(m.workloads || []).join(',') || 'core'}]  review-backend: ${m.reviewBackend || '?'}${m.mcpProxy ? '  mcp-proxy: on' : ''}${m.orchestratorModel ? `  orchestrator: ${m.orchestratorModel}` : ''}`);
+  console.log(`  tier: ${m.tier || '?'}  provider: ${m.provider || DEFAULT_PROVIDER}${m.cliVersion ? `  cli-version: ${m.cliVersion}` : ''}  workloads: [${(m.workloads || []).join(',') || 'core'}]  review-backend: ${m.reviewBackend || '?'}${m.mcpProxy ? '  mcp-proxy: on' : ''}${m.orchestratorModel ? `  orchestrator: ${m.orchestratorModel}` : ''}`);
   console.log(`  managed files: ${m.managedFiles.length}`);
   if (m.installedAt) console.log(`  installed at: ${m.installedAt}`);
   // 설치 버전 vs 현재 소스 버전 — outdated(갱신 필요) 판정
@@ -410,6 +418,7 @@ function printIntro() {
     '',
     '  옵션:',
     '    --provider anthropic|openai       모델 패밀리(기본 anthropic). 역할별 Claude 또는 GPT-5.6 Sol/Terra/Luna와 최적화 노트를 설치',
+    '    --cli-version 2|3              CLI 티어 훅 포맷(기본 2=에이전트 embedded, 3=독립 .kiro/hooks/*.json — kiro-cli --v3 엔진용)',
     '    --review-backend kiro|claude|cross  리뷰 백엔드(기본 claude=peer-reviewer→claude -p; cross=claude+codex 3-way + cross-review.sh 온디맨드)',
     '    --mcp-proxy                    IDE 티어: mcp.json을 mcp-proxy(:9090) 경유로 생성 + 프록시 컨테이너 자동 보장(없으면 docker compose up -d, 있으면 스킵). mcp-proxy/README.md',
     '    --target <path>                설치 위치. global=이 경로가 곧 .kiro 루트(기본 ~/.kiro), workspace=이 경로 아래 .kiro(기본 cwd)',
@@ -429,7 +438,7 @@ function printIntro() {
 
 // ── CLI 파싱 ───────────────────────────────────────────────
 function parseArgs(argv) {
-  const opts = { tier: null, scope: null, provider: DEFAULT_PROVIDER, workload: [], reviewBackend: null, target: null, dryRun: false, list: false, status: false, intro: false, mcpProxy: false, interactive: false, categoryFlags: {} };
+  const opts = { tier: null, scope: null, provider: DEFAULT_PROVIDER, cliVersion: null, workload: [], reviewBackend: null, target: null, dryRun: false, list: false, status: false, intro: false, mcpProxy: false, interactive: false, categoryFlags: {} };
   const catFlagNames = categoryFlagNames(); // 'category' + 대분류 + 소분류 플래그 (categories.js)
   const args = argv.slice(2);
   if (args.length === 0) opts.intro = true;
@@ -444,6 +453,7 @@ function parseArgs(argv) {
       case '--scope': opts.scope = next(); break;
       case '--workload': case '--workloads': opts.workload = String(next() || '').split(',').map((s) => s.trim()).filter(Boolean); break;
       case '--provider': opts.provider = next(); break;
+      case '--cli-version': opts.cliVersion = parseInt(next(), 10); break;
       case '--review-backend': opts.reviewBackend = next(); break;
       case '--mcp-proxy': opts.mcpProxy = true; break;
       case '-i': case '--interactive': opts.interactive = true; break;
@@ -478,6 +488,7 @@ function parseArgs(argv) {
   }
   if (opts.scope && !['global', 'workspace'].includes(opts.scope)) { console.error(`Invalid --scope: ${opts.scope}`); process.exit(1); }
   if (!isKnownProvider(opts.provider)) { console.error(`Invalid --provider: ${opts.provider} (use ${PROVIDERS.join('|')})`); process.exit(1); }
+  if (opts.cliVersion !== null && ![2, 3].includes(opts.cliVersion)) { console.error(`Invalid --cli-version: ${opts.cliVersion} (use 2|3)`); process.exit(1); }
   if (opts.reviewBackend && !['kiro', 'claude', 'cross'].includes(opts.reviewBackend)) { console.error(`Invalid --review-backend: ${opts.reviewBackend} (use kiro|claude|cross)`); process.exit(1); }
   return opts;
 }

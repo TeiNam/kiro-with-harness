@@ -46,11 +46,8 @@ node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<cat
 | **data** | duckdb | — | python-data |
 | | python-data | — | python-data, ai |
 | | aws-analytics | — | cloud, python-data |
-| | mysql | — | mysql |
-| | postgres | — | postgres |
 | | mongodb | — | mongodb |
 | | dynamodb | — | dynamodb |
-| | aws-rds | — | mysql, postgres |
 | **research** | websearch | — | research |
 | | report | — | report |
 | **writing** | general | — | writing |
@@ -75,14 +72,14 @@ node install.js cli --scope global --category=cloud
 # IDE 프로젝트: TypeScript + 프론트엔드
 node install.js ide --dev=frontend,nodejs
 
-# 데이터 엔지니어링: PostgreSQL + AWS 분석
-node install.js cli --scope workspace --data=postgres,aws-analytics
+# 데이터 엔지니어링: MongoDB + AWS 분석
+node install.js cli --scope workspace --data=dynamodb,aws-analytics
 
 # 여러 전문 영역 조합
 node install.js ide --category=dev,cloud --dev=python --review-backend claude
 
 # 저수준 워크로드 직접 지정 (레거시, 하위 호환성)
-node install.js cli --scope global --workload rust,postgres,cloud
+node install.js cli --scope global --workload rust,mongodb,cloud
 ```
 
 ## 리뷰 백엔드

@@ -1,6 +1,6 @@
 # Skill Catalog
 
-138 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
+134 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
 
 ## Infrastructure
 
@@ -8,7 +8,6 @@
 |-------|-------------|
 | docker-patterns | Container patterns, multi-stage builds, compose best practices |
 | deployment-patterns | Deployment strategies, blue-green, canary, rollback |
-| database-migrations | Schema migration patterns, zero-downtime migrations |
 | backend-patterns | Backend architecture patterns, service layer, repository |
 | content-hash-cache-pattern | Content-addressable caching strategy |
 | video-editing | Video processing and editing automation |
@@ -31,16 +30,15 @@
 | analysis-methodology | Analysis judgment layer: framing, technique selection, causal/experiment design, domain playbooks |
 | cost-tracking | Token/spend tracking and budget reporting |
 
-## Databases
+## Databases (NoSQL & analytics)
+
+RDBMS design/migration skills (mysql-guideline, postgres-guideline, rdbms-naming, database-migrations) moved to the separate easy-rdbms plugin in v2.
 
 | Skill | Description |
 |-------|-------------|
-| postgres-guideline | PostgreSQL best practices, indexing, query optimization |
-| mysql-guideline | MySQL best practices, InnoDB tuning, replication, dev practices, JDBC |
 | mongodb-guideline | MongoDB schema design, aggregation, sharding |
 | mongodb-patterns | MongoDB runtime — aggregation, query/index usage, transactions, async pools |
 | dynamodb-guideline | DynamoDB single-table design, GSI, capacity planning |
-| rdbms-naming | Common RDBMS naming + data-type conventions (MySQL & PostgreSQL) |
 | clickhouse-io | ClickHouse analytics, MergeTree engines, materialized views |
 | jpa-patterns | JPA/Hibernate patterns, N+1 prevention, entity lifecycle |
 

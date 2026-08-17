@@ -38,15 +38,16 @@ const GROUPS = [
   // ── 특화 워크로드 ──
   'ai-agent',    // AI 에이전트/하네스 구축: agent-harness, eval-harness, mcp-server-patterns, agentic-engineering, prompt-optimizer
   'ai',          // LLM/ML 사용: claude-api, bedrock, cost-aware-llm, on-device, pytorch, regex-vs-llm
-  'cloud',       // DevOps/IaC/Terraform/AWS/Docker/K8s: devops, docker, deployment, terraform-deployment, database-migrations
+  'cloud',       // DevOps/IaC/Terraform/AWS/Docker/K8s: devops, docker, deployment, terraform-deployment
   'finops',      // 비용: cost-tracking 스킬 + FinOps MCP(aws-pricing, aws-billing-cost-management)
   'frontend',    // UI 프레임워크: react/next/nuxt/vite, liquid-glass, slides, flutter
   'mobile',      // android, compose, swiftui, swift concurrency
   'python-data', // 데이터 분석/ML 파이프라인: duckdb, pandas, mle, clickhouse, pytorch
 
-  // ── 데이터 설계: 개별 엔진 ──
-  'mysql',
-  'postgres',
+  // ── 데이터 설계: NoSQL 엔진 ──
+  // RDBMS 설계 그룹(mysql/postgres)은 v2 에서 제거되었다 — RDBMS 설계
+  // 스킬·에이전트는 별도 DB 플러그인(easy-rdbms)으로 분리. 되살릴 때는
+  // 키와 자산 태그를 함께 복원한다(둘은 항상 함께).
   'mongodb',
   'dynamodb',
 
@@ -159,16 +160,12 @@ const RULES = [
   { pattern: /^deployment[-_]/i, groups: ['cloud'] },
   { pattern: /^cost[-_]tracking$/i, groups: ['finops', 'ai'] },
   { pattern: /^backend[-_]patterns$/i, groups: ['cloud'] },
-  { pattern: /^database[-_]migrations$/i, groups: ['cloud', 'mysql', 'postgres'] },
 
-  // ── 데이터 설계: 개별 RDBMS / NoSQL ──
-  { pattern: /^(postgres|aurora[-_]?postgres)([-_]|$)/i, groups: ['postgres'] },
-  { pattern: /^(mysql|aurora[-_]?mysql)([-_]|$)/i, groups: ['mysql'] },
+  // ── 데이터 설계: NoSQL (RDBMS 설계는 easy-rdbms 플러그인으로 분리) ──
   { pattern: /^mongodb([-_]|$)/i, groups: ['mongodb'] },
   { pattern: /^dynamodb([-_]|$)/i, groups: ['dynamodb'] },
   { pattern: /^clickhouse[-_]/i, groups: ['python-data'] },
-  { pattern: /^rdbms[-_]data[-_]modeler$/i, groups: ['mysql', 'postgres'], kind: 'agent' },
-  { pattern: /^database[-_]reviewer$/i, groups: ['mysql', 'postgres', 'mongodb', 'dynamodb'], kind: 'agent' },
+  { pattern: /^database[-_]reviewer$/i, groups: ['mongodb', 'dynamodb'], kind: 'agent' },
 
   // ── Architecture ──
   { pattern: /^api[-_]design$/i, groups: ['architecture'] },

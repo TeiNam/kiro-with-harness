@@ -125,7 +125,7 @@ Map intent + scope + tech stack (from Phase 0) to specific harness components.
 | Testing | /tdd, /e2e, /test-coverage | tdd-workflow, e2e-testing | tdd-guide, e2e-runner |
 | Review | /code-review | security-review | code-reviewer, security-reviewer |
 | Documentation | /update-docs, /update-codemaps | — | doc-updater |
-| Infrastructure | /plan, /verify | docker-patterns, deployment-patterns, database-migrations | architect |
+| Infrastructure | /plan, /verify | docker-patterns, deployment-patterns, terraform-deployment | architect |
 | Design (MEDIUM-HIGH) | /plan | — | planner, architect |
 | Design (EPIC) | — | blueprint (invoke as skill) | planner, architect |
 
@@ -139,7 +139,7 @@ Map intent + scope + tech stack (from Phase 0) to specific harness components.
 | Kotlin / Android | kotlin-coroutines-flows, compose-multiplatform-patterns, android-clean-architecture | kotlin-reviewer |
 | TypeScript / React | frontend-patterns, backend-patterns, coding-standards | code-reviewer |
 | Swift / iOS | swiftui-patterns, swift-concurrency-6-2, swift-actor-persistence, swift-protocol-di-testing | code-reviewer |
-| PostgreSQL | postgres-patterns, database-migrations | database-reviewer |
+| MongoDB / DynamoDB | mongodb-guideline, mongodb-patterns, dynamodb-guideline | database-reviewer |
 | Perl | perl-patterns, perl-testing, perl-security | code-reviewer |
 | C++ | cpp-coding-standards, cpp-testing | code-reviewer |
 | Other / Unlisted | coding-standards (universal) | code-reviewer |

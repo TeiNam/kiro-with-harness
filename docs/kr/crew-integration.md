@@ -74,7 +74,7 @@ Crew의 서브에이전트는 구체적 제약이 있으니 설계할 때 염두
 | IDE 티어 자산(Markdown 에이전트, v1 훅, fileMatch steering) | Crew는 CLI/Gateway 런타임 |
 | MCP 프록시 | 별도 관심사; Crew는 자체 MCP 서버를 생성 |
 
-신경 쓸 겹침은 **lessons**이다: 하네스는 `capture-lessons` 훅과 `lessons-learned` 기술을 가지고, Crew는 교정을 자체 영구 lessons로 전환한다. 동일 저장소에서 둘 다 실행하면 조정 없이 동일 지식의 두 저장소가 된다. 워크스페이스마다 소유자를 하나 고르라.
+신경 쓸 겹침은 **lessons**이다: 하네스는 `lessons-learned` 기술을 가지고, Crew는 교정을 자체 영구 lessons로 전환한다. 동일 저장소에서 둘 다 실행하면 조정 없이 동일 지식의 두 저장소가 된다. 워크스페이스마다 소유자를 하나 고르라.
 
 ## 보안
 

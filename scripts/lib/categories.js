@@ -113,12 +113,9 @@ const CATEGORIES = [
       { id: 'python-data', label: '분석 · Python (pandas/pytorch/MLE)', workloads: ['python-data', 'ai'] },
       // AWS 분석(lakehouse/ETL-CDC)은 cloud 스위트에 태깅돼 있어 cloud 동반
       { id: 'aws-analytics', label: '분석 · AWS (Glue·Athena·S3 Tables·Iceberg)', workloads: ['cloud', 'python-data'] },
-      { id: 'mysql', label: '설계 · MySQL / Aurora MySQL', workloads: ['mysql'] },
-      { id: 'postgres', label: '설계 · PostgreSQL / Aurora Postgres', workloads: ['postgres'] },
+      // RDBMS 설계 leaf(mysql/postgres/aws-rds)는 v2 에서 제거 — easy-rdbms 플러그인으로 분리
       { id: 'mongodb', label: '설계 · MongoDB', workloads: ['mongodb'] },
       { id: 'dynamodb', label: '설계 · DynamoDB', workloads: ['dynamodb'] },
-      // 수렴: aws-rds 전용 키 없음 → RDBMS 설계 스위트(mysql+postgres)로 수렴
-      { id: 'aws-rds', label: '설계 · AWS 관리형 DB (Aurora·RDS)', workloads: ['mysql', 'postgres'] },
     ],
   },
   {

@@ -75,11 +75,10 @@
     },
     {
       "id": "agents-workspace-quality",
-      "description": "Workspace quality agents (IDE agents) — database-reviewer, e2e-runner, rdbms-data-modeler",
+      "description": "Workspace quality agents (IDE agents) — database-reviewer, e2e-runner",
       "sources": [
         { "from": "agents/ide/database-reviewer.md", "output": "database-reviewer.md" },
-        { "from": "agents/ide/e2e-runner.md", "output": "e2e-runner.md" },
-        { "from": "agents/ide/rdbms-data-modeler.md", "output": "rdbms-data-modeler.md" }
+        { "from": "agents/ide/e2e-runner.md", "output": "e2e-runner.md" }
       ],
       "outputDir": ".kiro/agents",
       "defaultInstall": false
@@ -204,13 +203,10 @@
     },
     {
       "id": "steering-infra",
-      "description": "Infrastructure skills (manual) — docker, deployment, database migrations",
+      "description": "Infrastructure skills (manual) — docker, deployment",
       "sources": [
         { "from": "skills/docker-patterns/SKILL.md", "output": "docker-patterns.md", "inclusion": "manual" },
         { "from": "skills/deployment-patterns/SKILL.md", "output": "deployment-patterns.md", "inclusion": "manual" },
-        { "from": "skills/database-migrations/SKILL.md", "output": "database-migrations.md", "inclusion": "manual" },
-        { "from": "skills/postgres-guideline/SKILL.md", "output": "postgres-guideline.md", "inclusion": "manual" },
-        { "from": "skills/mysql-guideline/SKILL.md", "output": "mysql-guideline.md", "inclusion": "manual" },
         { "from": "skills/mongodb-guideline/SKILL.md", "output": "mongodb-guideline.md", "inclusion": "manual" },
         { "from": "skills/dynamodb-guideline/SKILL.md", "output": "dynamodb-guideline.md", "inclusion": "manual" },
         { "from": "skills/backend-patterns/SKILL.md", "output": "backend-patterns.md", "inclusion": "manual" },

@@ -66,14 +66,18 @@ const LANG_RULES = {
   perl:       { dir: 'rules/perl',       fileMatch: '**/*.pl,**/*.pm,**/*.t',               out: 'perl-rules.md' },
 };
 
-/** rules/common 의 always-on 베이스라인(IDE steering). */
-const CORE_RULES = ['coding-style.md', 'security.md', 'testing.md', 'git-workflow.md', 'product.md', 'ponytail.md'];
+/** rules/common 의 always-on 베이스라인(IDE steering) — v2 최소화: 상시 로딩은
+ *  압축 digest(minimal-core) + ponytail 두 파일만. 나머지 규칙(coding-style,
+ *  security, testing, git-workflow, product)은 digest 가 요약하며, 상세본은
+ *  스킬/훅/규약이 담당한다. */
+const CORE_RULES = ['minimal-core.md', 'ponytail.md'];
 
 /**
- * IDE 최적화 훅 세트 (IDE 1.0 v1 JSON). 워크로드와 무관한 핵심만 — IDE 내장 기능과
- * 겹치지 않는 가드/리뷰 위주. 과도한 훅은 제외(사용자 요청: 훅 최적화).
+ * IDE 최소 훅 세트 (IDE 1.0 v1 JSON) — CLI 티어의 결정적 게이트 2개와 대칭.
+ * v2 최소화: 이벤트마다 에이전트 프롬프트를 태우는 자동화(review-on-stop,
+ * capture-lessons, changelog-on-commit)는 제거했다 — 리뷰는 온디맨드
+ * (code-reviewer 에이전트, cross-review.sh), 교훈/CHANGELOG 는 스킬·규약으로 남는다.
  * event 는 레거시 표기로 두고 hookJson() 이 v1 trigger 로 매핑한다.
- * matcher 는 PreToolUse 한정 도구 카테고리(write/shell/read/web/spec) regex.
  */
 const IDE_HOOKS = [
   {
@@ -81,20 +85,8 @@ const IDE_HOOKS = [
     prompt: 'Before this write, check ALL in one pass: 1) SIZE — if content exceeds 800 lines, BLOCK and split into modules under 400 lines. 2) SECRETS — no hardcoded API keys/tokens/passwords/connection strings; use env vars. 3) DOC LOCATION — a .md/.txt outside docs/, .kiro/, README/CONTRIBUTING/CHANGELOG/LICENSE should warn to put docs in docs/. Only report issues; if all pass, proceed silently.',
   },
   {
-    id: 'review-on-stop', name: 'Post-Task Review', event: 'agentStop', action: 'askAgent',
-    prompt: 'Briefly review the completed work: 1) security issues 2) error handling 3) leftover console.log 4) tests needed. Report issues only.',
-  },
-  {
-    id: 'capture-lessons', name: 'Capture Repeated Lessons', event: 'agentStop', action: 'askAgent',
-    prompt: '이번 작업에서 반복 가능한 교정 사항(동일 유형의 리뷰 지적, 빌드 실패 패턴, 사용자 정정)이 있었는지 식별하라. 있다면 .kiro/steering/lessons-learned.md에 추가할 한 줄 교훈을 제안하라. 사용자 자산 수정 전 반드시 사용자 확인을 받아라. 교훈이 없으면 조용히 종료하라.',
-  },
-  {
     id: 'git-pipeline-guard', name: 'Git Pipeline Guard (default-branch push gate)', event: 'preToolUse', matcher: 'shell', action: 'askAgent',
     prompt: '이 도구 실행이 `git push`인지 먼저 판별하라. 아니면 아무 작업도 하지 말고 즉시 진행하라(보고 생략).\\n\\n`git push`라면 대상 브랜치가 기본 브랜치인지 판정한다: `git symbolic-ref --short refs/remotes/origin/HEAD`(없으면 실재하는 main/master). 명령에 refspec이 없으면 대상은 현재 브랜치(`git rev-parse --abbrev-ref HEAD`)다.\\n\\n대상이 기본 브랜치면 **차단하고** 파이프라인을 안내하라: `git switch -c <type>/<slug>` → `git push -u origin <branch>` → `gh pr create --fill` → `gh pr merge --squash --delete-branch`. 이미 기본 브랜치에서 커밋했다면 커밋을 새 브랜치로 옮기라고 안내한다.\\n\\n예외(차단하지 않음): 태그 전용 푸시(`--tags`), 브랜치 삭제(`--delete`/`-d`), 원격이 없는 로컬 전용 레포, 사용자가 "main에 직접"이라고 명시한 경우. 대상이 기본 브랜치가 아니면 조용히 진행하라.',
-  },
-  {
-    id: 'changelog-on-commit', name: 'Update CHANGELOG (date-organized) on commit', event: 'preToolUse', matcher: 'shell', action: 'askAgent',
-    prompt: '이 도구 실행이 `git commit`인지 먼저 판별하라. 커밋이 아니면 아무 작업도 하지 말고 즉시 진행하라(보고 생략).\n\n커밋이 맞다면, 커밋이 실행되기 전에:\n1. 스테이징 범위를 파악한다: `git diff --cached --stat`. 이번 커밋이 CHANGELOG/문서만 바꾸는 커밋이면 아무 것도 하지 말고 진행한다(루프 방지).\n2. 저장소 루트에 CHANGELOG.md가 없으면 아무 것도 하지 말고 진행한다(자동 생성하지 않음).\n3. CHANGELOG.md가 있으면 **날짜별로** 유지한다: `date +%F`로 오늘 날짜를 구해 최상단에 `## YYYY-MM-DD` 섹션이 없으면 추가하고 그 아래 이번 스테이징된 변경을 Added/Changed/Fixed/Removed로 분류해 한 줄로 기록한다. 같은 날짜 섹션이 있으면 항목만 덧붙인다(섹션 중복 생성 금지).\n4. README.md(있으면 README-KR.md도)는 이번 변경으로 부정확해진 부분만 갱신한다.\n5. 변경한 CHANGELOG/README를 `git add`로 스테이징해 이번 커밋에 포함시킨다. 별도 커밋이나 --amend는 하지 말 것.\n6. 이미 최신이면 변경 없이 진행한다.',
   },
 ];
 
@@ -148,7 +140,43 @@ function crossReviewScriptOp(root, selection) {
 }
 
 // ── CLI 티어 계획 ───────────────────────────────────────────
-function planCli(selection, { root = ROOT } = {}) {
+/**
+ * CLI 3.0(v3 엔진)용 독립 훅 파일 op 2개를 만든다.
+ * v3 는 에이전트 JSON 안의 camelCase embedded hooks 를 쓰지 않고(구 포맷),
+ * `.kiro/hooks/*.json`(version v1, PascalCase trigger) 독립 파일을 읽는다.
+ * matcher 는 v3 도구 태그(write/shell), command 는 기존 게이트 스크립트를 그대로 실행.
+ */
+function cliV3HookOps() {
+  const mk = (name, matcher, script, timeout) => ({
+    type: 'content',
+    destRel: `hooks/${name}.json`,
+    content: JSON.stringify({
+      version: 'v1',
+      hooks: [{
+        name,
+        trigger: 'PreToolUse',
+        matcher,
+        action: { type: 'command', command: `bash ~/.kiro/hooks/${script}` },
+        timeout,
+        enabled: true,
+      }],
+    }, null, 2) + '\n',
+    label: `hook ${name} (cli v3)`,
+  });
+  return [
+    mk('pre-write-guard', 'write', 'pre-write-guard.sh', 5),
+    mk('pre-push-guard', 'shell', 'pre-push-guard.sh', 8),
+  ];
+}
+
+/** kiro-cli.json 원문에서 embedded hooks 필드를 제거한 content 를 반환(v3 전용). */
+function stripEmbeddedHooks(raw) {
+  const parsed = JSON.parse(raw);
+  delete parsed.hooks;
+  return JSON.stringify(parsed, null, 2) + '\n';
+}
+
+function planCli(selection, { root = ROOT, cliVersion = 2 } = {}) {
   const ops = [];
   const postInstall = [];
 
@@ -171,19 +199,35 @@ function planCli(selection, { root = ROOT } = {}) {
   //    ~/.kiro/settings/mcp.json 은 IDE 전용이다. CLI 티어가 이를 쓰면 IDE 설정을
   //    덮어쓰므로 mcp.json 을 생성하지 않는다.
 
-  // 4) 항상로딩 글로벌 steering: AGENTS.md(협업 규약) + ponytail(lazy senior dev 페르소나)
+  // 4) 항상로딩 글로벌 steering: AGENTS.md(협업 규약) + minimal-core(압축 코어 규칙,
+  //    IDE 와 동일한 digest — AWS/Terraform 게이트 포함) + ponytail(lazy senior dev)
   const agentsMd = readSource(root, 'agents/AGENTS.md');
   if (agentsMd) ops.push({ type: 'content', destRel: 'steering/AGENTS.md', content: agentsMd, label: 'AGENTS.md' });
+  const minimalCore = readSource(root, 'rules/common/minimal-core.md');
+  if (minimalCore) ops.push({ type: 'content', destRel: 'steering/minimal-core.md', content: stripFrontmatter(minimalCore) + '\n', label: 'minimal-core' });
   const ponytail = readSource(root, 'rules/common/ponytail.md');
   if (ponytail) ops.push({ type: 'content', destRel: 'steering/ponytail.md', content: stripFrontmatter(ponytail) + '\n', label: 'ponytail' });
 
   // 5) 오케스트레이터(kiro-cli) 선택 시: 훅 스크립트 설치 + 기본 에이전트 지정
   if (selection.agents.some((a) => a.name === 'kiro-cli')) {
-    // preToolUse 훅 스크립트 — 에이전트 JSON 의 hooks.preToolUse 가 이 경로를 참조한다.
+    // 게이트 스크립트는 두 CLI 버전 공통 — 훅이 이 경로를 실행한다.
     for (const h of ['pre-write-guard.sh', 'pre-push-guard.sh']) {
       const src = path.join(root, 'agents/cli/hooks', h);
       if (fs.existsSync(src)) {
         ops.push({ type: 'copy', src, destRel: `hooks/${h}`, label: `hook ${h.replace(/\.sh$/, '')}` });
+      }
+    }
+    if (cliVersion === 3) {
+      // CLI 3.0: 훅은 독립 `.kiro/hooks/*.json`(v1 스키마, PascalCase trigger)로.
+      // 에이전트 JSON 의 camelCase embedded hooks 는 v3 가 읽지 않으므로 제거해
+      // 죽은 설정이 남지 않게 한다(조용한 미발화 방지).
+      ops.push(...cliV3HookOps());
+      for (const op of ops) {
+        if (op.destRel !== 'agents/kiro-cli.json') continue;
+        const raw = op.type === 'copy' ? fs.readFileSync(op.src, 'utf8') : op.content;
+        op.type = 'content';
+        op.content = stripEmbeddedHooks(raw);
+        delete op.src;
       }
     }
     postInstall.push('kiro-cli agent set-default kiro-cli');
@@ -267,6 +311,8 @@ module.exports = {
   CORE_RULES,
   IDE_HOOKS,
   mcpJsonContent,
+  cliV3HookOps,
+  stripEmbeddedHooks,
   planCli,
   planIde,
   plan,

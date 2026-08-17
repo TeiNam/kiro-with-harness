@@ -57,23 +57,13 @@ Kiro IDE 훅은 `.kiro/hooks/*.json`에 정의되는 **v1 JSON** 이벤트 기�
 
 ## 설치되는 훅 (IDE 티어)
 
-IDE 티어는 `scripts/lib/tiers.js`(`IDE_HOOKS`)에 정의된 최적화 세트로 5개의 훅을 설치합니다. 모두 워크로드 독립적이며 agent 액션을 사용합니다. (`scripts/validate-counts.js`가 이 숫자를 설치 계획과 대조하므로 조용히 드리프트할 수 없습니다.)
+IDE 티어는 2개의 훅을 설치하며, 결정적 게이트는 CLI 계층과 대칭입니다. 이벤트 기반 에이전트 자동화(review-on-stop, capture-lessons, changelog-on-commit)는 v2에서 제거됨 — 리뷰는 온디맨드(code-reviewer 에이전트, `cross-review.sh`), 교훈은 `lessons-learned` 스킬에, CHANGELOG 규약은 저장소 스티어링에 정의됩니다. (`scripts/validate-counts.js`가 이 숫자를 설치 계획과 대조하므로 조용히 드리프트할 수 없습니다.)
 
 ### pre-write-guard
 - 트리거: `PreToolUse`, 매처 `write`
 - 액션: agent
 - 검사(한 번에): (1) SIZE — 800줄 초과 쓰기 차단, 400줄 이하로 분할 제안; (2) SECRETS — 하드코딩된 키/토큰/비밀번호/연결 문자열 감지; (3) DOC LOCATION — `docs/`, `.kiro/`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LICENSE` 외부에 `.md`/`.txt` 생성 시 경고.
 - 문제만 보고, 통과 시 조용히 진행.
-
-### review-on-stop
-- 트리거: `Stop`
-- 액션: agent
-- 작업 완료 후 간단 리뷰: 보안 문제, 에러 처리, 남은 `console.log`, 필요한 테스트. 문제만 보고.
-
-### capture-lessons
-- 트리거: `Stop`
-- 액션: agent
-- 반복 가능한 교정(반복되는 리뷰 지적, 빌드 실패 패턴, 사용자 정정)을 감지해 `.kiro/steering/lessons-learned.md`에 추가할 한 줄 교훈을 제안. 사용자 자산 수정 전 확인 필수, 없으면 조용히 종료. 자기 진화 루프의 일부.
 
 ### git-pipeline-guard
 - 트리거: `PreToolUse`, 매처 `shell`
@@ -82,17 +72,12 @@ IDE 티어는 `scripts/lib/tiers.js`(`IDE_HOOKS`)에 정의된 최적화 세트�
 - 예외(차단하지 않음): 태그 전용 푸시(`--tags`), 브랜치 삭제(`--delete`/`-d`), 원격이 없는 로컬 전용 레포, 사용자가 "main에 직접"이라고 명시한 경우. 기본 브랜치가 아닌 푸시는 조용히 통과합니다.
 - CLI 티어는 결정적 등가물 `pre-push-guard.sh`(`exit 2`, 우회는 `KIRO_ALLOW_MAIN_PUSH=1`)를 배치합니다. 정책 본문: `rules/common/git-workflow.md`.
 
-### changelog-on-commit
-- 트리거: `PreToolUse`, 매처 `shell`
-- 액션: agent
-- 셸 도구 호출이 `git commit`인지 판별해, 맞으면 날짜별 `CHANGELOG.md`(`## YYYY-MM-DD`)를 유지하고 이번 커밋으로 부정확해진 README만 갱신해 같은 커밋에 스테이징. 커밋이 아니거나 문서 전용 커밋이면 무동작(루프 가드).
-
 ## 훅 추가/비활성화
 
 - **비활성화**: 훅 파일에서 `"enabled": false` 설정, `.kiro/hooks/`의 `.json` 파일 삭제, 또는 설치 명령에서 해당 워크로드 제외.
 - **커스텀 훅 추가**: 위 v1 스키마에 따라 `.kiro/hooks/<name>.json`을 생성하거나, 명령 팔레트 → "Kiro: Open Kiro Hook UI" → 자연어로 설명.
 
-> **CLI 티어 참고**: CLI 티어(`kiro-cli chat`)는 이 파일들을 쓰지 않습니다. 훅을 에이전트 JSON(`hooks` 필드)에 임베드하고, CLI 훅 스크립트 2종을 결정적 게이트(`exit 2`)로 배치하며 `kiro-cli.json`의 preToolUse 훅 2개가 이를 참조합니다:
+> **CLI 티어 참고**: 기본값(`--cli-version 2`)으로는 CLI 티어(`kiro-cli chat`)가 이 파일들을 쓰지 않습니다. 훅을 에이전트 JSON(`hooks` 필드)에 임베드하고, CLI 훅 스크립트 2종을 결정적 게이트(`exit 2`)로 배치하며 `kiro-cli.json`의 preToolUse 훅 2개가 이를 참조합니다. `--cli-version 3`이면 (CLI 3.0 engine, `kiro-cli --v3`) 동일한 2개 게이트가 독립 `.kiro/hooks/pre-write-guard.json` / `pre-push-guard.json`(v1 schema, `PreToolUse` 트리거, matcher `write`/`shell`)으로 설치되고 임베디드 `hooks` 필드는 제거됩니다 — v3 엔진은 기존 camelCase 임베디드 포맷을 읽지 않습니다:
 >
 > | 스크립트 | matcher | 차단 조건 |
 > |---------|---------|----------|

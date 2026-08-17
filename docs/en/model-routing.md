@@ -18,14 +18,13 @@ The design principle: **Opus 5 orchestrates and reasons, Sonnet does the coding 
 
 | Tier | Agents |
 |------|--------|
-| **deep-reasoning** (`claude-opus-5`, ceiling) | kiro-cli (orchestrator), architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| **deep-reasoning** (`claude-opus-5`, ceiling) | kiro-cli (orchestrator), architect, security-reviewer, deep-researcher, devops, peer-reviewer |
 | **balanced** (`claude-sonnet-5`) | code-reviewer, refactor-cleaner, all language reviewers (python, rust, go, java, kotlin, cpp, typescript, flutter), database-reviewer, all build-resolvers (build-error-resolver, cpp, go, java, kotlin, pytorch, rust), e2e-runner, doc agents (tech-doc-writer, tech-writer-monolith, doc-clarity-reviewer, doc-quality-detector, tech-fidelity-auditor) |
 | **cost-optimized** (`claude-haiku-4.5`) | translator-docs, article-writer, content-creator |
 
 Why these splits:
 - **kiro-cli sits at the ceiling, not above it** — the orchestrator runs `claude-opus-5`, the same tier as the reasoning agents. Long-horizon autonomous work, wide parallel sub-agent delegation, and self-verification are what this tier is for. Earlier revisions of this policy put the orchestrator on a separate frontier tier above Opus; that tier is gone. The orchestrator is still the highest-leverage seat, but the lever is **effort** (it runs at `max`), not a more expensive model.
 - **security-reviewer stays on Opus** while the generic **code-reviewer moves to Sonnet** — security judgment benefits from deeper reasoning; routine quality review is Sonnet's sweet spot and far higher volume.
-- **rdbms-data-modeler stays on Opus** — 3NF normalization and physical-schema trade-offs are genuine reasoning, unlike per-language review.
 - **peer-reviewer stays on Opus** — it coordinates a cross-model second opinion (Claude Code `claude -p` + Codex `codex`, a Kiro + Claude + Codex 3-way), which should come from the strongest tier to be worth the round-trip.
 
 ## Above the ceiling: effort, then cross-family
@@ -147,9 +146,7 @@ IDE hooks (`.kiro/hooks/*.json`, v1 format) trigger agent actions via `askAgent`
 | Hook | Nature | Suits |
 |------|--------|-------|
 | pre-write-guard | size / secret / doc-location checks | cost-optimized or balanced |
-| review-on-stop | post-task code review | balanced (deep-reasoning if the change is security-critical) |
-| capture-lessons | summarize repeated corrections | cost-optimized |
-| changelog-on-commit | mechanical CHANGELOG/README update | cost-optimized or balanced |
+| git-pipeline-guard | default-branch push gate | cost-optimized or balanced |
 
 For heavyweight review that must run on a specific tier regardless of the session model, delegate from the hook prompt to a named agent (e.g., `security-reviewer` for a security pass) rather than relying on the session model.
 

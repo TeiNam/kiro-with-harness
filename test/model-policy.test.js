@@ -63,7 +63,7 @@ test('classifyRole: 오케스트레이터는 천장 티어(deep-reasoning) — �
 });
 
 test('classifyRole: deep-reasoning 역할', () => {
-  for (const role of ['architect', 'security-reviewer', 'deep-researcher', 'devops', 'peer-reviewer', 'rdbms-data-modeler']) {
+  for (const role of ['architect', 'security-reviewer', 'deep-researcher', 'devops', 'peer-reviewer']) {
     assert.strictEqual(classifyRole(role), 'deep-reasoning', role);
   }
 });

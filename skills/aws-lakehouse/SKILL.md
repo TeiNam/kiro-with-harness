@@ -169,4 +169,4 @@ Speed ranking for real work:
 - `aws-sdk-patterns` — boto3 `s3tables` client, credential chain, retries
 - `duckdb-patterns` — single-node Iceberg/Parquet querying without a cluster
 - `clickhouse-io` — alternative columnar analytics engine
-- `dynamodb-guideline` / `postgres-guideline` / `mysql-guideline` — OLTP-side modeling
+- `dynamodb-guideline` — OLTP-side modeling (RDBMS modeling: easy-rdbms plugin)

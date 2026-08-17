@@ -18,14 +18,13 @@
 
 | 티어 | 에이전트 |
 |------|----------|
-| **deep-reasoning** (`claude-opus-5`, 천장) | kiro-cli(오케스트레이터), architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| **deep-reasoning** (`claude-opus-5`, 천장) | kiro-cli(오케스트레이터), architect, security-reviewer, deep-researcher, devops, peer-reviewer |
 | **balanced** (`claude-sonnet-5`) | code-reviewer, refactor-cleaner, 전체 언어 리뷰어(python, rust, go, java, kotlin, cpp, typescript, flutter), database-reviewer, 전체 빌드 리졸버(build-error-resolver, cpp, go, java, kotlin, pytorch, rust), e2e-runner, 문서 에이전트(tech-doc-writer, tech-writer-monolith, doc-clarity-reviewer, doc-quality-detector, tech-fidelity-auditor) |
 | **cost-optimized** (`claude-haiku-4.5`) | translator-docs, article-writer, content-creator |
 
 분류 근거:
 - **kiro-cli는 천장에 위치하지만 위에 있지 않다** — 오케스트레이터가 `claude-opus-5`를 실행하는데, 이는 추론 에이전트와 동일한 티어다. 장기 자율 작업, 광폭 병렬 서브에이전트 위임, 자가 검증이 이 티어의 용도다. 정책의 이전 판에서는 오케스트레이터를 Opus 위의 별도 frontier 티어에 두었지만, 그 티어는 이제 없다. 오케스트레이터는 여전히 지렛대가 가장 큰 단일 좌석이지만, 지렛대는 **노력**(max로 실행)이지, 더 비싼 모델이 아니다.
 - **security-reviewer는 Opus 유지**, 범용 **code-reviewer는 Sonnet으로 이동** — 보안 판단은 깊은 추론에서 이득을 보지만, 일상적 품질 리뷰는 Sonnet의 강점이자 물량이 훨씬 많다.
-- **rdbms-data-modeler는 Opus 유지** — 3NF 정규화와 물리 스키마 트레이드오프는 언어별 리뷰와 달리 실제 추론이 필요하다.
 - **peer-reviewer는 Opus 유지** — Claude Code(`claude -p`) + Codex(`codex`)를 조율하는 교차 모델 second opinion(Kiro + Claude + Codex 3-way)은 왕복 비용을 정당화하려면 최상위 티어에서 나와야 한다.
 
 ## 천장 위: 노력, 그 다음 크로스 패밀리
@@ -149,9 +148,7 @@ IDE 훅(`.kiro/hooks/*.json`, v1 포맷)은 `askAgent` 프롬프트로 에이전
 | 훅 | 성격 | 적합 티어 |
 |----|------|-----------|
 | pre-write-guard | 크기/시크릿/문서 위치 점검 | cost-optimized 또는 balanced |
-| review-on-stop | 작업 후 코드 리뷰 | balanced (보안 중요 변경은 deep-reasoning) |
-| capture-lessons | 반복 교정 사항 요약 | cost-optimized |
-| changelog-on-commit | 기계적 CHANGELOG/README 갱신 | cost-optimized 또는 balanced |
+| git-pipeline-guard | 기본 브랜치 푸시 게이트 | cost-optimized 또는 balanced |
 
 세션 모델과 무관하게 특정 티어에서 돌려야 하는 무거운 리뷰는, 훅 프롬프트에서 세션 모델에 기대지 말고 명명된 에이전트(예: 보안 점검은 `security-reviewer`)에 위임한다.
 

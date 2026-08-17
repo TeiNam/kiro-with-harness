@@ -6,6 +6,7 @@
 
 - 오케스트레이터(`kiro-cli`)는 광범위한 탐색·리서치·대규모 코드 읽기를 격리 컨텍스트 서브에이전트에 위임하여 메인 컨텍스트를 가볍게 유지한다. 좁고 명확한 단건 조회는 직접 처리한다.
 - 독립 작업은 DAG로 모델링하고, `depends_on` 의존이 없는 스테이지는 격리 서브에이전트에 병렬 위임한다.
+- 인프라(AWS·Terraform·K8s) 변경은 `devops` 에이전트로 위임한다 — 조회는 직접, 변경은 plan/diff → 승인 → apply 게이트를 거친다.
 - 각 위임 산출물은 검증 후 수렴(verify-then-converge): 결과를 합치기 전에 정확성을 확인한 뒤에만 수렴 결과를 사용자에게 제시한다.
 - 교차 모델 리뷰·설계 토론·독립 교차 점검이 필요하면 `peer-reviewer`(터미널 `claude -p` + `codex`) 에이전트를 사용한다. 판단 기준은 아래 "cross-family 핸드오프".
 
@@ -13,7 +14,7 @@
 
 역할을 능력 티어에 매핑하고, 티어를 모델 식별자에 매핑한다. 단일 출처는 `scripts/lib/model-policy.js`이며, 자세한 배정·전환은 `docs/kr/model-routing.md`를 참조한다.
 
-- `claude-opus-5` (deep-reasoning) — **천장 티어**. 오케스트레이션·아키텍처·보안·근본 원인 분석·리서치 종합·장기 자율 실행(kiro-cli, architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler).
+- `claude-opus-5` (deep-reasoning) — **천장 티어**. 오케스트레이션·아키텍처·보안·근본 원인 분석·리서치 종합·장기 자율 실행(kiro-cli, architect, security-reviewer, deep-researcher, devops, peer-reviewer).
 - `claude-sonnet-5` (balanced, 기본 티어) — 코드/언어 리뷰·빌드 오류 해결·리팩터·e2e·문서 등 코딩 주력. 명시되지 않은 역할은 이 티어로 떨어진다.
 - `claude-haiku-4.5` (cost-optimized) — 번역·문서·분류 등 비용 최적화 작업.
 

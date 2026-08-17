@@ -398,4 +398,3 @@ Use Pub/Sub for fire-and-forget. Switch to Streams if you need guaranteed delive
 
 - postgres-patterns — relational data patterns
 - backend-patterns — API and service layer patterns
-- database-migrations — schema versioning

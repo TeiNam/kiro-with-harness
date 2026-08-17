@@ -40,13 +40,13 @@ node install.js cli --scope global --category=cloud
 node install.js ide --ai=llm,agent
 
 # 데이터 엔지니어링: 분석 + AWS 레이크하우스
-node install.js cli --scope workspace --data=aws-analytics,postgres
+node install.js cli --scope workspace --data=aws-analytics,dynamodb
 
 # 카테고리 트리 보기
 node install.js --list
 
 # 저수준: 워크로드 키로 직접 설치 (레거시 표면, 카테고리와 합집합)
-node install.js cli --scope global --workload rust,postgres
+node install.js cli --scope global --workload rust,mongodb
 
 # 설치 상태 확인
 node install.js --status
@@ -73,7 +73,7 @@ JSON 에이전트(내장 훅)와 `skill://` 리소스로서의 스킬을 설치�
 
 **워크스페이스** (`.kiro/agents/`):
 - 언어 리뷰어, 빌드 해결자 (워크로드별)
-- e2e-runner, database-reviewer, rdbms-data-modeler
+- e2e-runner, database-reviewer (NoSQL — MongoDB/DynamoDB)
 - Article-writer, content-creator
 
 ### IDE 계층 (Kiro IDE)
@@ -82,7 +82,7 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 **워크스페이스** (`.kiro/agents/`, `.kiro/hooks/`, `.kiro/steering/`):
 - 에이전트: CLI와 동일한 역할, Markdown 형식
-- 훅: pre-write-guard, review-on-stop, capture-lessons, changelog-on-commit (최적화된 세트)
+- 훅: pre-write-guard, git-pipeline-guard (2개 결정적 게이트, CLI 계층과 대칭)
 - 스티어링: 언어 규칙 (fileMatch), 핵심 규칙 (always), 수동 스킬
 - MCP: `.kiro/settings/mcp.json`
 
@@ -120,11 +120,8 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 | **data** | duckdb | — | python-data | DuckDB 분석 |
 | | python-data | — | python-data, ai | Python 분석 (pandas / pytorch / MLE) |
 | | aws-analytics | — | cloud, python-data | AWS 분석 (Glue · Athena · S3 Tables · Iceberg) |
-| | mysql | — | mysql | MySQL / Aurora MySQL 설계 |
-| | postgres | — | postgres | PostgreSQL / Aurora Postgres 설계 |
 | | mongodb | — | mongodb | MongoDB 설계 |
 | | dynamodb | — | dynamodb | DynamoDB 설계 |
-| | aws-rds | — | mysql, postgres | AWS 관리형 DB (Aurora · RDS) |
 | **research** | websearch | — | research | 웹 검색 · 자료조사 (exa · brave · deep-research) |
 | | report | — | report | 기술 리포트 작성 · 검증 |
 | **writing** | general | — | writing | 일반 글쓰기 (블로깅 · PPT · 창작 · 번역) |
@@ -152,7 +149,7 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 | 티어 | 모델 | 에이전트 |
 |------|------|----------|
-| 심층 추론 (천장) | `claude-opus-5` | kiro-cli(오케스트레이터), architect, security-reviewer, deep-researcher, devops, peer-reviewer, rdbms-data-modeler |
+| 심층 추론 (천장) | `claude-opus-5` | kiro-cli(오케스트레이터), architect, security-reviewer, deep-researcher, devops, peer-reviewer |
 | 균형 (기본) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, 언어 리뷰어, 빌드 해결자, database-reviewer, e2e-runner, 문서/기술 작성자 |
 | 비용 최적화 | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
@@ -171,8 +168,9 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 > **모델 ID 형식:** Kiro는 `model` 값을 model service가 반환하는 ID와 대조하며, 알 수 없는 ID는 경고와 함께 기본 모델로 silent 폴백됩니다. 고정 전 활성 채팅 세션에서 `/model`로 정확한 식별자를 확인하세요.
 
-## Kiro 버전 호환성 (CLI 2.10 / IDE 1.0)
+## Kiro 버전 호환성 (CLI 2.x / 3.0 / IDE 1.0)
 
+- **CLI 3.0 (v3 engine, `kiro-cli --v3`로 옵트인):** 훅이 에이전트 임베디드 camelCase 필드에서 독립 `.kiro/hooks/*.json` 파일(v1 schema, PascalCase 트리거)로 이관됩니다. `--cli-version 3`으로 설치하면 2개 게이트 훅을 외부화하고 v3 엔진이 읽지 않는 임베디드 `hooks` 필드를 제거합니다. 에이전트 설정 자체는 하위 호환성이 있습니다. `toolsSettings` → `permissions` 마이그레이션을 하려면 `/upgrade-agent` 또는 `kiro-cli agent migrate`를 사용하세요. 기본값(`--cli-version 2`)은 현재의 2.x 임베디드 훅 설치를 유지합니다.
 - **IDE 훅은 v1 JSON 포맷**(`.kiro/hooks/*.json`)을 사용합니다. IDE 1.0에서 도입되어 레거시 `.kiro.hook` 포맷을 대체하며, 레거시 훅은 마이그레이션 전까지 실행되지 않습니다. 설치기는 v1 JSON을 직접 생성합니다. `docs/kr/hook-reference.md` 참고.
 - **기본 리소스 상속(CLI 2.7+):** 커스텀 에이전트는 자신의 `resources`에 더해 글로벌 steering·skills·`AGENTS.md`를 자동 상속합니다. 설치를 워크로드 범위로만 엄격히 유지하려면(글로벌 끌어오기 차단) 비활성화하세요: `kiro-cli settings chat.disableInheritingDefaultResources true` (`--workspace`로 프로젝트 범위 지정 가능). 내장 에이전트는 설정과 무관하게 항상 상속합니다.
 - **Hot-reload(CLI 2.10+):** `~/.kiro/agents/*` 와 `mcp.json` 편집은 세션 재시작 없이 다음 idle 경계에서 반영됩니다 — 하네스를 재설치해도 채팅 컨텍스트 손실 없이 적용됩니다.
@@ -197,7 +195,6 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 | deep-researcher | 다중 소스 조사와 인용 철저함이 산출물 |
 | devops | 인프라 워크플로우(plan/diff/승인) 정밀성 — 생략은 사고 초래 |
 | peer-reviewer | 외부 CLI 3-way 수집·종합 절차를 그대로 따라야 함 |
-| rdbms-data-modeler | 테이블·인덱스·명명 상세 설계가 산출물 |
 | database-reviewer | 정밀한 쿼리·스키마 점검 — 누락 시 데이터 손실 위험 |
 | e2e-runner | 시나리오 커버리지와 POM 구조 상세함이 가치 |
 | tech-fidelity-auditor | 코드·수치·시그니처 전수 대조 검증 |
@@ -208,30 +205,29 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 ### 훅
 
-**CLI 계층**: 훅은 에이전트 JSON 내에 내장됩니다 (별도 파일 아님). 2종 결정적 게이트 스크립트가 받침합니다 — `pre-write-guard.sh`(fs_write: 비밀, 과대 write), `pre-push-guard.sh`(execute_bash: 기본 브랜치 push 차단, `KIRO_ALLOW_MAIN_PUSH=1`로 우회 가능). `cross-review.sh`는 훅이 아니라 온디맨드 스크립트입니다.
+**CLI 계층** (기본값, `--cli-version 2`): 훅은 에이전트 JSON 내에 내장되며, 2종 결정적 게이트 스크립트가 받침합니다. `--cli-version 3`이면 동일한 2개 게이트가 독립 `.kiro/hooks/*.json`(v1 schema)으로 설치되고 v3.0 엔진용으로 임베디드 필드가 제거됩니다. 게이트 스크립트 — `pre-write-guard.sh`(fs_write: 비밀, 과대 write), `pre-push-guard.sh`(execute_bash: 기본 브랜치 push 차단, `KIRO_ALLOW_MAIN_PUSH=1`로 우회 가능). `cross-review.sh`는 훅이 아니라 온디맨드 스크립트입니다.
 
-**IDE 계층** (`.kiro/hooks/`): 이벤트 기반 자동화의 최적화된 세트:
+**IDE 계층** (`.kiro/hooks/`): 2개 결정적 게이트, CLI 계층과 대칭:
 - pre-write-guard: 크기 제한, 비밀 탐지, 문서 위치 확인
-- review-on-stop: 태스크 후 코드 리뷰
-- capture-lessons: 교정이 반복되면 `lessons-learned.md`에 한 줄 교훈을 넣는다
 - git-pipeline-guard: 기본 브랜치로의 `git push`를 차단하고 branch → commit → push → PR → merge를 안내한다
-- changelog-on-commit: git commit 시 날짜별(`## YYYY-MM-DD`) CHANGELOG 갱신
+
+이벤트 기반 에이전트 자동화(review-on-stop, capture-lessons, changelog-on-commit)는 v2에서 제거됨 — 리뷰는 온디맨드(code-reviewer 에이전트, `cross-review.sh`), 교훈은 `lessons-learned` 스킬에, CHANGELOG 규약은 저장소 스티어링에 정의됩니다.
 
 ### 스티어링
 
-**CLI 계층**: 글로벌 스티어링은 AGENTS.md(에이전트 협업 가이드)로 제한됩니다; 에이전트는 `skill://`을 통해 스킬을 참조합니다.
+**CLI 계층**: 글로벌 스티어링 = AGENTS.md(에이전트 협업 가이드) + minimal-core(컴팩트 항시 digest incl. AWS/Terraform 게이트) + ponytail; 에이전트는 `skill://`을 통해 스킬을 참조합니다.
 
 **IDE 계층** (`.kiro/steering/`):
-- Always-on: 코딩 스타일, 보안, 테스팅, Git 워크플로우, 패턴, 성능
+- Always-on (v2 minimal): minimal-core (컴팩트 digest — working style·security·git pipeline·AWS/Terraform 게이트) + ponytail
 - FileMatch: 파일 타입별로 로드되는 언어 특화 규칙
-- Manual: 필요 시 로드되는 스킬 (138개 총; 워크로드로 선택적 포함 태그됨)
+- Manual: 필요 시 로드되는 스킬 (134개 총; 워크로드로 선택적 포함 태그됨)
 
 ### 스킬
 
-`skills/` 아래 138개 스킬 패키지는 워크로드로 태그됩니다. 설치는 활성 워크로드와 교집합인 스킬만 선택합니다.
+`skills/` 아래 134개 스킬 패키지는 워크로드로 태그됩니다. 설치는 활성 워크로드와 교집합인 스킬만 선택합니다.
 - 핵심: context budget, strategic compact, agentic engineering, lessons learned, git workflow, verification loop
-- 인프라: Docker, deployment, database migrations, backend patterns
-- 데이터베이스: PostgreSQL, MySQL, MongoDB, DynamoDB (+ rdbms-naming, mongodb-patterns)
+- 인프라: Docker, deployment, backend patterns
+- 데이터베이스 (NoSQL): MongoDB, DynamoDB (+ mongodb-patterns) — RDBMS 설계·마이그레이션 스킬은 별도 easy-rdbms 플러그인으로 이관
 - 클라우드 / 데이터: aws-cloud, aws-sdk-patterns(boto3/JS v3/CLI v2), aws-lakehouse(S3 Tables/Iceberg/Athena/Spark), aws-etl-cdc(DMS/Glue/Kinesis/MSK/Flink), log-data-offloading(RDBMS→S3/OpenSearch), infra-version-currency(EKS/MSK 최신 버전 확인), terraform-deployment
 - 백엔드: Django, Spring Boot, Laravel, FastAPI
 - 프론트엔드: Next.js, Nuxt4, Vite, Bun
@@ -266,7 +262,7 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 │   ├── cli/                    # CLI 에이전트 (글로벌 + 워크스페이스)
 │   ├── ide/                    # IDE 에이전트 (Markdown)
 │   └── AGENTS.md               # 공유 에이전트 협업 가이드
-├── skills/                     # 138개 스킬 패키지 (워크로드 태그됨)
+├── skills/                     # 134개 스킬 패키지 (워크로드 태그됨)
 ├── mcp-configs/                # MCP 서버 설정
 ├── scripts/                    # 검증 유틸리티 (validate-agents.js, validate-models.js, validate-counts.js)
 ├── docs/                       # 가이드 (영어 + 한국어)
@@ -290,6 +286,7 @@ node install.js <tier> [options]
   --<category>-<sub>= <list>     소분류 옵션 (예: --writing-social=voice; 소분류가 있는 중분류만)
   --workload <list|all>          저수준: 워크로드 키 직접 지정 (쉼표로 구분 또는 'all'; 레거시 표면, 카테고리와 합집합)
   --provider <anthropic|openai>  모델 프로바이더 프로필 (기본: anthropic); 역할 모델·effort 가이드·운영 노트·교차 패밀리 우선순위를 설치 에이전트에 기록
+  --cli-version <2|3>            CLI 계층 훅 포맷 (기본 2 = agent 임베디드; 3 = 독립 .kiro/hooks/*.json for CLI 3.0 engine)
   --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE 전용: mcp.json을 mcp-proxy(:9090) 경유로 구성 + 프록시 컨테이너 자동 기동(미실행 시 docker compose up -d)
   --target <path>                지정 디렉토리에 설치
@@ -310,7 +307,7 @@ node install.js <tier> [options]
 | [Kiro Crew](docs/kr/crew-integration.md) | `kiro-cli crew`, Crew Gateway, 그리고 공유되는 `~/.kiro/agents/` 디렉터리 — 자산 매핑, 역할 분담, 보안 |
 | [MCP 레퍼런스](docs/kr/mcp-reference.md) | 큐레이션 MCP 카탈로그 (내장 / general / DevOps / FinOps / opt-in) |
 | [모델 라우팅](docs/kr/model-routing.md) | 3-티어 모델 정책(Opus/Sonnet/Haiku), Opus-5 천장 + effort/cross-family 에스컬레이션, 에이전트별 배정, 훅→티어 가이드, OpenAI GPT-5.6 프로바이더 전환 |
-| [스킬 카탈로그](docs/kr/skill-catalog.md) | 138개 스킬 도메인별 정리 |
+| [스킬 카탈로그](docs/kr/skill-catalog.md) | 134개 스킬 도메인별 정리 |
 | [스킬 만들기](docs/kr/creating-skills.md) | `workloads:` frontmatter로 스킬 작성·등록 |
 | [Claude vs Kiro](docs/kr/claude-vs-kiro.md) | Claude Code vs Kiro CLI vs Kiro IDE — 공식 문서 기준 기능별 차이 |
 | [Claude에서 마이그레이션](docs/kr/migration-from-claude.md) | Claude Code 설정을 Kiro로 변환 |

@@ -43,7 +43,7 @@ test('해피패스(ide): tier·scope·workload·review·proxy·confirm → 정�
   await tick(); press(input, 'return');                    // scope: default workspace(ide)
   await tick(); press(input, 'return');   // provider: anthropic(기본)
   await tick(); press(input, 'down', 'down', 'down', 'space', 'return'); // 대분류: data 체크(dev,cloud,ai,data,…)
-  await tick(); press(input, 'down', 'down', 'down', 'down', 'space', 'return'); // 중분류: postgres 체크(duckdb,python-data,aws-analytics,mysql,postgres,…)
+  await tick(); press(input, 'down', 'down', 'down', 'down', 'space', 'return'); // 중분류: dynamodb 체크(duckdb,python-data,aws-analytics,mongodb,dynamodb)
   await tick(); press(input, 'return');                    // review: claude(기본)
   await tick(); press(input, 'down', 'return');            // mcp-proxy: yes
   await tick(); press(input, 'return');                    // confirm: install
@@ -53,7 +53,7 @@ test('해피패스(ide): tier·scope·workload·review·proxy·confirm → 정�
     tier: 'ide',
     scope: 'workspace',
     provider: 'anthropic',
-    workload: ['core', 'postgres'],
+    workload: ['core', 'dynamodb'],
     reviewBackend: 'claude',
     mcpProxy: true,
     target: null,

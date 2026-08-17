@@ -57,7 +57,7 @@ workloads: [cloud]      # one or more workload keys; [core] installs everywhere
 ```
 
 - The installer selects a skill when its `workloads:` intersects the active workloads (`--workload ...`). `core` is always installed.
-- Valid workload keys: see the README Workloads table (python, rust, …, cloud, frontend, mysql, postgres, writing, ai-agent, …).
+- Valid workload keys: see the README Workloads table (python, rust, …, cloud, frontend, mongodb, dynamodb, writing, ai-agent, …).
 - No frontmatter? `scripts/lib/tag-assets.js` heuristics fall back to a best-guess classification — but explicit tags are preferred. Bulk re-tag with `node scripts/lib/tag-assets.js` if needed.
 - **CLI tier** ships the skill directory as-is (loaded via `skill://`, progressive). **IDE tier** converts `SKILL.md` into a `inclusion: manual` steering file automatically.
 

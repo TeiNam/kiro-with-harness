@@ -42,7 +42,6 @@ const EXEMPT = {
   'deep-researcher': '다중 소스 조사와 인용 철저함이 산출물',
   devops: '인프라 절차(plan/diff/승인) 정밀성 — 단계 생략은 사고',
   'peer-reviewer': '외부 CLI 3-way 수집·종합 절차를 그대로 밟아야 함',
-  'rdbms-data-modeler': '테이블·인덱스·명명 규칙 상세 설계가 산출물',
   'database-reviewer': '쿼리·스키마 정밀 점검 — 누락 시 데이터 손실 위험',
   'e2e-runner': '시나리오 커버리지와 POM 구조의 상세함이 가치',
   'tech-fidelity-auditor': '코드·수치·시그니처 전수 대조 검증',

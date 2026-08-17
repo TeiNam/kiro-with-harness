@@ -213,7 +213,6 @@ COLLSCAN). Flag any unbounded result set.
 
 - `mongodb-guideline` — schema design, naming, field types, shard-key selection, index strategy.
 - `database-reviewer` agent — deep query/schema review.
-- `database-migrations` — schema/version migration patterns.
 
 ## Sources
 

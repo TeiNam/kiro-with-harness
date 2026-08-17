@@ -57,23 +57,13 @@ For `PreToolUse`/`PostToolUse`, built-in tool categories usable as a matcher inc
 
 ## Installed Hooks (IDE tier)
 
-The IDE tier installs 5 hooks, an optimized set defined in `scripts/lib/tiers.js` (`IDE_HOOKS`). All are workload-independent and use agent actions. (`scripts/validate-counts.js` checks this number against the install plan, so it can't drift silently.)
+The IDE tier installs 2 hooks — deterministic gates symmetric with the CLI tier, defined in `scripts/lib/tiers.js` (`IDE_HOOKS`). Per-event agent automations (review-on-stop, capture-lessons, changelog-on-commit) were removed in v2: reviews run on demand (code-reviewer agent, `cross-review.sh`), lessons live in the `lessons-learned` skill, and the CHANGELOG convention lives in repo steering. (`scripts/validate-counts.js` checks this number against the install plan, so it can't drift silently.)
 
 ### pre-write-guard
 - Trigger: `PreToolUse`, matcher `write`
 - Action: agent
 - Checks (one pass): (1) SIZE — block writes over 800 lines, suggest splitting under 400; (2) SECRETS — flag hardcoded keys/tokens/passwords/connection strings; (3) DOC LOCATION — warn when a `.md`/`.txt` is created outside `docs/`, `.kiro/`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LICENSE`.
 - Reports issues only; passes silently otherwise.
-
-### review-on-stop
-- Trigger: `Stop`
-- Action: agent
-- Brief post-task review: security issues, error handling, leftover `console.log`, tests needed. Reports issues only.
-
-### capture-lessons
-- Trigger: `Stop`
-- Action: agent
-- Detects repeatable corrections (recurring review findings, build-failure patterns, user corrections) and proposes a one-line lesson for `.kiro/steering/lessons-learned.md`. Requires user confirmation before editing user assets; otherwise exits silently. Part of the self-evolution loop.
 
 ### git-pipeline-guard
 - Trigger: `PreToolUse`, matcher `shell`
@@ -82,17 +72,12 @@ The IDE tier installs 5 hooks, an optimized set defined in `scripts/lib/tiers.js
 - Exceptions (not blocked): tag-only pushes (`--tags`), branch deletion (`--delete`/`-d`), local-only repos with no remote, and the user explicitly saying "directly to main". Non-default-branch pushes pass silently.
 - The CLI tier ships the deterministic equivalent, `pre-push-guard.sh` (`exit 2`, bypass with `KIRO_ALLOW_MAIN_PUSH=1`). Policy text: `rules/common/git-workflow.md`.
 
-### changelog-on-commit
-- Trigger: `PreToolUse`, matcher `shell`
-- Action: agent
-- Detects whether the shell tool call is `git commit`; if so, maintains a date-organized `CHANGELOG.md` (`## YYYY-MM-DD`) and updates README only where the commit made it inaccurate, staging the docs into the same commit. No-ops for non-commits and doc-only commits (loop guard).
-
 ## Adding or Disabling Hooks
 
 - **Disable**: set `"enabled": false` in the hook file, delete the `.json` file from `.kiro/hooks/`, or drop the relevant workload from your install command.
 - **Add a custom hook**: create a `.kiro/hooks/<name>.json` file following the v1 schema above, or use the Command Palette → "Kiro: Open Kiro Hook UI" → describe in natural language.
 
-> **CLI tier note**: the CLI tier (`kiro-cli chat`) does not use these files. It embeds hooks inside the agent JSON (`hooks` field) and installs 2 CLI hook scripts as deterministic gates (`exit 2`), referenced by 2 preToolUse hooks in `kiro-cli.json`:
+> **CLI tier note**: by default (`--cli-version 2`) the CLI tier embeds hooks inside the agent JSON (`hooks` field) and installs 2 CLI hook scripts as deterministic gates (`exit 2`), referenced by 2 preToolUse hooks in `kiro-cli.json`. With `--cli-version 3` (for the CLI 3.0 engine, `kiro-cli --v3`) the same two gates install as standalone `.kiro/hooks/pre-write-guard.json` / `pre-push-guard.json` (v1 schema, `PreToolUse` trigger, matchers `write`/`shell`) and the embedded `hooks` field is stripped — the v3 engine does not read the old camelCase embedded format:
 >
 > | Script | matcher | Blocks on |
 > |--------|---------|-----------|
