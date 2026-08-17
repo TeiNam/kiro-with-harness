@@ -1,0 +1,74 @@
+{
+  "_comment": "devops 에이전트 전용 MCP 프록시(:9092). 범용 프록시(config.json, :9090)와 분리한 이유는 자격증명 격리다 — 이 프록시만 ~/.aws 를 마운트하므로 brave/github/obsidian 같은 범용 백엔드가 AWS 자격증명에 닿지 않는다. 백엔드는 AWS 공식 awslabs 서버를 uvx 로 직접 실행한다(3rd-party acuvity 미러 + minibridge 래퍼 계층 제거). 버전은 재현성을 위해 핀했다 — 갱신은 mcp-proxy/README.md 의 '버전 갱신' 절 참고.",
+  "_why_proxy": "예전에는 클라이언트가 서버마다 `docker run -i --rm <이미지>` 를 stdio 로 띄웠다. 첫 이미지 pull 이 14~20초 걸려 MCP 초기화 타임아웃을 넘겼고, 그래서 일부가 아니라 devops MCP 가 전부 실패했다. 상주 프록시는 그 비용을 컨테이너 기동 때 한 번만 낸다.",
+  "_credentials": "AWS 서버는 컨테이너에 읽기전용으로 마운트된 /root/.aws 의 프로필을 쓴다. SSO 프로필은 호스트에서 `aws sso login --profile <name>` 으로 토큰을 갱신해야 한다(컨테이너는 ro 라 갱신 불가). 프로필/리전은 compose 의 AWS_PROFILE/AWS_REGION 으로 주입된다.",
+  "_write_policy": "뮤테이션은 MCP 로 흘리지 않는다. aws-ecs 는 ALLOW_WRITE=false 로 명시 차단하고, aws-iam 은 서버 자체 기본값이 read-only 다(`--allow-write` 플래그를 주지 않는 한 모든 변경 작업 비활성 — `uvx awslabs.iam-mcp-server@1.0.25 --help` 로 확인 가능). 따라서 aws-iam 의 args 에 `--allow-write` 를 추가하면 안 된다: 클라이언트 쪽 `disabled` 플래그를 누가 뒤집으면 서버단 가드가 사라진다. 쓰기 작업은 devops 에이전트의 plan→승인→execute 흐름(use_aws / aws CLI)을 타야 한다.",
+  "_no_aws_core": "구 aws-core(acuvity/mcp-server-aws-core = awslabs.core-mcp-server)는 upstream 에서 yanked 됐다(사유: 'load individual MCPs'). 대체로 검토한 awslabs.aws-api-mcp-server 는 기동 시 ~/.aws/aws-api-mcp/ 로그 디렉토리를 무조건 생성해 자격증명 읽기전용 마운트와 충돌하며(OSError: [Errno 30] Read-only file system), 기능도 Kiro 내장 use_aws 도구와 겹친다. 따라서 범용 AWS API 호출은 MCP 가 아니라 use_aws / aws CLI 로 처리한다.",
+  "mcpProxy": {
+    "baseURL": "http://localhost:9092",
+    "addr": ":9092",
+    "name": "DevOps MCP Proxy",
+    "type": "streamable-http"
+  },
+  "mcpServers": {
+    "terraform": {
+      "url": "http://terraform-mcp:8080/mcp",
+      "transportType": "streamable-http"
+    },
+    "aws-documentation": {
+      "command": "uvx",
+      "args": ["awslabs.aws-documentation-mcp-server@1.1.30"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_DOCUMENTATION_PARTITION": "aws"
+      }
+    },
+    "cloudwatch": {
+      "command": "uvx",
+      "args": ["awslabs.cloudwatch-mcp-server@0.1.8"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_REGION": "${AWS_REGION}",
+        "AWS_PROFILE": "${AWS_PROFILE}"
+      }
+    },
+    "aws-ecs": {
+      "command": "uvx",
+      "args": ["--from", "awslabs-ecs-mcp-server@0.1.34", "ecs-mcp-server"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_REGION": "${AWS_REGION}",
+        "AWS_PROFILE": "${AWS_PROFILE}",
+        "ALLOW_WRITE": "false",
+        "ALLOW_SENSITIVE_DATA": "false"
+      }
+    },
+    "aws-pricing": {
+      "command": "uvx",
+      "args": ["awslabs.aws-pricing-mcp-server@1.0.34"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_REGION": "${AWS_REGION}",
+        "AWS_PROFILE": "${AWS_PROFILE}"
+      }
+    },
+    "aws-billing-cost-management": {
+      "command": "uvx",
+      "args": ["awslabs.billing-cost-management-mcp-server@0.0.33"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_REGION": "${AWS_REGION}",
+        "AWS_PROFILE": "${AWS_PROFILE}"
+      }
+    },
+    "aws-iam": {
+      "command": "uvx",
+      "args": ["awslabs.iam-mcp-server@1.0.25"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_REGION": "${AWS_REGION}",
+        "AWS_PROFILE": "${AWS_PROFILE}"
+      }
+    }
+  }
+}

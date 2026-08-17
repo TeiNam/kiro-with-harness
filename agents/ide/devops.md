@@ -46,19 +46,20 @@ You are a DevOps specialist responsible for infrastructure operations on AWS, Do
 
 ## MCP Servers (configured in `.kiro/settings/mcp.json`)
 
+All of these are served by the local **devops MCP proxy** at `http://localhost:9092` — a single container that holds the AWS credentials, instead of one `docker run` per call. If every `@`-tool below is unavailable, the proxy is not running: start it with `cd mcp-proxy && docker compose up -d devops-mcp-proxy`, and say so rather than proceeding without verification.
+
 DevOps / Infrastructure:
 - `@terraform` — resolve current provider/module versions and registry docs for IaC. For a new project, follow the `terraform-deployment` skill (pin the latest stable versions, then lock).
 - `@aws-documentation` — verify service behavior/parameters before mutating calls
-- `@aws-core` — core AWS API operations
 - `@cloudwatch` — metrics, alarms, and Logs Insights for troubleshooting
-- `@aws-ecs` — container/service deployment
-- `@aws-iam` — IAM management (enable per task; security-sensitive)
+- `@aws-ecs` — container/service inspection (read-only: `ALLOW_WRITE=false`)
+- `@aws-iam` — IAM management (enable per task; security-sensitive, read-only by default)
 
 FinOps / Cost:
 - `@aws-pricing` — estimate cost **before** deploying IaC (pre-deploy what-if)
 - `@aws-billing-cost-management` — actual spend, budgets, and optimization recommendations
 
-> Pull Docker-based servers before first use (`docker pull ...`); see `mcp-configs/mcp-servers.json`. AWS servers need credentials via env or a mounted `~/.aws`.
+> There is **no** general-purpose AWS API MCP server: `awslabs.core-mcp-server` was yanked upstream, and its replacement duplicates Kiro's built-in `use_aws`. Use `use_aws` or the `aws` CLI for arbitrary API calls — that also keeps mutations inside the plan → approval → execute flow. Backends are the official AWS `awslabs` servers (pinned versions) run via `uvx` inside the proxy; the proxy mounts `~/.aws` read-only, so refresh SSO tokens on the host with `aws sso login --profile <name>`. See `mcp-proxy/config.devops.json`.
 
 ## Auto-Allowed Read Commands
 

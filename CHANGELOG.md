@@ -3,6 +3,31 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-08-17 — v3.1.0
+
+### Fixed
+
+- **devops 에이전트의 MCP 서버가 전부 구동 실패하던 문제** — 원인은 클라이언트가 서버마다 `docker run -i --rm <이미지>` 를 stdio 로 띄우는 구조였다. 첫 이미지 pull 이 14~20초 걸려 MCP 초기화 타임아웃을 넘겼고, 그래서 일부가 아니라 **전부** 실패했다. 추가로 `acuvity/*` 미러 이미지는 awslabs 소스를 `minibridge` 래퍼로 감싸 기본 `mode=http`(`:8000` EXPOSED)로 뜨기 때문에 stdio 경로 자체가 취약했다. devops 전용 mcp-proxy 컨테이너(`:9092`, streamable-http)를 도입해 상주 프로세스가 그 비용을 기동 시 한 번만 내도록 바꿨다. 7개 서버 전부 `initialize` + `tools/list` 로 실측 검증(총 118개 도구).
+
+### Changed
+
+- **devops MCP 백엔드를 AWS 공식 `awslabs` 서버로 교체** — 서드파티 `acuvity/*` 미러 대신 `uvx` 로 실행하며 버전을 핀했다(`aws-documentation@1.1.30`, `cloudwatch@0.1.8`, `aws-ecs`(`--from awslabs-ecs-mcp-server@0.1.34`), `aws-pricing@1.0.34`, `aws-billing-cost-management@0.0.33`, `aws-iam@1.0.25`). `terraform` 은 기존 `hashicorp/terraform-mcp-server:1.0.0` 사이드카를 내부 HTTP 로 재사용한다.
+- **프록시를 두 개로 분리 — 자격증명 격리.** 범용 프록시(`:9090`, `--mcp-proxy` opt-in)와 devops 프록시(`:9092`, `cloud`/`finops` 워크로드면 티어 무관 자동 기동). `~/.aws` 를 읽기전용 마운트하는 컨테이너는 devops 쪽 하나뿐이라, brave/github/obsidian 같은 범용 백엔드가 AWS 프로필·SSO 토큰과 같은 파일시스템에 놓이지 않는다. 두 엔드포인트 모두 `127.0.0.1` 바인딩(무인증).
+- **SSOT 구조 변경** — `mcp-configs/mcp-servers.json` 의 `mcpServersDocker` 를 `mcpProxyDevops`(baseURL + 워크로드 게이트)로 대체했다. `selectMcpServers` 의 반환 키도 `docker` → `devops` 로 바뀌고 `{type:"http",url}` 을 emit 한다. `ensureMcpProxy` 는 `service` 파라미터를 받아 `docker compose up -d <서비스>` 로 필요한 프록시만 띄운다(서비스명을 생략하면 AWS 자격증명을 마운트하는 컨테이너가 의도치 않게 함께 떴다).
+- **쓰기 정책을 명시적으로 고정** — `aws-ecs` 는 `ALLOW_WRITE=false`, `aws-iam` 은 서버 기본값인 read-only 를 유지한다(`--allow-write` 를 주지 않는 것이 곧 read-only). 쓰기 플래그가 설정에 들어가면 테스트가 빌드를 실패시킨다. 뮤테이션은 devops 에이전트의 plan → 승인 → execute 흐름(`use_aws` / `aws` CLI)이 담당한다.
+
+### Removed
+
+- **`aws-core` MCP 서버** — `awslabs.core-mcp-server` 가 upstream 에서 yanked 됐다(사유: "load individual MCPs"). 대체 후보인 `awslabs.aws-api-mcp-server` 는 기동 시 `~/.aws/aws-api-mcp/` 를 무조건 생성해 자격증명 읽기전용 마운트와 충돌하고(`OSError: [Errno 30] Read-only file system` 실증), 기능도 Kiro 내장 `use_aws` 와 겹친다. 범용 AWS API 호출은 `use_aws` 또는 `aws` CLI 로 처리한다 — 그래야 뮤테이션이 승인 흐름 안에 남는다.
+
+### Added
+
+- `mcp-proxy/config.devops.json` — devops 프록시 백엔드 정의(7개 서버, 자격증명·쓰기 정책·제거 근거 주석 포함).
+- `mcp-proxy/docker-compose.yaml` 에 `devops-mcp-proxy` 서비스 — `127.0.0.1:9092`, `${HOME}/.aws:/root/.aws:ro`, `uvx` 패키지 캐시 볼륨(`devops-uv-cache`).
+- `KIRO_HARNESS_SKIP_PROXY_PROVISION` — 실제 설치를 수행하는 e2e 테스트가 호스트의 docker 상태를 바꾸지 않도록 프로비저닝만 끄는 탈출구. 프로비저닝 분기 자체는 mock 으로 전수 검증한다.
+- 테스트 — 두 프록시의 dangling URL 방지(카탈로그 이름 ↔ 실제 백엔드 정합), 포트·루프백 바인딩·읽기전용 마운트 검증, 버전 핀 강제, 쓰기 플래그 금지, `aws-core` 부재 회귀 가드(카탈로그·config·CLI/IDE 에이전트 4곳), 에이전트 ↔ 카탈로그 서버 집합 정합, compose 서비스명 명시 검증, 프록시 없는 설치에서도 devops MCP 가 `:9092` URL 인지 확인하는 e2e. 총 349 → 358.
+- 문서 — `docs/{en,kr}/mcp-reference.md` 두 프록시 구조로 재작성, `mcp-proxy/README.md` 에 devops 프록시 기동·검증·버전 갱신·트러블슈팅 절 추가, README 영/국문 동기화.
+
 ## 2026-08-16 — v3.0.0
 
 ### Added

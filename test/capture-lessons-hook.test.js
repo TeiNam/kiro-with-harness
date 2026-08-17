@@ -15,6 +15,9 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.join(__dirname, '..');
 const { IDE_HOOKS } = require(path.join(ROOT, 'scripts/lib/tiers'));
 
+// e2e 는 실제 install.js 를 실행한다 — 호스트 docker 상태(프록시 컨테이너)를 바꾸지 않도록 프로비저닝만 끈다.
+process.env.KIRO_HARNESS_SKIP_PROXY_PROVISION = '1';
+
 test('IDE_HOOKS 는 결정적 게이트 2개만 담는다 (pre-write-guard, git-pipeline-guard)', () => {
   assert.deepStrictEqual(
     IDE_HOOKS.map((h) => h.id).sort(),

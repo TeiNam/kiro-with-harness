@@ -17,6 +17,9 @@ const { selectAssets, selectMcpServers } = require(path.join(ROOT, 'scripts/lib/
 const tiers = require(path.join(ROOT, 'scripts/lib/tiers'));
 const { compareSemver } = require(path.join(ROOT, 'install.js'));
 
+// e2e 는 실제 install.js 를 실행한다 — 호스트 docker 상태(프록시 컨테이너)를 바꾸지 않도록 프로비저닝만 끈다.
+process.env.KIRO_HARNESS_SKIP_PROXY_PROVISION = '1';
+
 function names(arr) { return arr.map((a) => a.name); }
 function mkTmp() { return fs.mkdtempSync(path.join(os.tmpdir(), 'kh-test-')); }
 function runInstall(args) {

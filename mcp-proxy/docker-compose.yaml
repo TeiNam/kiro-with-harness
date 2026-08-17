@@ -25,6 +25,30 @@ services:
     depends_on:
       - terraform-mcp
 
+  # DevOps 전용 MCP 프록시 (:9092) — devops 에이전트의 AWS/Terraform MCP 만 서빙한다.
+  # 범용 프록시(:9090)와 분리한 이유는 자격증명 격리다: 이 컨테이너만 ~/.aws 를 마운트하므로
+  # brave/github/obsidian 같은 범용 백엔드가 AWS 자격증명·SSO 토큰에 닿지 않는다.
+  # 기동: docker compose up -d devops-mcp-proxy   (terraform-mcp 는 depends_on 으로 함께 뜬다)
+  devops-mcp-proxy:
+    image: ghcr.io/tbxark/mcp-proxy:v0.43.2
+    container_name: devops-mcp-proxy
+    restart: unless-stopped
+    ports:
+      # 루프백 전용. 이 엔드포인트는 무인증이며 AWS 자격증명을 쥔 백엔드를 프론트하므로
+      # 0.0.0.0 으로 노출하면 같은 LAN 의 임의 호스트가 계정 조회를 할 수 있다. 절대 넓히지 말 것.
+      - "127.0.0.1:9092:9092"
+    volumes:
+      - ./config.devops.json:/config/config.json:ro
+      # AWS 프로필/SSO 토큰 — 읽기전용. SSO 토큰 갱신은 호스트에서 `aws sso login --profile <name>`.
+      - ${HOME}/.aws:/root/.aws:ro
+      # uvx 패키지 캐시를 유지해 컨테이너 재기동 시 awslabs 서버를 매번 재다운로드하지 않게 한다.
+      - devops-uv-cache:/root/.cache/uv
+    environment:
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+    depends_on:
+      - terraform-mcp
+
   # Terraform MCP (Go 바이너리라 프록시 컨테이너 안에서 못 돌리므로 별도 서비스로 streamable-http 실행)
   # 프록시는 내부 네트워크에서 http://terraform-mcp:8080/mcp 로 접근 (호스트에 포트 미발행)
   terraform-mcp:
@@ -39,3 +63,7 @@ services:
       # HCP/TFE 워크스페이스 관리가 필요하면 아래 주석 해제:
       # TFE_ADDRESS: https://app.terraform.io
       # TFE_TOKEN: ${TFE_TOKEN:-}
+
+volumes:
+  # devops-mcp-proxy 의 uvx 패키지 캐시. awslabs 서버는 핀된 버전이라 한 번 받으면 재사용된다.
+  devops-uv-cache:

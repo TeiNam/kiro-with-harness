@@ -21,6 +21,9 @@ const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'install-plugins.js');
 const bridge = require('../scripts/install-plugins');
 
+// e2e 는 실제 install.js 를 실행한다 — 호스트 docker 상태(프록시 컨테이너)를 바꾸지 않도록 프로비저닝만 끈다.
+process.env.KIRO_HARNESS_SKIP_PROXY_PROVISION = '1';
+
 function runBridge(args, env = {}) {
   const r = spawnSync('node', [SCRIPT, ...args], {
     cwd: ROOT,
