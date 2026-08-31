@@ -43,8 +43,15 @@
 /** 기본 프로바이더 — 하네스는 Claude 를 기준으로 튜닝되어 있다. */
 const DEFAULT_PROVIDER = 'anthropic';
 
-/** 지원 프로바이더 목록(순서: 기본값 우선). */
-const PROVIDERS = ['anthropic', 'openai'];
+/**
+ * 지원 프로바이더 목록(순서: 기본값 우선).
+ *   - anthropic : Claude Opus/Sonnet/Haiku 3-티어 (기본)
+ *   - openai    : GPT-5.6 Sol/Terra/Luna 3-티어
+ *   - mixed     : 오케스트레이션(kiro-cli)만 Claude Fable, 그 외 전 역할은 GPT-5.6 Sol.
+ *                 티어 구분 없이 서브에이전트를 Sol 로 평탄화한다(ROLE_MODEL_OVERRIDES).
+ *                 Fable 미서빙 환경의 대체는 MIXED_ORCHESTRATOR_FALLBACK(opus-5 + effort max).
+ */
+const PROVIDERS = ['anthropic', 'openai', 'mixed'];
 
 /**
  * 설치 시 에이전트에 함께 적용할 프로바이더별 실행 프로필.
@@ -77,6 +84,21 @@ const PROVIDER_PROFILES = {
       'For an independent family opinion, prefer Claude Code; Codex is same-family corroboration.',
     ],
   },
+  // mixed: 오케스트레이터(Fable=Anthropic) 기준 프로필. 에이전트별 운영 노트는
+  // 설치 시 familyOfModel(그 에이전트의 모델)로 결정되므로 이 operatingNote 는
+  // providerNote('mixed') 를 직접 부를 때의 안전한 폴백 설명일 뿐이다.
+  mixed: {
+    label: 'Mixed (Fable orchestration + GPT-5.6 Sol subagents)',
+    effortPath: ['output_config', 'effort'], // 오케스트레이터(Fable)가 Anthropic 계열
+    effortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+    contextWindow: 'per-family (Fable: Anthropic / Sol: 272K)',
+    crossFamilyBackend: 'Codex', // 오케스트레이터(Anthropic 계열)의 cross-family 우선순위
+    sameFamilyBackend: 'Claude Code',
+    operatingNote: [
+      'Mixed fleet: the orchestrator runs on Claude Fable; every subagent runs on GPT-5.6 Sol.',
+      'Per-agent operating guidance follows each agent\'s own model family (familyOfModel).',
+    ],
+  },
 };
 
 function providerProfile(provider = DEFAULT_PROVIDER) {
@@ -89,6 +111,33 @@ function providerProfile(provider = DEFAULT_PROVIDER) {
 function effortSettings(provider, effort) {
   const [outer, inner] = providerProfile(provider).effortPath;
   return { [outer]: { [inner]: effort } };
+}
+
+/** 모델 접두어 → 패밀리(프로바이더 프로필 키). mixed 는 패밀리가 아니라 조합이다. */
+const FAMILY_PREFIXES = [
+  ['claude-', 'anthropic'],
+  ['gpt-', 'openai'],
+];
+
+/**
+ * 모델 식별자 → 모델 패밀리('anthropic' | 'openai').
+ * mixed 프로바이더처럼 한 설치 안에 두 패밀리가 공존할 때, 에이전트별 운영 노트와
+ * effort 경로는 프로바이더가 아니라 **그 에이전트 모델의 패밀리**를 따른다.
+ * @param {string} model 모델 식별자(예: 'claude-fable-5', 'gpt-5.6-sol').
+ * @returns {string} 패밀리 프로바이더 키.
+ */
+function familyOfModel(model) {
+  for (const [prefix, family] of FAMILY_PREFIXES) {
+    if (String(model).startsWith(prefix)) return family;
+  }
+  throw new Error(
+    `Unknown model family for "${model}" (known prefixes: ${FAMILY_PREFIXES.map((p) => p[0]).join(', ')})`
+  );
+}
+
+/** 모델의 패밀리에 맞는 effort 객체 — mixed 설치에서 에이전트별로 경로가 갈린다. */
+function effortSettingsForModel(model, effort) {
+  return effortSettings(familyOfModel(model), effort);
 }
 
 /**
@@ -107,6 +156,9 @@ const TIERS = {
     providers: {
       anthropic: 'claude-opus-5',
       openai: 'gpt-5.6-sol',
+      // mixed 는 서브에이전트를 전부 Sol 로 평탄화한다. 오케스트레이터(kiro-cli)만
+      // ROLE_MODEL_OVERRIDES 로 Fable 을 받는다.
+      mixed: 'gpt-5.6-sol',
     },
   },
   balanced: {
@@ -115,6 +167,7 @@ const TIERS = {
     providers: {
       anthropic: 'claude-sonnet-5',
       openai: 'gpt-5.6-terra',
+      mixed: 'gpt-5.6-sol',
     },
   },
   'cost-optimized': {
@@ -124,12 +177,36 @@ const TIERS = {
       anthropic: 'claude-haiku-4.5',
       // cost-optimized 는 최저가 경량 티어인 Luna 를 쓴다.
       openai: 'gpt-5.6-luna',
+      mixed: 'gpt-5.6-sol',
     },
   },
 };
 
 /** 티어 식별자 목록(선언 순서 = 능력 내림차순). */
 const TIER_IDS = Object.keys(TIERS);
+
+/**
+ * 프로바이더별 역할 단위 모델 오버라이드 — 티어 매핑보다 우선한다.
+ * mixed: 오케스트레이션(kiro-cli)만 Claude Fable, 그 외 전 역할은 티어 매핑(Sol).
+ * 새 조합이 필요하면 프로바이더 키 아래 역할→모델을 등록한다.
+ * @type {Record<string, Record<string, string>>}
+ */
+const ROLE_MODEL_OVERRIDES = {
+  mixed: {
+    'kiro-cli': 'claude-fable-5',
+  },
+};
+
+/**
+ * mixed 프로바이더에서 Fable 미서빙 환경의 오케스트레이터 대체.
+ * Kiro 는 미서빙 모델로 핀된 에이전트를 chat.defaultModel 로 폴백시키므로,
+ * defaultModel 을 opus-5 로, 그 effort 를 max 로 지정하면 이 대체가 자동으로 성립한다.
+ * (설치 시 install.js 가 정확한 settings 명령을 출력한다.)
+ */
+const MIXED_ORCHESTRATOR_FALLBACK = {
+  model: TIERS['deep-reasoning'].providers.anthropic, // claude-opus-5
+  effort: 'max',
+};
 
 /**
  * effort 사다리 — 천장 티어 안에서의 상향 조정. 티어를 점프하는 대신 같은 모델의
@@ -140,20 +217,21 @@ const TIER_IDS = Object.keys(TIERS);
  */
 const EFFORT_LADDER = ['low', 'medium', 'high', 'xhigh', 'max'];
 
-/** effort 를 명시하지 않은 역할의 기본값 — Kiro 기본 동작을 따른다. */
-const DEFAULT_EFFORT = 'high';
+/**
+ * effort 를 명시하지 않은 역할의 기본값.
+ * 기본이 곧 최상단(max)이다 — 추론 모델/추론이 필요한 작업에서 추론 예산을 아끼지
+ * 않는 것이 이 하네스의 기본 자세다(하네스 자체는 보안 중심 최소 가이드레일만 유지).
+ * 사다리는 "올리는" 용도가 아니라 기계적 역할을 **낮추는** 용도로 남는다.
+ */
+const DEFAULT_EFFORT = 'max';
 
 /**
- * 역할별 권장 effort. 여기에 없는 역할은 DEFAULT_EFFORT.
- * 천장(deep-reasoning)에 있으면서 판정 비용이 가장 비싼 역할만 위로 올린다 —
- * "머지를 게이팅하는 리뷰어는 대부분 쉬워도 최대 effort" 원칙.
+ * 역할별 권장 effort. 여기에 없는 역할은 DEFAULT_EFFORT(max).
+ * 기본값이 최상단이므로 이 표는 판단이 거의 필요 없는 기계적 역할을 낮추는
+ * 예외 목록이다 — 올리는 예외는 존재하지 않는다(그 위가 없다).
  * @type {Record<string,string>}
  */
 const ROLE_EFFORT = {
-  'kiro-cli': 'max', // 오케스트레이터: 장기 자율 실행 — 사다리 최상단
-  architect: 'xhigh', // 되돌리기 비싼 구조 결정
-  'security-reviewer': 'xhigh', // 놓친 취약점의 비용이 가장 크다
-  'peer-reviewer': 'xhigh', // 최종 적대적 판정 축
   'refactor-cleaner': 'low', // 기계적 편집 — 추론 예산이 필요 없다
   'translator-docs': 'low',
 };
@@ -288,11 +366,17 @@ function escalateEffort(effort) {
 
 /**
  * 역할 + 프로바이더 → 모델 식별자(에이전트 파일에 기록할 값).
+ * ROLE_MODEL_OVERRIDES(역할 단위)가 티어 매핑보다 우선한다 — mixed 의
+ * "오케스트레이터만 Fable" 이 이 경로다.
  * @param {string} role 에이전트 이름.
  * @param {string} [provider] 프로바이더(기본: anthropic).
  * @returns {string} 모델 식별자.
  */
 function identifierForRole(role, provider = DEFAULT_PROVIDER) {
+  const overrides = ROLE_MODEL_OVERRIDES[provider];
+  if (overrides && Object.prototype.hasOwnProperty.call(overrides, role)) {
+    return overrides[role];
+  }
   return tierIdentifier(classifyRole(role), provider);
 }
 
@@ -307,10 +391,14 @@ module.exports = {
   PROVIDER_PROFILES,
   providerProfile,
   effortSettings,
+  familyOfModel,
+  effortSettingsForModel,
   TIERS,
   TIER_IDS,
   DEFAULT_TIER,
   ROLE_TIERS,
+  ROLE_MODEL_OVERRIDES,
+  MIXED_ORCHESTRATOR_FALLBACK,
   EFFORT_LADDER,
   DEFAULT_EFFORT,
   ROLE_EFFORT,

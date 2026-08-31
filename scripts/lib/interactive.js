@@ -24,7 +24,7 @@
 const { checkboxPrompt, selectOne } = require('./checkbox-prompt');
 const { CATEGORIES, resolveSelection } = require('./categories');
 const { selectAssets, listSkillAssets } = require('./select-assets');
-const { tierIdentifier, providerProfile } = require('./model-policy');
+const { identifierForRole, providerProfile } = require('./model-policy');
 
 /**
  * 대화형 설치 옵션을 수집한다.
@@ -63,11 +63,13 @@ async function runInteractiveInstall(io = {}) {
     if (!scope) return null;
 
     // 3) provider — 설치 산출물의 모델 ID·effort 경로·운영 노트를 함께 결정한다.
+    //    모델 사용 패턴 3종: 앤트로픽 계열 위주 / openai 계열 위주 / mixed(Fable+GPT).
     const provider = await selectOne(ask({
-      title: '\n모델 패밀리(provider):',
+      title: '\n모델 사용 패턴(provider):',
       options: [
-        { id: 'anthropic', label: 'anthropic (기본 — Claude Opus/Sonnet/Haiku)' },
-        { id: 'openai', label: 'openai   (GPT-5.6 Sol/Terra/Luna)' },
+        { id: 'anthropic', label: 'anthropic (기본 — Claude Opus/Sonnet/Haiku 3-티어)' },
+        { id: 'openai', label: 'openai   (GPT-5.6 Sol/Terra/Luna 3-티어)' },
+        { id: 'mixed', label: 'mixed    (Fable 오케스트레이션 + GPT-5.6 Sol 서브에이전트 — Fable 불가 시 opus-5 max 폴백)' },
       ],
     }));
     if (!provider) return null;
@@ -150,7 +152,10 @@ async function runInteractiveInstall(io = {}) {
     say(`  workloads     : ${sel.workloads.length}개 — ${sel.workloads.join(', ')}`);
     if (volume) say(`  설치 자산     : 스킬 ${volume.skills}/${volume.allSkills} · 에이전트 ${volume.agents}`);
     say(`  review-backend: ${reviewBackend}`);
-    if (tier === 'cli' && scope === 'global') say(`  orchestrator  : ${tierIdentifier('deep-reasoning', provider)} (ceiling tier, effort \u2191 \u2192 cross-family)`);
+    if (tier === 'cli' && scope === 'global') {
+      say(`  orchestrator  : ${identifierForRole('kiro-cli', provider)} (ceiling, effort max \u2192 cross-family)`);
+      if (provider === 'mixed') say('                  Fable 미서빙 환경은 opus-5 max 폴백 — 설치 후 안내되는 settings 명령 참조');
+    }
     if (tier === 'ide') say(`  mcp-proxy     : ${mcpProxy ? 'on' : 'off'}`);
     say('');
 

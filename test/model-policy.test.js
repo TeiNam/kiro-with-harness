@@ -34,9 +34,10 @@ test('기본값: provider=anthropic, tier=balanced', () => {
   assert.strictEqual(DEFAULT_TIER, 'balanced');
   assert.ok(PROVIDERS.includes('anthropic'));
   assert.ok(PROVIDERS.includes('openai'));
+  assert.ok(PROVIDERS.includes('mixed'));
 });
 
-test('TIER_IDS 는 정확히 3개 티어(천장=deep-reasoning)이며 각 티어는 anthropic·openai 식별자를 갖는다', () => {
+test('TIER_IDS 는 정확히 3개 티어(천장=deep-reasoning)이며 각 티어는 모든 프로바이더 식별자를 갖는다', () => {
   assert.deepStrictEqual(TIER_IDS, ['deep-reasoning', 'balanced', 'cost-optimized']);
   for (const tier of TIER_IDS) {
     const p = providersFor(tier);
@@ -113,9 +114,45 @@ test('identifierForRole: 역할 → 식별자(프로바이더별)', () => {
   assert.strictEqual(identifierForRole('kiro-cli', 'openai'), 'gpt-5.6-sol');
 });
 
+// ---------------------------------------------------------------------------
+// mixed 프로바이더 — 오케스트레이션만 Fable, 나머지 전 역할 Sol
+// ---------------------------------------------------------------------------
+
+test('mixed: 오케스트레이터만 Fable, 서브에이전트는 티어와 무관하게 전부 Sol', () => {
+  const { ROLE_MODEL_OVERRIDES } = require('../scripts/lib/model-policy');
+  assert.strictEqual(identifierForRole('kiro-cli', 'mixed'), 'claude-fable-5');
+  // 티어가 달라도(deep-reasoning/balanced/cost-optimized) 서브에이전트는 전부 Sol.
+  for (const role of ['architect', 'security-reviewer', 'code-reviewer', 'rust-build-resolver', 'translator-docs', 'article-writer', 'unknown-future-agent']) {
+    assert.strictEqual(identifierForRole(role, 'mixed'), 'gpt-5.6-sol', role);
+  }
+  // 오버라이드는 mixed 의 kiro-cli 하나뿐이다 — 넓어지면 의도된 정책 변경이어야 한다.
+  assert.deepStrictEqual(ROLE_MODEL_OVERRIDES, { mixed: { 'kiro-cli': 'claude-fable-5' } });
+});
+
+test('mixed: Fable 미서빙 폴백은 opus-5 + effort max (SSOT 파생)', () => {
+  const { MIXED_ORCHESTRATOR_FALLBACK } = require('../scripts/lib/model-policy');
+  assert.deepStrictEqual(MIXED_ORCHESTRATOR_FALLBACK, { model: 'claude-opus-5', effort: 'max' });
+  assert.strictEqual(MIXED_ORCHESTRATOR_FALLBACK.model, tierIdentifier('deep-reasoning', 'anthropic'), '폴백 모델은 anthropic 천장 티어에서 파생된다');
+});
+
+test('familyOfModel: 모델 접두어 → 패밀리, 미지 접두어는 throw', () => {
+  const { familyOfModel } = require('../scripts/lib/model-policy');
+  assert.strictEqual(familyOfModel('claude-fable-5'), 'anthropic');
+  assert.strictEqual(familyOfModel('claude-opus-5'), 'anthropic');
+  assert.strictEqual(familyOfModel('gpt-5.6-sol'), 'openai');
+  assert.throws(() => familyOfModel('gemini-3'), /Unknown model family/);
+});
+
+test('effortSettingsForModel: 에이전트 모델의 패밀리가 effort 경로를 결정한다(mixed 핵심)', () => {
+  const { effortSettingsForModel } = require('../scripts/lib/model-policy');
+  assert.deepStrictEqual(effortSettingsForModel('claude-fable-5', 'max'), { output_config: { effort: 'max' } });
+  assert.deepStrictEqual(effortSettingsForModel('gpt-5.6-sol', 'max'), { reasoning: { effort: 'max' } });
+});
+
 test('isKnownProvider', () => {
   assert.strictEqual(isKnownProvider('anthropic'), true);
   assert.strictEqual(isKnownProvider('openai'), true);
+  assert.strictEqual(isKnownProvider('mixed'), true);
   assert.strictEqual(isKnownProvider('google'), false);
   assert.strictEqual(isKnownProvider(''), false);
 });
@@ -154,16 +191,15 @@ test('EFFORT_LADDER: 낮은 것부터 정렬되어 있고 max 가 최상단', ()
   assert.strictEqual(EFFORT_LADDER[EFFORT_LADDER.length - 1], 'max');
 });
 
-test('effortForRole: 오케스트레이터는 max, 판정 비싼 역할은 xhigh, 기계적 역할은 low', () => {
+test('effortForRole: 기본값이 max — 추론이 필요한 모든 역할은 최상단에서 시작하고, 기계적 역할만 낮춘다', () => {
   const { effortForRole, DEFAULT_EFFORT } = require('../scripts/lib/model-policy');
-  assert.strictEqual(effortForRole('kiro-cli'), 'max');
-  for (const r of ['architect', 'security-reviewer', 'peer-reviewer']) {
-    assert.strictEqual(effortForRole(r), 'xhigh', r);
+  assert.strictEqual(DEFAULT_EFFORT, 'max', '디폴트 effort 는 max — 추론 예산을 아끼지 않는다');
+  for (const r of ['kiro-cli', 'architect', 'security-reviewer', 'peer-reviewer', 'code-reviewer', 'nonexistent-agent']) {
+    assert.strictEqual(effortForRole(r), 'max', r);
   }
+  // 낮추는 예외만 존재한다(올리는 예외는 있을 수 없다 — 기본이 최상단).
   assert.strictEqual(effortForRole('refactor-cleaner'), 'low');
-  // 미지정 역할은 기본값
-  assert.strictEqual(effortForRole('code-reviewer'), DEFAULT_EFFORT);
-  assert.strictEqual(effortForRole('nonexistent-agent'), DEFAULT_EFFORT);
+  assert.strictEqual(effortForRole('translator-docs'), 'low');
 });
 
 test('escalateEffort: 한 칸 올리고, 최상단(max)에서는 null — 그 지점이 cross-family 신호', () => {

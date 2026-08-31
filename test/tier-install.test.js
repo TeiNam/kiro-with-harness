@@ -291,3 +291,37 @@ test('e2e: OpenAI CLI 설치는 reasoning.effort 안내를 출력하고 잘못�
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('e2e: --provider=mixed는 오케스트레이터만 Fable, 서브에이전트는 전부 Sol + 패밀리별 노트 + 폴백 안내', () => {
+  const tmp = mkTmp();
+  try {
+    const r = runInstall(['cli', '--scope=global', '--workload=core', '--provider=mixed', '--review-backend=cross', `--target=${tmp}`]);
+    assert.strictEqual(r.status, 0, `install exit 0 (${r.stderr})`);
+
+    // 오케스트레이터: Fable + Anthropic 계열 운영 노트(1M 컨텍스트 문구).
+    const orch = JSON.parse(fs.readFileSync(path.join(tmp, 'agents', 'kiro-cli.json'), 'utf8'));
+    assert.strictEqual(orch.model, 'claude-fable-5');
+    assert.match(orch.prompt, /1M context window/, '오케스트레이터는 Claude 계열 노트를 받는다');
+
+    // 서브에이전트: 티어와 무관하게 전부 Sol + GPT 계열 노트(272K 문구).
+    for (const role of ['architect', 'peer-reviewer', 'translator-docs']) {
+      const sub = JSON.parse(fs.readFileSync(path.join(tmp, 'agents', `${role}.json`), 'utf8'));
+      assert.strictEqual(sub.model, 'gpt-5.6-sol', role);
+      assert.match(sub.prompt, /context window is 272K/, `${role} 는 GPT 계열 노트를 받는다`);
+    }
+
+    // cross-review: mixed 프로바이더가 기록된다(Codex 우선 분기).
+    const cross = fs.readFileSync(path.join(tmp, 'hooks', 'cross-review.sh'), 'utf8');
+    assert.match(cross, /^HOST_PROVIDER="mixed"$/m);
+
+    // 매니페스트와 안내 출력: Fable effort 경로는 output_config, 폴백은 opus-5 max.
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmp, '.harness-manifest.json'), 'utf8'));
+    assert.strictEqual(manifest.provider, 'mixed');
+    assert.strictEqual(manifest.orchestratorModel, 'claude-fable-5');
+    assert.match(r.stdout, /"claude-fable-5":\{"output_config":\{"effort":"max"\}\}/, 'Fable effort 는 Anthropic 경로');
+    assert.match(r.stdout, /chat\.defaultModel claude-opus-5/, 'Fable 미서빙 폴백 안내');
+    assert.match(r.stdout, /"claude-opus-5":\{"output_config":\{"effort":"max"\}\}/, '폴백 opus-5 는 effort max');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

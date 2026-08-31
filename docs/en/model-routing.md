@@ -1,6 +1,6 @@
 # Model Routing
 
-The harness assigns each agent a model by **capability tier**, not by hand-picking a model per file. This is a **3-tier** policy and the tiers are **provider-agnostic**: the same tiers map to Claude identifiers (the default) and to the OpenAI GPT-5.6 identifiers. The single source of truth is [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js).
+The harness assigns each agent a model by **capability tier**, not by hand-picking a model per file. This is a **3-tier** policy and the tiers are **provider-agnostic**: the same tiers map to Claude identifiers (the default) and to the OpenAI GPT-5.6 identifiers. A third install-time pattern, **`mixed`**, combines the families role-wise — Claude Fable for orchestration, GPT-5.6 Sol for every other role (see [Mixed pattern](#mixed-pattern-fable-orchestration--sol-subagents)). The single source of truth is [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js).
 
 **Opus 5 is the ceiling.** There is no tier above it. When a task needs more than the top tier is producing, escalate in two directions only — **inward** (raise effort within the tier) and **sideways** (a different model family). See [Above the ceiling](#above-the-ceiling-effort-then-cross-family).
 
@@ -48,14 +48,12 @@ kiro-cli settings chat.modelDefaults \
 kiro-cli chat --effort max
 ```
 
-The shared ladder is `low` → `medium` → `high` → `xhigh` → `max`; GPT-5.6 also supports `none`. Recommended per role (`ROLE_EFFORT` in `model-policy.js`):
+The shared ladder is `low` → `medium` → `high` → `xhigh` → `max`; GPT-5.6 also supports `none`. **The default is `max`** (`DEFAULT_EFFORT` in `model-policy.js`): reasoning models and reasoning-heavy work get the full budget by design, and the harness compensates by keeping its guardrails minimal and security-centric (the two deterministic gates) rather than by throttling the model. The ladder therefore works downward — `ROLE_EFFORT` only lists the mechanical exceptions:
 
 | Role | Effort | Why |
 |------|--------|-----|
-| kiro-cli (orchestrator) | `max` | Long-horizon autonomous runs — top of the ladder |
-| architect, security-reviewer, peer-reviewer | `xhigh` | Highest cost of being wrong |
+| every reasoning/judgment role (orchestrator, architect, reviewers, researchers, build-resolvers, …) | `max` (default) | Reasoning budget is the point — there is no tier above, so start at the top of the ladder |
 | refactor-cleaner, translator-docs | `low` | Mechanical work needs no reasoning budget |
-| everything else | `high` | Kiro's sensible default |
 
 Note that `effort` is **not** an agent-config field — Kiro's agent schema has only `model`. It is a session/settings knob, so the installer prints the exact command rather than writing it for you.
 
@@ -98,16 +96,35 @@ node install.js cli --scope global --provider=anthropic
 # GPT-5.6 profile
 node install.js cli --scope global --provider=openai
 node install.js ide --provider=openai --dev=frontend
+
+# Mixed profile — Fable orchestration + Sol subagents
+node install.js cli --scope global --provider=mixed
 ```
 
 The provider profile changes four things together:
 
-1. Role-tier model IDs (`Opus/Sonnet/Haiku` or `Sol/Terra/Luna`).
-2. The printed `chat.modelDefaults` field path (`output_config.effort` or `reasoning.effort`).
-3. A concise operating note injected into every installed agent. Claude gets plan/self-verification and 1M-context guidance; GPT gets batched-tool and earlier-compaction guidance for its 272K context.
-4. Cross-family priority. Anthropic runs Codex first; OpenAI runs Claude Code first.
+1. Role-tier model IDs (`Opus/Sonnet/Haiku`, `Sol/Terra/Luna`, or `Fable` + all-`Sol` for mixed).
+2. The printed `chat.modelDefaults` field path, resolved from the **orchestrator model's family** (`output_config.effort` for Claude/Fable, `reasoning.effort` for GPT).
+3. A concise operating note injected into every installed agent, keyed to **that agent's model family** — not the global flag. Claude-family agents get plan/self-verification and 1M-context guidance; GPT-family agents get batched-tool and earlier-compaction guidance for the 272K context. Under `mixed` the two note kinds coexist in one install.
+4. Cross-family priority. Anthropic runs Codex first; OpenAI runs Claude Code first; mixed runs Codex first (versus the Fable-authored side) with Claude Code covering the Sol-authored side.
 
 The manifest records `provider`, and `node install.js --status` shows it. Re-run the installer with another provider to switch a workspace. Global and workspace installs may use different providers; content-based deduplication keeps a provider-specific workspace copy when it differs from the global one.
+
+### Mixed pattern (Fable orchestration + Sol subagents)
+
+`--provider=mixed` is a role-wise combination, not a fourth tier column:
+
+- **Orchestrator (`kiro-cli`) → `claude-fable-5`** via `ROLE_MODEL_OVERRIDES` — Claude drives planning, delegation, and convergence.
+- **Every other role → `gpt-5.6-sol`**, regardless of tier. Subagent work is deliberately flattened to OpenAI's ceiling model rather than Terra/Luna: the point of the pattern is Fable-quality orchestration over uniformly strong Sol workers.
+
+**Fable availability fallback.** Kiro falls back to `chat.defaultModel` (with a warning) whenever an agent pins a model that is not served in your environment. The installer therefore prints the two commands that make **`claude-opus-5` at effort `max`** the substitute orchestrator wherever `claude-fable-5` is unavailable (`MIXED_ORCHESTRATOR_FALLBACK` in `model-policy.js`):
+
+```bash
+kiro-cli settings chat.defaultModel claude-opus-5
+kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'
+```
+
+Subagents are unaffected by the fallback — they pin `gpt-5.6-sol` directly.
 
 `scripts/apply-model-policy.js` remains a maintenance tool for deliberately repinning repository source assets. It is not the normal provider switch, because source validation intentionally expects the Anthropic-first baseline.
 
@@ -121,10 +138,10 @@ node scripts/validate-models.js   # or: npm run validate:models
 
 Kiro validates the `model` value against the IDs its model service returns. **An unknown ID silently falls back to the default model with a warning** — so a wrong string means an agent quietly runs on the wrong model.
 
-- The harness uses **dotted** identifiers: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4.5`.
+- The harness uses **dotted** identifiers: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4.5`; the mixed pattern additionally pins `claude-fable-5` for the orchestrator.
 - Anthropic's canonical API/Bedrock IDs use **hyphens** for minor versions: `claude-haiku-4-5`. `claude-opus-5` and `claude-sonnet-5` are major-only releases, so both conventions collapse to the same string (no ambiguity there).
 - OpenAI's Kiro identifiers are `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`.
-- **Confirm each identifier with `/model` in an active Kiro session before relying on it.** If your Kiro build expects the hyphenated minor-version form, update `TIERS` in `model-policy.js` and re-run the applier.
+- **Confirm each identifier with `/model` in an active Kiro session before relying on it.** If your Kiro build expects the hyphenated minor-version form, update `TIERS` in `model-policy.js` and re-run the applier. If `claude-fable-5` is not listed, use the printed opus-5 `max` fallback (see the mixed pattern above).
 
 ## Kiro Availability (matters because `balanced` is the default tier)
 

@@ -1,6 +1,6 @@
 # 모델 라우팅(Model Routing)
 
-하네스는 파일마다 모델을 손으로 고르는 대신, 각 에이전트를 **능력 티어(capability tier)**로 배정한다. 이는 **3-티어** 정책이며, 티어는 **프로바이더 독립적(provider-agnostic)**이다 — 동일한 티어가 Claude 식별자(기본)와 OpenAI GPT-5.6 식별자에 모두 매핑된다. 단일 출처(SSOT)는 [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js)다.
+하네스는 파일마다 모델을 손으로 고르는 대신, 각 에이전트를 **능력 티어(capability tier)**로 배정한다. 이는 **3-티어** 정책이며, 티어는 **프로바이더 독립적(provider-agnostic)**이다 — 동일한 티어가 Claude 식별자(기본)와 OpenAI GPT-5.6 식별자에 모두 매핑된다. 세 번째 설치 패턴인 **`mixed`**는 역할 단위 조합을 한다 — Claude Fable이 오케스트레이션, 그 외 전 역할은 GPT-5.6 Sol([Mixed 패턴](#mixed-패턴-fable-오케스트레이션--sol-서브에이전트) 참조). 단일 출처(SSOT)는 [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js)다.
 
 **Opus 5가 천장(ceiling)이다.** 그 위의 티어는 없다. 최상위 티어가 충분한 결과를 내지 못할 때, 두 방향으로만 확대한다 — **내향**(티어 내에서 노력 증가)과 **횡향**(다른 모델 가족). [천장 위: 노력, 그 다음 크로스 패밀리](#천장-위-노력-그-다음-크로스-패밀리) 참조.
 
@@ -48,14 +48,12 @@ kiro-cli settings chat.modelDefaults \
 kiro-cli chat --effort max
 ```
 
-공용 사다리는 `low` → `medium` → `high` → `xhigh` → `max`. GPT-5.6은 추가로 `none`도 지원한다. 역할별 권장(`model-policy.js`의 `ROLE_EFFORT`):
+공용 사다리는 `low` → `medium` → `high` → `xhigh` → `max`. GPT-5.6은 추가로 `none`도 지원한다. **기본값은 `max`** (`DEFAULT_EFFORT`에 정의): 추론 모델과 추론 주력 작업은 설계상 전체 예산을 받으며, 하네스는 모델 쓰로틀보다 가이드레일을 최소화·보안 중심으로 유지해서(결정적 게이트 2개) 보상한다. 따라서 사다리는 하향으로만 작동한다 — `ROLE_EFFORT`는 기계적 예외만 열거한다:
 
 | 역할 | 노력 | 이유 |
 |------|------|------|
-| kiro-cli (오케스트레이터) | `max` | 장기 자율 실행 — 사다리 최상단 |
-| architect, security-reviewer, peer-reviewer | `xhigh` | 실패 비용이 최고 |
+| 모든 추론/판단 역할 (오케스트레이터, architect, 리뷰어들, 리서처, 빌드 해결자, …) | `max` (기본값) | 추론 예산이 목표 — 그 위의 티어가 없으므로 사다리 최상단에서 시작 |
 | refactor-cleaner, translator-docs | `low` | 기계적 작업은 추론 예산이 불필요 |
-| 나머지 | `high` | Kiro의 합리적 기본값 |
 
 `effort`는 **에이전트 설정 필드가 아니다** — Kiro 에이전트 스키마에는 `model`만 있다. 세션/설정 노브이므로 설치기는 정확한 명령을 출력하지만 자동으로 작성하지 않는다.
 
@@ -100,16 +98,35 @@ node install.js cli --scope global --provider=anthropic
 # GPT-5.6 프로필
 node install.js cli --scope global --provider=openai
 node install.js ide --provider=openai --dev=frontend
+
+# Mixed 프로필 — Fable 오케스트레이션 + Sol 서브에이전트
+node install.js cli --scope global --provider=mixed
 ```
 
 프로바이더 프로필이 네 가지를 함께 변경합니다:
 
-1. 역할-티어 모델 ID (`Opus/Sonnet/Haiku` 또는 `Sol/Terra/Luna`).
-2. 출력된 `chat.modelDefaults` 필드 경로 (`output_config.effort` 또는 `reasoning.effort`).
-3. 모든 설치된 에이전트에 주입된 간결한 운영 노트. Claude는 plan/자가검증과 1M 컨텍스트 가이드를 받고, GPT는 배치 도구와 272K 컨텍스트용 조기 컴팩션 가이드를 받습니다.
-4. Cross-family 우선순위. Anthropic은 Codex 우선, OpenAI는 Claude Code 우선.
+1. 역할-티어 모델 ID (`Opus/Sonnet/Haiku`, `Sol/Terra/Luna`, 또는 mixed의 `Fable` + 전부 `Sol`).
+2. 출력된 `chat.modelDefaults` 필드 경로는 **오케스트레이터 모델의 패밀리**에서 결정됨 (`output_config.effort` for Claude/Fable, `reasoning.effort` for GPT).
+3. 모든 설치된 에이전트에 주입된 간결한 운영 노트, **그 에이전트의 모델 패밀리** 기준(글로벌 플래그 아님). Claude 패밀리 에이전트는 plan/자가검증과 1M 컨텍스트 가이드를 받고, GPT 패밀리 에이전트는 배치 도구와 272K 컨텍스트용 조기 컴팩션 가이드를 받습니다. Mixed에서는 두 종류 운영 노트가 한 설치에서 공존합니다.
+4. Cross-family 우선순위. Anthropic은 Codex 우선, OpenAI는 Claude Code 우선; mixed는 Codex 우선(Fable 작성 쪽 vs.) — Claude Code는 Sol 작성 쪽을 커버.
 
 매니페스트가 `provider`를 기록하며, `node install.js --status`로 확인 가능합니다. 다른 프로바이더로 설치기를 다시 실행하면 워크스페이스를 전환합니다. 글로벌·워크스페이스 설치는 다른 프로바이더를 사용할 수 있으며, 콘텐츠 기반 중복 제거가 차이나는 프로바이더별 워크스페이스 사본을 유지합니다.
+
+### Mixed 패턴 (Fable 오케스트레이션 + Sol 서브에이전트)
+
+`--provider=mixed`는 역할 단위 조합이지, 네 번째 티어 열이 아니다:
+
+- **오케스트레이터(`kiro-cli`) → `claude-fable-5`** via `ROLE_MODEL_OVERRIDES` — Claude가 planning·delegation·convergence를 담당한다.
+- **모든 다른 역할 → `gpt-5.6-sol`**, 티어 무관. 서브에이전트 작업은 의도적으로 Terra/Luna가 아닌 OpenAI 천장 모델로 평탄화된다. 패턴의 목표는 균일하게 강한 Sol 워커들 위의 Fable 품질 오케스트레이션이다.
+
+**Fable 가용성 폴백.** 사용 환경에서 에이전트가 핀한 모델을 서빙하지 않을 때마다 Kiro는 `chat.defaultModel`로 폴백한다(경고와 함께). 따라서 설치기는 `claude-fable-5`를 사용할 수 없는 곳에 **`claude-opus-5`를 노력 `max`**로 대체하는 두 명령을 출력한다(`MIXED_ORCHESTRATOR_FALLBACK` in `model-policy.js`):
+
+```bash
+kiro-cli settings chat.defaultModel claude-opus-5
+kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'
+```
+
+서브에이전트는 폴백 영향을 받지 않는다 — `gpt-5.6-sol`을 직접 핀한다.
 
 `scripts/apply-model-policy.js`는 저장소 소스 자산을 의도적으로 재지정하기 위한 유지 보수 도구로 남아 있습니다. 일반적인 프로바이더 전환이 아닙니다. 소스 검증이 의도적으로 Anthropic 우선 베이스라인을 예상하기 때문입니다.
 
@@ -123,10 +140,10 @@ node scripts/validate-models.js   # 또는: npm run validate:models
 
 Kiro는 `model` 값을 모델 서비스가 반환하는 ID와 대조한다. **알 수 없는 ID는 경고와 함께 기본 모델로 조용히 폴백**한다 — 즉 잘못된 문자열은 에이전트를 엉뚱한 모델로 조용히 돌린다.
 
-- 하네스는 **점(dot)** 표기를 쓴다: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4.5`.
+- 하네스는 **점(dot)** 표기를 쓴다: `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4.5`; mixed 패턴은 추가로 오케스트레이터에 `claude-fable-5`를 핀한다.
 - Anthropic의 정식 API/Bedrock ID는 마이너 버전에 **하이픈**을 쓴다: `claude-haiku-4-5`. `claude-opus-5`, `claude-sonnet-5`는 메이저만 있는 릴리스라 두 표기가 같은 문자열로 수렴한다(모호성 없음).
 - OpenAI의 Kiro 식별자는 `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`입니다.
-- **의존하기 전에 활성 Kiro 세션에서 `/model`로 각 식별자를 확인하라.** 사용 중인 Kiro 빌드가 하이픈 마이너 버전 형식을 기대한다면 `model-policy.js`의 `TIERS`를 고치고 적용기를 다시 실행한다.
+- **의존하기 전에 활성 Kiro 세션에서 `/model`로 각 식별자를 확인하라.** 사용 중인 Kiro 빌드가 하이픈 마이너 버전 형식을 기대한다면 `model-policy.js`의 `TIERS`를 고치고 적용기를 다시 실행한다. `/model` 목록에 `claude-fable-5`가 없으면 위의 mixed 패턴에서 출력하는 opus-5 `max` 폴백을 사용한다.
 
 ## Kiro 가용성 (기본 티어가 `balanced`라 중요)
 
