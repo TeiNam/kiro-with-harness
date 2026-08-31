@@ -2,9 +2,10 @@
 
 // ponytail 원칙 주입 정책 검증 (scripts/apply-ponytail.js).
 //
-// 정책:
-//  - EXEMPT 에 없는 모든 서브에이전트 정의는 ponytail 요약 블록을 포함한다.
-//  - EXEMPT 역할은 포함하지 않는다(상세·전수·정밀이 산출물의 본질이라 절제 지시가 해가 된다).
+// 정책(무조건 전면 주입 — 하네스는 ponytail 을 단일 중심 원칙으로 유지한다):
+//  - 모든 서브에이전트 정의는 ponytail 요약 블록을 포함한다. 예외(EXEMPT)는 없다.
+//  - EXEMPT 테이블은 비어 있어야 한다 — 항목을 되살리는 것은 정책 변경이며
+//    이 테스트·문서와 함께 바꿔야 한다.
 //  - 주입은 멱등이다(이미 있으면 no-op).
 //  - CLI JSON 주입은 prompt 값만 바꾸고 나머지 필드/스키마를 보존한다.
 
@@ -29,31 +30,20 @@ test('대상 에이전트 파일이 수집된다', () => {
   assert.ok(files.length > 30, `에이전트 파일이 너무 적다: ${files.length}`);
 });
 
-test('EXEMPT 의 모든 역할은 실제 에이전트 파일로 존재한다(목록 드리프트 방지)', () => {
-  const roles = new Set(files.map((f) => f.role));
-  for (const role of Object.keys(EXEMPT)) {
-    assert.ok(roles.has(role), `EXEMPT 역할 '${role}' 에 해당하는 에이전트 파일이 없다`);
-  }
+test('ponytail 은 무조건이다: EXEMPT 가 비어 있고 반대 논리가 남아 있지 않다', () => {
+  assert.deepStrictEqual(EXEMPT, {}, 'EXEMPT 는 정책상 비어 있어야 한다 — 되살리려면 정책 변경으로 다뤄라');
+  assert.strictEqual(files.filter((f) => f.exempt).length, 0, '제외로 분류된 파일이 없어야 한다');
 });
 
-test('비제외 에이전트는 모두 ponytail 블록을 포함한다', () => {
+test('모든 에이전트가 ponytail 블록을 포함한다(예외 없음)', () => {
   const missing = files
-    .filter((f) => !f.exempt)
     .filter((f) => !fs.readFileSync(f.full, 'utf8').includes(MARKER))
     .map((f) => f.rel);
   assert.deepStrictEqual(missing, [], `ponytail 블록 누락: ${missing.join(', ')}`);
 });
 
-test('제외 에이전트는 ponytail 블록을 포함하지 않는다', () => {
-  const leaked = files
-    .filter((f) => f.exempt)
-    .filter((f) => fs.readFileSync(f.full, 'utf8').includes(MARKER))
-    .map((f) => f.rel);
-  assert.deepStrictEqual(leaked, [], `제외 대상에 블록이 주입됨: ${leaked.join(', ')}`);
-});
-
 test('CLI JSON 은 유효하고 블록이 prompt 안에 들어 있다', () => {
-  for (const f of files.filter((x) => x.ext === '.json' && !x.exempt)) {
+  for (const f of files.filter((x) => x.ext === '.json')) {
     const agent = JSON.parse(fs.readFileSync(f.full, 'utf8'));
     assert.ok(agent.prompt.includes(MARKER), `${f.rel}: prompt 밖에 블록이 있다`);
     assert.ok(agent.name, `${f.rel}: name 손실`);
@@ -62,7 +52,7 @@ test('CLI JSON 은 유효하고 블록이 prompt 안에 들어 있다', () => {
 });
 
 test('주입은 멱등이다(이미 있으면 no-op)', () => {
-  for (const f of files.filter((x) => !x.exempt)) {
+  for (const f of files) {
     const raw = fs.readFileSync(f.full, 'utf8');
     const result = f.injectFn(raw, BRIEF);
     assert.strictEqual(result.changed, false, `${f.rel}: 재주입이 발생했다`);

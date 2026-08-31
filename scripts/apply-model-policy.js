@@ -15,10 +15,11 @@
  * `model` 값만 교체한다. 들여쓰기·키 순서·본문 등 그 외 바이트는 보존한다.
  *
  * 사용법:
- *   node scripts/apply-model-policy.js [--provider=anthropic|openai] [--dry-run]
+ *   node scripts/apply-model-policy.js [--provider=anthropic|openai|mixed] [--dry-run]
  *
- *   --provider  적용할 프로바이더(기본: anthropic). openai 는 GPT-5.6 3종(gpt-5.6/mini/nano)이
- *               Kiro 에서 선택 가능해 현행 전환 옵션이다.
+ *   --provider  적용할 프로바이더(기본: anthropic). openai 는 GPT-5.6 3종(Sol/Terra/Luna),
+ *               mixed 는 오케스트레이터만 Fable + 나머지 Sol. 소스는 Anthropic-first 이므로
+ *               통상 설치 시 `install.js --provider=...` 를 쓰고 이 스크립트는 기본값 유지용이다.
  *   --dry-run   파일을 쓰지 않고 변경 예정만 출력한다.
  *
  * 종료 코드: 0(성공) / 1(오류·파싱 실패 등).
@@ -32,6 +33,7 @@ const {
   identifierForRole,
   isKnownProvider,
   DEFAULT_PROVIDER,
+  PROVIDERS,
 } = require('./lib/model-policy.js');
 const {
   applyModelToAgentJson,
@@ -76,12 +78,12 @@ function main(argv) {
   // 안전: 인식하지 못한 인자는 쓰기 전에 즉시 실패시킨다(예: `--dryrun` 오타로 인한 의도치 않은 APPLIED).
   if (flags.unknown.length) {
     process.stderr.write(
-      `Unknown argument(s): ${flags.unknown.join(', ')}. Use --provider=<anthropic|openai> and/or --dry-run.\n`
+      `Unknown argument(s): ${flags.unknown.join(', ')}. Use --provider=<${PROVIDERS.join('|')}> and/or --dry-run.\n`
     );
     return 1;
   }
   if (!isKnownProvider(flags.provider)) {
-    process.stderr.write(`Unknown provider: ${flags.provider} (use anthropic|openai)\n`);
+    process.stderr.write(`Unknown provider: ${flags.provider} (use ${PROVIDERS.join('|')})\n`);
     return 1;
   }
   if (flags.provider !== DEFAULT_PROVIDER) {

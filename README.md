@@ -7,7 +7,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload and model-provider selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. The installer optimizes the same role tiers for either Claude (default) or GPT-5.6 without duplicating the asset fleet: it writes provider-specific model IDs, effort guidance, operating notes, and cross-family review priority into the installed output. The ceiling tier escalates by **effort** rather than by another tier, then sideways to a different model family, with role-based model routing, DAG-style parallel delegation, an enforced git pipeline, and a shared agent collaboration guide (AGENTS.md).
+Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload and model-provider selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. The installer optimizes the same role tiers for three model-usage patterns — Claude (default), GPT-5.6, or **mixed** (Claude Fable orchestration + GPT-5.6 Sol subagents) — without duplicating the asset fleet: it writes provider-specific model IDs, effort guidance, operating notes, and cross-family review priority into the installed output. The ceiling tier escalates by **effort** rather than by another tier, then sideways to a different model family, with role-based model routing, DAG-style parallel delegation, an enforced git pipeline, and a shared agent collaboration guide (AGENTS.md).
 
 ## Quick Start
 
@@ -22,6 +22,10 @@ node install.js cli --scope global
 
 # Same fleet optimized for OpenAI GPT-5.6 Sol / Terra / Luna
 node install.js cli --scope global --provider=openai
+
+# Mixed: Claude Fable orchestrates, GPT-5.6 Sol runs every subagent
+# (if Fable is not served in your env, the installer prints the opus-5 max fallback commands)
+node install.js cli --scope global --provider=mixed
 
 # Claude is the default; provider selection also works for IDE/workspace installs
 node install.js ide --provider=anthropic --dev=frontend
@@ -153,13 +157,15 @@ Agent model assignments are role-based, organized into three **provider-agnostic
 | Balanced (default) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, language reviewers, build-resolvers, database-reviewer, e2e-runner, doc/tech writers |
 | Cost-optimized | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
-The design principle: **Opus 5 orchestrates and reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** The same capability tiers map to OpenAI as `deep-reasoning → gpt-5.6-sol`, `balanced → gpt-5.6-terra`, and `cost-optimized → gpt-5.6-luna`. Choose with `--provider=anthropic|openai`; the installer changes only the installed output, leaving the Anthropic-first source assets untouched. It also injects a concise provider operating note into every installed agent: Claude gets plan/self-verification and 1M-context guidance, while GPT gets batched-tool/early-compaction guidance for its 272K context. Full details, hook→tier guidance, and provider switching: [Model routing](docs/en/model-routing.md).
+The design principle: **Opus 5 orchestrates and reasons, Sonnet does the coding volume, Haiku handles cheap high-throughput work.** The same capability tiers map to OpenAI as `deep-reasoning → gpt-5.6-sol`, `balanced → gpt-5.6-terra`, and `cost-optimized → gpt-5.6-luna`. Choose with `--provider=anthropic|openai|mixed`; the installer changes only the installed output, leaving the Anthropic-first source assets untouched. It also injects a concise operating note into every installed agent, keyed to **that agent's model family** (not the global flag): Claude-family agents get plan/self-verification and 1M-context guidance, while GPT-family agents get batched-tool/early-compaction guidance for the 272K context. Full details, hook→tier guidance, and provider switching: [Model routing](docs/en/model-routing.md).
+
+**The `mixed` pattern (Fable orchestration + Sol subagents).** `--provider=mixed` pins only the `kiro-cli` orchestrator to `claude-fable-5` and routes **every other role, regardless of tier, to `gpt-5.6-sol`** — Claude does the orchestration, GPT-5.6 Sol does all delegated work at OpenAI's ceiling tier. Each agent still receives the operating note of its own family, and `cross-review.sh` runs Codex first (cross-family versus the Fable-authored changes) with Claude Code covering the Sol-authored side. If `claude-fable-5` is not served in your environment, Kiro falls back to `chat.defaultModel` — the installer prints the two `kiro-cli settings` commands that make **`claude-opus-5` at effort `max`** that substitute.
 
 ### Opus 5 is the ceiling — escalate inward, then sideways
 
 There is no tier above `claude-opus-5`. When a task needs more than the top tier is producing, the harness escalates in two directions instead of reaching for a bigger model:
 
-1. **Inward — raise effort within the tier.** `low` → `medium` → `high` → `xhigh` → `max`. Same model, larger reasoning budget, cheaper than a tier jump. Kiro exposes this as `kiro-cli chat --effort <level>` and `kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'`. The installer prints the exact command (effort is a session/settings knob, not an agent-config field). Recommended: orchestrator `max`; architect / security-reviewer / peer-reviewer `xhigh`; mechanical roles `low`.
+1. **Inward — raise effort within the tier.** `low` → `medium` → `high` → `xhigh` → `max`. Same model, larger reasoning budget, cheaper than a tier jump. Kiro exposes this as `kiro-cli chat --effort <level>` and `kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'`. The installer prints the exact command (effort is a session/settings knob, not an agent-config field). **The harness default is `max` for every reasoning role** — the ladder exists to lower mechanical roles (refactor-cleaner, translator-docs → `low`), not to raise reasoning ones; the guardrails stay minimal and security-centric (the two deterministic gates) so the model's reasoning budget, not the harness, does the work.
 2. **Sideways — a different model family.** At `max` there is nothing above. Re-prompting the same family cannot break correlated blind spots (same training, same failure modes), so the remaining axis is a different family: the `peer-reviewer` agent (terminal `claude -p` + `codex`) and, with `--review-backend cross`, `bash .kiro/hooks/cross-review.sh`. The selected provider determines priority: an Anthropic-hosted fleet calls Codex first; an OpenAI-hosted fleet calls Claude Code first. The other backend remains same-family corroboration. Hand off where **independence** or **grind** is the value — adversarial review of code this fleet wrote, tie-breaking two disagreeing attempts, large mechanical edits, a second diagnosis when stuck. Keep in the harness anything needing steering rules, skills, workload tags, tool orchestration, or Korean output.
 
 > **The rule that makes the sideways axis pay off:** never let an external family be the *only* reader of something that matters. A finding only it reports still needs confirmation against the actual code; findings both families flag independently are the high-confidence ones. `cross-review.sh` prints this at the end of every run and, before the review, extracts the **blast radius** — files that did *not* change but should be reviewed anyway, via reverse `require`/`import` references and historical co-change.
@@ -187,21 +193,7 @@ There is no tier above `claude-opus-5`. When a task needs more than the top tier
 
 **IDE tier** installs Markdown agents under `.kiro/agents/` with the same roles.
 
-**Ponytail injection:** The lazy senior dev principle (from `rules/common/ponytail.md`) is pre-injected into the agent definitions in this repo — into the `prompt` field for CLI agents and the body for IDE agents — so installs carry it verbatim. That keeps 22 authoring and coding roles applying it even when global resource inheritance is disabled (`kiro-cli settings chat.disableInheritingDefaultResources true` — recommended for isolated workspaces), which is precisely when steering-only delivery fails to reach subagents. The injection is idempotent; excluded roles (those where completeness, precision, or external procedures are the deliverable itself) do not receive the principle. To see which roles are injected and which are exempt, run `node scripts/apply-ponytail.js --list`. To reapply after editing the wording, reset the agent files and re-run. The SSOT is `scripts/apply-ponytail.js` (EXEMPT and BRIEF tables); validation occurs in `test/ponytail.test.js`.
-
-| Exempt Role | Reason |
-|---|---|
-| security-reviewer | OWASP exhaustive audit — omitted items are vulnerabilities |
-| deep-researcher | Multi-source investigation and citation rigor are the output |
-| devops | Precision of infrastructure workflows (plan/diff/approval) — skipped steps cause incidents |
-| peer-reviewer | Must follow external 3-way collection & synthesis procedure as specified |
-| database-reviewer | Precise query/schema audit — omissions risk data loss |
-| e2e-runner | Scenario coverage and POM structure rigor is the value |
-| tech-fidelity-auditor | Code/number/signature exhaustive cross-check |
-| doc-quality-detector | Span-level exhaustive scan + fixed JSON schema |
-| doc-clarity-reviewer | Exhaustive criterion application before approval decision |
-| tech-doc-writer | Code/number immutability + surgical editing precision |
-| tech-writer-monolith | All-in-one authoring, detection, polish, self-validation in one call |
+**Ponytail injection:** The lazy senior dev principle (from `rules/common/ponytail.md`) is pre-injected into **every** agent definition in this repo — into the `prompt` field for CLI agents and the body for IDE agents — so installs carry it verbatim. This is unconditional: the harness keeps ponytail as its single organizing principle with no counter-logic, so all roles (including subagents) inherit it even when global resource inheritance is disabled (`kiro-cli settings chat.disableInheritingDefaultResources true` — recommended for isolated workspaces), which is precisely when steering-only delivery fails to reach subagents. Roles whose deliverable is exhaustive or procedural (security audit, e2e coverage, research citations) resolve the tension inside the principle itself: the injected brief ends with a review-lens clause (consolidated findings, not omitted ones) and "Never lazy about … anything explicitly requested", which forbids skipping mandated procedure. The injection is idempotent; `node scripts/apply-ponytail.js --list` shows the applied roles (the exempt list is empty by policy). To reapply after editing the wording, reset the agent files and re-run. The SSOT is `scripts/apply-ponytail.js` (`BRIEF`, plus an intentionally empty `EXEMPT`); `test/ponytail.test.js` enforces both the full coverage and the empty exempt table.
 
 ### Hooks
 
@@ -292,7 +284,7 @@ Options:
   --<category>= <list>           Sub-category selection (e.g., --dev=frontend,python; unselected = all subs)
   --<category>-<sub>= <list>     Detail option (e.g., --writing-social=voice; for subs with drill-down only)
   --workload <list|all>          Low-level: comma-separated workload keys or 'all' (legacy surface, merges with categories via union)
-  --provider <anthropic|openai>  Model family profile (default: anthropic); writes role models, effort guidance, operating notes, and cross-family priority into installed agents
+  --provider <anthropic|openai|mixed> Model-usage pattern (default: anthropic); writes role models, effort guidance, per-family operating notes, and cross-family priority into installed agents. mixed = Fable orchestration + GPT-5.6 Sol for every other role (opus-5 max fallback commands printed when Fable is unavailable)
   --cli-version <2|3>            CLI-tier hook format (default 2 = agent-embedded; 3 = standalone .kiro/hooks/*.json for the CLI 3.0 engine)
   --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE only: route mcp.json through the general mcp-proxy (:9090) and auto-start that container if not already running

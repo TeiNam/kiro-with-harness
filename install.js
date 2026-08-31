@@ -36,7 +36,9 @@ const {
   PROVIDERS,
   identifierForRole,
   effortForRole,
-  effortSettings,
+  effortSettingsForModel,
+  familyOfModel,
+  MIXED_ORCHESTRATOR_FALLBACK,
   isKnownProvider,
   providerProfile,
 } = require(path.join(HARNESS_ROOT, 'scripts/lib/model-policy'));
@@ -206,7 +208,9 @@ function replaceProviderNote(text, block) {
   return text.slice(0, start) + block + text.slice(end + PROVIDER_NOTE_END.length);
 }
 
-/** 선택한 provider를 설치 산출물에만 적용한다. 저장소의 Claude 기준 소스는 바꾸지 않는다. */
+/** 선택한 provider를 설치 산출물에만 적용한다. 저장소의 Claude 기준 소스는 바꾸지 않는다.
+ * 운영 노트는 프로바이더가 아니라 **각 에이전트 모델의 패밀리**를 따른다 — mixed 처럼
+ * 한 설치 안에 Claude(Fable)와 GPT(Sol)가 공존하면 에이전트별로 노트가 갈린다. */
 function applyProviderToOps(ops, provider) {
   let agents = 0;
   for (const op of ops) {
@@ -214,13 +218,14 @@ function applyProviderToOps(ops, provider) {
       const raw = opContent(op);
       if (raw == null) continue;
       const role = path.basename(op.destRel, '.json');
-      const modelEdit = applyModelToAgentJson(raw, identifierForRole(role, provider));
+      const model = identifierForRole(role, provider);
+      const modelEdit = applyModelToAgentJson(raw, model);
       if (modelEdit.reason) throw new Error(`${op.destRel}: ${modelEdit.reason}`);
       const parsed = JSON.parse(modelEdit.text);
       const promptEdit = applyTopLevelJsonString(
         modelEdit.text,
         'prompt',
-        replaceProviderNote(parsed.prompt, providerNote(provider))
+        replaceProviderNote(parsed.prompt, providerNote(familyOfModel(model)))
       );
       if (promptEdit.reason) throw new Error(`${op.destRel}: ${promptEdit.reason}`);
       op.type = 'content';
@@ -231,10 +236,11 @@ function applyProviderToOps(ops, provider) {
       const raw = opContent(op);
       if (raw == null) continue;
       const role = path.basename(op.destRel, '.md');
-      const modelEdit = applyModelToFrontmatter(raw, identifierForRole(role, provider));
+      const model = identifierForRole(role, provider);
+      const modelEdit = applyModelToFrontmatter(raw, model);
       if (modelEdit.reason) throw new Error(`${op.destRel}: ${modelEdit.reason}`);
       op.type = 'content';
-      op.content = replaceProviderNote(modelEdit.text, providerNote(provider));
+      op.content = replaceProviderNote(modelEdit.text, providerNote(familyOfModel(model)));
       delete op.src;
       agents += 1;
     } else if (op.destRel === 'hooks/cross-review.sh') {
@@ -254,12 +260,22 @@ function orchestratorModel(provider = DEFAULT_PROVIDER) {
 
 function printEffortHint(model, provider) {
   const effort = effortForRole('kiro-cli');
-  const settings = JSON.stringify({ [model]: effortSettings(provider, effort) });
+  // effort 설정 경로는 프로바이더가 아니라 오케스트레이터 모델의 패밀리를 따른다
+  // (mixed: Fable=Anthropic → output_config.effort).
+  const settings = JSON.stringify({ [model]: effortSettingsForModel(model, effort) });
   const profile = providerProfile(provider);
   console.log(`  effort: 천장 티어 위로는 티어가 아니라 effort 를 올립니다 (권장: ${effort}).`);
   console.log(`    kiro-cli settings chat.modelDefaults '${settings}'`);
   console.log(`    세션 단위: kiro-cli chat --effort ${effort}`);
   console.log(`    그 위는 없습니다 — cross-family 우선: ${profile.crossFamilyBackend} (${profile.sameFamilyBackend}는 same-family 보강).`);
+  if (provider === 'mixed') {
+    const fb = MIXED_ORCHESTRATOR_FALLBACK;
+    const fbSettings = JSON.stringify({ [fb.model]: effortSettingsForModel(fb.model, fb.effort) });
+    console.log(`  Fable 폴백: '${model}' 미서빙 환경이면 Kiro가 오케스트레이터를 chat.defaultModel 로 폴백시킵니다.`);
+    console.log(`    ${fb.model} ${fb.effort} 가 대체하도록 지정하세요:`);
+    console.log(`    kiro-cli settings chat.defaultModel ${fb.model}`);
+    console.log(`    kiro-cli settings chat.modelDefaults '${fbSettings}'`);
+  }
 }
 
 // ── 워크로드 정규화 ─────────────────────────────────────────
@@ -417,7 +433,8 @@ function printIntro() {
     '    --workload=<키,...> | all                       워크로드 키 직접 지정(저수준)',
     '',
     '  옵션:',
-    '    --provider anthropic|openai       모델 패밀리(기본 anthropic). 역할별 Claude 또는 GPT-5.6 Sol/Terra/Luna와 최적화 노트를 설치',
+    '    --provider anthropic|openai|mixed 모델 패밀리(기본 anthropic). anthropic=Claude 3-티어, openai=GPT-5.6 Sol/Terra/Luna,',
+    '                                   mixed=오케스트레이션만 Claude Fable + 나머지 전 역할 GPT-5.6 Sol (Fable 미서빙 시 opus-5 max 폴백 안내)',
     '    --cli-version 2|3              CLI 티어 훅 포맷(기본 2=에이전트 embedded, 3=독립 .kiro/hooks/*.json — kiro-cli --v3 엔진용)',
     '    --review-backend kiro|claude|cross  리뷰 백엔드(기본 claude=peer-reviewer→claude -p; cross=claude+codex 3-way + cross-review.sh 온디맨드)',
     '    --mcp-proxy                    IDE 티어: mcp.json을 mcp-proxy(:9090) 경유로 생성 + 프록시 컨테이너 자동 보장(없으면 docker compose up -d, 있으면 스킵). mcp-proxy/README.md',

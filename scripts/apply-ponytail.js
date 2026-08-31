@@ -16,8 +16,11 @@
  *   agents/cli/workspace/*.json  — 같음
  *   agents/ide/*.md              — 본문 말미에 주입
  *
- * 제외(EXEMPT): 상세·전수·정밀 절차가 산출물의 본질인 에이전트. 이들에게 "적게
- * 하라"는 지시는 곧 누락이고 품질 하락이다.
+ * 정책: **무조건 전 역할 주입** — 예외 없음. 하네스는 ponytail 을 단일 중심 원칙으로
+ * 두고 반대 논리를 남기지 않는다. 전수·정밀 절차가 본질인 역할(security-reviewer 등)의
+ * 리포트 축소는 요약본 말미의 review-lens 문장("consolidated findings")과
+ * "Never lazy about: ... anything explicitly requested" 가 절차 생략을 막는 방식으로
+ * 원칙 안에서 해소한다. 별도 제외 목록을 두지 않는다.
  *
  * 사용법:
  *   node scripts/apply-ponytail.js [--dry-run] [--list]
@@ -34,22 +37,11 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 
 /**
- * 제외 역할 → 사유. 파일명(확장자 제외)이 키다.
- * 판단 기준: 전수 점검·사실 대조·외부 절차·정밀 스키마가 산출물의 본질인가?
+ * 제외 역할 → 사유. **정책상 비어 있다** — ponytail 은 전 역할 무조건 주입이다.
+ * 이 테이블은 형태만 유지한다(테스트 test/ponytail.test.js 가 비어 있음을 강제하므로,
+ * 항목을 되살리려면 정책 변경으로서 테스트와 문서를 함께 바꿔야 한다).
  */
-const EXEMPT = {
-  'security-reviewer': 'OWASP 전수 점검 — 항목 누락이 곧 취약점',
-  'deep-researcher': '다중 소스 조사와 인용 철저함이 산출물',
-  devops: '인프라 절차(plan/diff/승인) 정밀성 — 단계 생략은 사고',
-  'peer-reviewer': '외부 CLI 3-way 수집·종합 절차를 그대로 밟아야 함',
-  'database-reviewer': '쿼리·스키마 정밀 점검 — 누락 시 데이터 손실 위험',
-  'e2e-runner': '시나리오 커버리지와 POM 구조의 상세함이 가치',
-  'tech-fidelity-auditor': '코드·수치·시그니처 전수 대조 검증',
-  'doc-quality-detector': 'span 단위 전수 스캔 + 고정 JSON 리포트 스키마',
-  'doc-clarity-reviewer': '판정 기준 전수 적용 후 승인/재작업 결정',
-  'tech-doc-writer': '코드·수치 불변 제약 + 수술적 윤문 정밀도',
-  'tech-writer-monolith': '단일 호출 안에서 작성·탐지·윤문·자체검증 전 절차 수행',
-};
+const EXEMPT = {};
 
 /** 멱등 판정 및 검증에 쓰는 마커(ASCII only — 포맷 변환에 안전). */
 const MARKER = '## Ponytail (lazy senior dev)';
@@ -156,8 +148,13 @@ function main(argv) {
   const files = collect();
 
   if (listOnly) {
-    console.log('=== ponytail 제외 역할 (상세·정밀이 본질) ===');
-    for (const [role, why] of Object.entries(EXEMPT)) console.log(`  -- ${role.padEnd(22)} ${why}`);
+    const exemptRoles = Object.entries(EXEMPT);
+    if (exemptRoles.length) {
+      console.log('=== ponytail 제외 역할 (정책 위반 — 비어 있어야 한다) ===');
+      for (const [role, why] of exemptRoles) console.log(`  -- ${role.padEnd(22)} ${why}`);
+    } else {
+      console.log('=== ponytail 정책: 무조건 전 역할 주입 (제외 없음) ===');
+    }
     const applied = [...new Set(files.filter((f) => !f.exempt).map((f) => f.role))].sort();
     console.log(`\n=== ponytail 적용 역할 (${applied.length}) ===`);
     console.log(`  ${applied.join(', ')}`);

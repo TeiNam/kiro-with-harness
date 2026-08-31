@@ -7,7 +7,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자로 워크로드와 모델 프로바이더를 선택하여, 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. 설치 관리자는 동일 역할 티어를 Claude(기본값) 또는 GPT-5.6으로 최적화하며, 자산 fleet을 중복하지 않습니다: 프로바이더 특화 모델 ID, 노력(effort) 가이드, 운영 노트, 교차 패밀리 리뷰 우선순위를 설치 산출물에 기록합니다. 천장 티어는 **노력**으로 에스컬레이션하고, 그 다음 다른 모델 패밀리로 옆(sideways) 에스컬레이션합니다 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 강제 git 파이프라인, 공유 에이전트 협업 가이드(AGENTS.md).
+Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자로 워크로드와 모델 프로바이더를 선택하여, 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. 설치 관리자는 동일 역할 티어를 세 가지 모델 사용 패턴 — Claude(기본), GPT-5.6, 또는 **mixed**(Claude Fable 오케스트레이션 + GPT-5.6 Sol 서브에이전트)으로 최적화하며, 자산 fleet을 중복하지 않습니다: 프로바이더 특화 모델 ID, 노력(effort) 가이드, 운영 노트, 교차 패밀리 리뷰 우선순위를 설치 산출물에 기록합니다. 천장 티어는 **노력**으로 에스컬레이션하고, 그 다음 다른 모델 패밀리로 옆(sideways) 에스컬레이션합니다 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 강제 git 파이프라인, 공유 에이전트 협업 가이드(AGENTS.md).
 
 ## 빠른 시작
 
@@ -22,6 +22,10 @@ node install.js cli --scope global
 
 # OpenAI GPT-5.6 Sol / Terra / Luna로 최적화한 동일 fleet
 node install.js cli --scope global --provider=openai
+
+# Mixed: Claude Fable이 오케스트레이션, GPT-5.6 Sol이 모든 서브에이전트 실행
+# (사용 환경에서 Fable이 제공되지 않으면 설치기가 opus-5 max 폴백 명령을 출력합니다)
+node install.js cli --scope global --provider=mixed
 
 # Claude는 기본값; 프로바이더 선택은 IDE/워크스페이스 설치에도 적용됨
 node install.js ide --provider=anthropic --dev=frontend
@@ -153,13 +157,20 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 | 균형 (기본) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, 언어 리뷰어, 빌드 해결자, database-reviewer, e2e-runner, 문서/기술 작성자 |
 | 비용 최적화 | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
 
-설계 원칙: **Opus 5가 오케스트레이션과 추론을 담당하고, Sonnet이 코딩 물량을 처리하며, Haiku는 값싼 대량 작업을 맡는다.** 동일한 능력 티어가 OpenAI에도 매핑됩니다: `deep-reasoning → gpt-5.6-sol`, `balanced → gpt-5.6-terra`, `cost-optimized → gpt-5.6-luna`. `--provider=anthropic|openai`로 선택하세요. 설치기는 설치된 산출물만 변경하며 Anthropic 우선 소스 자산은 손대지 않습니다. 또한 모든 설치된 에이전트에 프로바이더별 운영 노트를 주입합니다: Claude는 plan/자가검증과 1M 컨텍스트 가이드, GPT는 배치 도구/조기 컴팩션 가이드(272K 컨텍스트용)를 받습니다. 전체 배정·훅→티어 가이드·프로바이더 전환: [모델 라우팅](docs/kr/model-routing.md).
+설계 원칙: **Opus 5가 오케스트레이션과 추론을 담당하고, Sonnet이 코딩 물량을 처리하며, Haiku는 값싼 대량 작업을 맡는다.** 동일한 능력 티어가 OpenAI에도 매핑됩니다: `deep-reasoning → gpt-5.6-sol`, `balanced → gpt-5.6-terra`, `cost-optimized → gpt-5.6-luna`. `--provider=anthropic|openai|mixed`로 선택하세요. 설치기는 설치된 산출물만 변경하며 Anthropic 우선 소스 자산은 손대지 않습니다. 또한 모든 설치된 에이전트에 그 에이전트의 모델 패밀리에 맞는 간결한 운영 노트를 주입합니다(글로벌 플래그가 아니라): Claude 패밀리 에이전트는 plan/자가검증과 1M 컨텍스트 가이드를 받고, GPT 패밀리 에이전트는 배치 도구/조기 컴팩션 가이드(272K 컨텍스트용)를 받습니다. 전체 배정·훅→티어 가이드·프로바이더 전환: [모델 라우팅](docs/kr/model-routing.md).
+
+**`mixed` 패턴(Fable 오케스트레이션 + Sol 서브에이전트).** `--provider=mixed`는 오케스트레이터(`kiro-cli`)만 `claude-fable-5`로 고정하고 **다른 모든 역할을 티어 무관 `gpt-5.6-sol`**로 라우팅합니다 — Claude가 오케스트레이션·위임·수렴을 담당하고, GPT-5.6 Sol이 위임된 작업 전부를 OpenAI 천장 티어에서 처리합니다. 각 에이전트는 자신의 패밀리에 맞는 운영 노트를 받으며, `cross-review.sh`는 Codex를 먼저 실행합니다(Fable 작성 변경 vs. Fable 측) — Claude Code는 Sol 작성 측을 커버합니다. 사용 환경에서 `claude-fable-5`를 서빙하지 않으면 Kiro는 `chat.defaultModel`로 폴백하므로(경고와 함께), 설치기는 **`claude-opus-5`를 노력 `max`**로 대체하는 두 `kiro-cli settings` 명령을 출력합니다:
+
+```bash
+kiro-cli settings chat.defaultModel claude-opus-5
+kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'
+```
 
 ### Opus 5가 천장이다 — 안으로 에스컬레이션한 후 옆으로
 
 `claude-opus-5` 위의 티어는 없습니다. 태스크가 최상위 티어 성능을 초과해야 할 때, 더 큰 모델에 도달하는 대신 하네스는 두 방향으로 에스컬레이션합니다:
 
-1. **안으로 — 같은 티어 내에서 노력을 올린다.** `low` → `medium` → `high` → `xhigh` → `max`. 같은 모델, 더 큰 추론 예산, 티어 점프보다 저렴합니다. Kiro는 이를 `kiro-cli chat --effort <level>`과 `kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'`로 노출합니다. 설치기가 정확한 명령을 출력합니다(effort는 세션/설정 손잡이이지 에이전트 설정이 아닙니다). 권장사항: 오케스트레이터 `max`; architect / security-reviewer / peer-reviewer `xhigh`; 기계적 역할 `low`.
+1. **안으로 — 같은 티어 내에서 노력을 올린다.** `low` → `medium` → `high` → `xhigh` → `max`. 같은 모델, 더 큰 추론 예산, 티어 점프보다 저렴합니다. Kiro는 이를 `kiro-cli chat --effort <level>`과 `kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'`로 노출합니다. 설치기가 정확한 명령을 출력합니다(effort는 세션/설정 손잡이이지 에이전트 설정이 아닙니다). **하네스 기본값은 모든 추론 역할에서 `max`** — 사다리는 기계적 역할(refactor-cleaner, translator-docs → `low`)을 낮추는 용도이며, 가이드레일은 보안 중심 최소(결정적 게이트 2개)로 유지해 모델의 추론 예산이 일하게 한다.
 2. **옆으로 — 다른 모델 패밀리.** `max`에는 그 위가 없습니다. 같은 패밀리에 다시 프롬프트하면 상관관계가 있는 blind spot을 깨뜨릴 수 없습니다(같은 학습, 같은 failure 모드), 따라서 남은 축은 다른 패밀리입니다: `peer-reviewer` 에이전트(터미널 `claude -p` + `codex`)와 `--review-backend cross` 사용 시 `bash .kiro/hooks/cross-review.sh`. 선택된 프로바이더가 우선순위를 결정합니다: Anthropic 호스팅 fleet은 Codex를 먼저 호출하고, OpenAI 호스팅 fleet은 Claude Code를 먼저 호출합니다. 다른 백엔드는 같은 패밀리 상호 검증으로 남습니다. **독립성** 또는 **grinding**이 가치인 곳으로 넘기세요 — 이 fleet이 작성한 코드에 대한 adversarial review, 두 의견이 어긋날 때 tie-breaking, 대규모 기계 편집, 막힌 상태에서 두 번째 진단. 스티어링 규칙, 스킬, 워크로드 태그, 도구 오케스트레이션, 한국어 출력이 필요한 모든 것은 하네스에 유지하세요.
 
 > **옆 축을 가치있게 만드는 규칙:** 중요한 무언가의 *유일한* 독자가 외부 패밀리가 되게 하지 마세요. 그것만 보고하는 발견은 여전히 실제 코드에 대한 확인이 필요하며, 두 패밀리가 독립적으로 플래그하는 발견이 높은 신뢰도입니다. `cross-review.sh`는 실행의 끝에 이를 출력하며, review 전에 **blast radius**를 추출합니다 — 변경되지 *않았지만* 어쨌든 리뷰되어야 할 파일들로, reverse `require`/`import` 참조와 역사적 co-change를 통해 찾습니다.
@@ -187,21 +198,7 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 **IDE 계층**은 `.kiro/agents/` 아래에 동일한 역할의 Markdown 에이전트를 설치합니다.
 
-**Ponytail 주입:** Lazy senior dev 원칙(`rules/common/ponytail.md`)을 이 저장소의 에이전트 정의에 **미리 주입**해 둡니다 — CLI 에이전트는 `prompt` 필드, IDE 에이전트는 본문 — 설치는 그것을 그대로 복사합니다. 덕분에 글로벌 리소스 상속을 끈 상황에서도(`kiro-cli settings chat.disableInheritingDefaultResources true` — 격리된 워크스페이스에 권장) 22개 저작·코딩 역할이 이 원칙을 유지합니다. steering 으로만 전달하면 서브에이전트에 닿지 않는 것이 바로 그 설정일 때입니다. 주입은 멱등이며, 제외된 역할(상세함·정밀성·외부 절차가 산출물의 본질인 역할)은 이 원칙을 받지 않습니다. 어느 역할이 주입되고 어느 역할이 제외되는지 보려면 `node scripts/apply-ponytail.js --list`를 실행하세요. 문구를 수정한 뒤 재적용하려면 에이전트 파일을 되돌린 뒤 다시 실행합니다. 정책의 SSOT는 `scripts/apply-ponytail.js`(EXEMPT와 BRIEF 테이블)이며, 검증은 `test/ponytail.test.js`에서 이루어집니다.
-
-| 제외 역할 | 사유 |
-|---|---|
-| security-reviewer | OWASP 전수 점검 — 항목 누락이 곧 취약점 |
-| deep-researcher | 다중 소스 조사와 인용 철저함이 산출물 |
-| devops | 인프라 워크플로우(plan/diff/승인) 정밀성 — 생략은 사고 초래 |
-| peer-reviewer | 외부 CLI 3-way 수집·종합 절차를 그대로 따라야 함 |
-| database-reviewer | 정밀한 쿼리·스키마 점검 — 누락 시 데이터 손실 위험 |
-| e2e-runner | 시나리오 커버리지와 POM 구조 상세함이 가치 |
-| tech-fidelity-auditor | 코드·수치·시그니처 전수 대조 검증 |
-| doc-quality-detector | Span 단위 전수 스캔 + 고정 JSON 스키마 |
-| doc-clarity-reviewer | 판정 기준 전수 적용 후 승인/재작업 결정 |
-| tech-doc-writer | 코드·수치 불변 제약 + 수술적 윤문 정밀도 |
-| tech-writer-monolith | 단일 호출 내 저작·탐지·윤문·자체검증 전 절차 수행 |
+**Ponytail 주입:** Lazy senior dev 원칙(`rules/common/ponytail.md`)을 이 저장소의 **모든** 에이전트 정의에 무조건 사전 주입합니다 — CLI 에이전트는 `prompt` 필드, IDE 에이전트는 본문 — 설치는 그것을 그대로 복사합니다. 이는 무조건이며, 하네스는 ponytail을 유일한 조직화 원칙으로 유지합니다(상충 논리 없음). 그래서 글로벌 리소스 상속을 끈 상황에서도(`kiro-cli settings chat.disableInheritingDefaultResources true` — 격리된 워크스페이스에 권장) 모든 역할이 이 원칙을 받으며, steering으로만 전달하면 서브에이전트에 닿지 않는 상황이 정확히 그것일 때입니다. 산출물이 전수·정밀·절차인 역할(보안 감시, e2e 커버리지, 리서치 인용)은 주입된 요약본의 review-lens 문장과 "Never lazy about … anything explicitly requested" 조항으로 그 긴장을 스스로 해소합니다 — 정책상 누락된 결과를 보고하지 않고, 명시된 절차는 생략하지 않습니다. 주입은 멱등이며, 어느 역할이 주입되는지 보려면 `node scripts/apply-ponytail.js --list`를 실행하세요(제외 목록은 정책상 비어 있음). 문구를 수정한 뒤 재적용하려면 에이전트 파일을 되돌린 뒤 다시 실행합니다. SSOT는 `scripts/apply-ponytail.js`(`BRIEF`, 의도적으로 빈 `EXEMPT`)이고, `test/ponytail.test.js`가 전면 커버리지와 빈 EXEMPT를 강제합니다.
 
 ### 훅
 
@@ -289,7 +286,7 @@ node install.js <tier> [options]
   --<category>= <list>           중분류 선택 (예: --dev=frontend,python; 미선택 = 전체 중분류)
   --<category>-<sub>= <list>     소분류 옵션 (예: --writing-social=voice; 소분류가 있는 중분류만)
   --workload <list|all>          저수준: 워크로드 키 직접 지정 (쉼표로 구분 또는 'all'; 레거시 표면, 카테고리와 합집합)
-  --provider <anthropic|openai>  모델 프로바이더 프로필 (기본: anthropic); 역할 모델·effort 가이드·운영 노트·교차 패밀리 우선순위를 설치 에이전트에 기록
+  --provider <anthropic|openai|mixed>  모델 프로바이더 프로필 (기본: anthropic); 역할 모델·effort 가이드·운영 노트·교차 패밀리 우선순위를 설치 에이전트에 기록. mixed = Fable 오케스트레이션 + 나머지 전 역할 Sol (Fable 미서빙 시 opus-5 max 폴백 명령 출력)
   --cli-version <2|3>            CLI 계층 훅 포맷 (기본 2 = agent 임베디드; 3 = 독립 .kiro/hooks/*.json for CLI 3.0 engine)
   --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE 전용: mcp.json을 범용 mcp-proxy(:9090) 경유로 구성 + 그 컨테이너 자동 기동

@@ -30,7 +30,7 @@ kiro-cli settings chat.modelDefaults \
   '{"claude-opus-5":{"output_config":{"effort":"max"}}}'    # 모델 기본값
 ```
 
-권장값: 오케스트레이터 `max`, architect·security-reviewer·peer-reviewer `xhigh`, 기계적 역할(refactor-cleaner·translator-docs) `low`, 나머지 `high`.
+기본값이 곧 최상단이다: **모든 추론·판단 역할은 `max` 로 시작한다**(DEFAULT_EFFORT). 사다리는 올리는 용도가 아니라 기계적 역할(refactor-cleaner·translator-docs → `low`)을 낮추는 용도다. 하네스는 그만큼 가이드레일을 보안 중심 최소(결정적 게이트 2개)로 유지해 모델의 추론 예산이 일하게 한다.
 
 ### 2) 위가 아니라 옆 — cross-family 핸드오프
 
@@ -52,3 +52,5 @@ kiro-cli settings chat.modelDefaults \
 **철칙: 외부 패밀리를 유일한 독자로 두지 않는다.** 그쪽만 지적한 것은 코드로 확인해야 하고, 두 패밀리가 독립적으로 잡은 것이 고신뢰 항목이다.
 
 OpenAI GPT-5.6 3종이 Kiro에서 선택 가능하다: deep-reasoning→`gpt-5.6-sol`, balanced→`gpt-5.6-terra`, cost-optimized→`gpt-5.6-luna`. 설치 시 `node install.js <cli|ide> --provider=openai`를 쓰면 저장소 소스를 바꾸지 않고 모델 ID, `reasoning.effort` 안내, 272K 컨텍스트 운영 노트가 함께 적용된다. OpenAI가 주 패밀리면 독립 cross-family 백엔드는 Claude Code이고 Codex는 same-family 보강이다.
+
+**mixed 패턴**(`--provider=mixed`): 오케스트레이터(kiro-cli)만 `claude-fable-5`, 그 외 전 역할은 티어와 무관하게 `gpt-5.6-sol`. 운영 노트는 각 에이전트 **자기 모델의 패밀리**를 따르고, cross-review 는 Codex 를 먼저 부른다(Fable 산출물의 cross-family; Claude Code 는 Sol 산출물 담당). Fable 미서빙 환경이면 Kiro가 `chat.defaultModel` 로 폴백하므로 `claude-opus-5` + effort `max` 를 대체로 지정한다(설치 시 명령 출력).

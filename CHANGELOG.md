@@ -3,6 +3,25 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-09-01 — v3.3.0
+
+### Added
+
+- **`--provider=mixed` — 세 번째 모델 사용 패턴 (Fable 오케스트레이션 + GPT-5.6 Sol 서브에이전트)** — 오케스트레이터(`kiro-cli`)만 `claude-fable-5` 로 핀하고, 그 외 **전 역할을 티어와 무관하게 `gpt-5.6-sol`** 로 평탄화한다(`ROLE_MODEL_OVERRIDES` + `TIERS.*.providers.mixed`). 운영 노트는 글로벌 플래그가 아니라 **각 에이전트 모델의 패밀리**(`familyOfModel`)를 따라 주입되어, 한 설치 안에서 Claude 노트(Fable)와 GPT 노트(Sol)가 공존한다. effort 안내 경로도 오케스트레이터 모델의 패밀리로 결정(`effortSettingsForModel` — Fable 은 `output_config.effort`).
+- **Fable 미서빙 폴백(opus-5 max)** — Kiro 는 미서빙 모델로 핀된 에이전트를 `chat.defaultModel` 로 폴백시키므로, mixed 설치가 `claude-opus-5` + effort `max` 를 대체 오케스트레이터로 지정하는 `kiro-cli settings` 명령 2줄을 출력한다(`MIXED_ORCHESTRATOR_FALLBACK` SSOT).
+- **대화형 설치 provider 3옵션** — anthropic 위주 / openai 위주 / mixed(Fable+GPT)를 방향키로 선택. 요약에 실제 오케스트레이터 식별자(`identifierForRole`)와 mixed 폴백 안내를 표시.
+- `cross-review.sh` 에 mixed 분기 — Codex 를 먼저 부르고(Fable 산출물의 cross-family), Claude Code 가 Sol 산출물 쪽을 담당한다.
+
+### Changed
+
+- **디폴트 effort 를 `max` 로 상향** (`DEFAULT_EFFORT`) — 추론 모델/추론이 필요한 작업은 기본으로 최대 추론 예산에서 시작한다. `ROLE_EFFORT` 는 올리는 예외가 아니라 **낮추는 예외 목록**이 되었다(refactor-cleaner·translator-docs → `low`). 하네스 가이드레일은 보안 중심 최소(결정적 게이트 2개)를 유지한다.
+- **ponytail 전면 주입(무조건)** — `apply-ponytail.js` 의 `EXEMPT` 를 정책적으로 비웠다. 하네스는 ponytail 을 단일 중심 원칙으로 유지하며 반대 논리를 두지 않는다. 이전 제외 11개 역할(security-reviewer, deep-researcher, devops, peer-reviewer, database-reviewer, e2e-runner, tech-fidelity-auditor, doc-quality-detector, doc-clarity-reviewer, tech-doc-writer, tech-writer-monolith)의 CLI/IDE 정의 22개 파일에 요약 블록을 추가 주입해 **전 에이전트(서브에이전트 포함)가 상속**한다. 전수·정밀 역할의 긴장은 요약본 내부의 review-lens 문장과 "Never lazy about … anything explicitly requested" 로 해소한다. `test/ponytail.test.js` 가 빈 EXEMPT 와 전면 커버리지를 강제한다.
+- 운영 노트 주입 기준을 provider → **에이전트 모델 패밀리** 로 변경(anthropic/openai 단독 설치에서는 기존과 동일한 결과).
+
+### Fixed
+
+- `apply-model-policy.js` 의 usage/오류 메시지가 하드코딩된 `anthropic|openai` 대신 `PROVIDERS` 에서 파생되도록 수정.
+
 ## 2026-08-18 — v3.2.0
 
 ### Changed
