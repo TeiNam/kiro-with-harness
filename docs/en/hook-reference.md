@@ -90,6 +90,6 @@ The IDE tier installs 2 hooks — deterministic gates symmetric with the CLI tie
 
 Installing with `--review-backend cross` adds `cross-review.sh` under `.kiro/hooks/` (both tiers). It is an **on-demand command**, not an automatic hook — not every change needs a 3-way review, so it never runs on its own.
 
-- Run `bash .kiro/hooks/cross-review.sh` (optionally `--base <branch>`) to cross-check uncommitted changes with **Codex** (`codex review --model gpt-5.6-sol --uncommitted`, which reads the git worktree directly — no code passed as a shell argument; override the model with the `CODEX_MODEL` env var, and if the pinned model is rejected it retries once without the pin) and **Claude Code** (`claude -p`, fed the diff via stdin). Kiro then synthesizes a Kiro + Claude + Codex review.
+- Run `bash .kiro/hooks/cross-review.sh` (optionally `--base <branch>`) to cross-check uncommitted changes with **Codex** (`codex review --uncommitted`, which reads the git worktree directly — no code passed as a shell argument; the review model is deliberately not pinned, so the local CLI default keeps working when a specific model is unavailable or renamed) and **Claude Code** (`claude -p`, fed the diff via stdin). Kiro then synthesizes a Kiro + Claude + Codex review.
 - Diff-guarded: exits silently when there are no changes. Each external CLI degrades gracefully when it is not installed or fails.
 - For a synthesized, agent-driven pass, delegate to the `peer-reviewer` agent instead (same 3-way, with narrative synthesis and cleanup).

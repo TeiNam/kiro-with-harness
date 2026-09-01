@@ -3,6 +3,12 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-09-01 — v3.3.1
+
+### Fixed
+
+- **Codex 모델 핀 잔존물 제거 — 문서가 없는 동작을 설명하던 드리프트.** 2026-08-01 에 `cross-review.sh` 의 `--model gpt-5.6-sol` 핀을 제거했으나(모델이 없거나 이름이 바뀌면 조용히 실패하므로), `hook-reference`(en/kr)는 여전히 `codex review --model gpt-5.6-sol` 과 `CODEX_MODEL` 환경변수 오버라이드를 안내하고 있었다. 스크립트에는 둘 다 존재하지 않아, 문서를 보고 `CODEX_MODEL` 을 설정해도 아무 효과가 없었다. `peer-reviewer`(CLI/IDE)의 Codex 절차에 남아 있던 모델 핀 지시도 함께 걷어내 스크립트와 정책을 통일했다 — 이제 세 표면 모두 로컬 CLI 기본 모델을 쓴다. `test/peer-reviewer.test.js` 가 네 표면의 핀 안내를 `cross-review.sh` 의 실제 동작과 대조해(양방향 — 핀을 되살리면 문서도 함께 갱신되도록) 재발을 막는다.
+
 ## 2026-09-01 — v3.3.0
 
 ### Added
