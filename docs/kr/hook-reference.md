@@ -90,6 +90,6 @@ IDE 티어는 2개의 훅을 설치하며, 결정적 게이트는 CLI 계층과 
 
 `--review-backend cross`로 설치하면 두 티어 모두 `.kiro/hooks/`에 `cross-review.sh`가 추가됩니다. 이것은 자동 훅이 아니라 **온디맨드 command**입니다 — 모든 변경이 3-way 리뷰를 필요로 하지는 않으므로 스스로 실행되지 않습니다.
 
-- `bash .kiro/hooks/cross-review.sh`(옵션 `--base <branch>`)를 실행하면 커밋되지 않은 변경을 **Codex**(`codex review --model gpt-5.6-sol --uncommitted` — git 워크트리를 직접 읽으며 코드를 셸 인자로 넘기지 않음. 모델은 `CODEX_MODEL` 환경변수로 오버라이드 가능하고, 지정 모델이 거부되면 모델 미지정으로 1회 재시도)와 **Claude Code**(`claude -p` — diff를 stdin으로 전달)로 교차 점검합니다. 이후 Kiro가 Kiro + Claude + Codex 리뷰를 종합합니다.
+- `bash .kiro/hooks/cross-review.sh`(옵션 `--base <branch>`)를 실행하면 커밋되지 않은 변경을 **Codex**(`codex review --uncommitted` — git 워크트리를 직접 읽으며 코드를 셸 인자로 넘기지 않음. 리뷰 모델은 의도적으로 핀하지 않고 로컬 CLI 기본값을 씁니다 — 특정 모델에 핀하면 그 모델이 없거나 이름이 바뀔 때 조용히 실패합니다)와 **Claude Code**(`claude -p` — diff를 stdin으로 전달)로 교차 점검합니다. 이후 Kiro가 Kiro + Claude + Codex 리뷰를 종합합니다.
 - diff 가드: 변경이 없으면 조용히 종료합니다. 각 외부 CLI는 미설치이거나 실패하면 graceful하게 건너뜁니다.
 - 종합까지 포함한 에이전트 주도 리뷰가 필요하면 `peer-reviewer` 에이전트에 위임하세요(동일한 3-way, 서술형 종합 + 정리 포함).

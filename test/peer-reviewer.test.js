@@ -103,3 +103,41 @@ test('validate-agents.js가 peer-reviewer를 오류·경고 없이 통과시킨�
   assert.ok(result.stdout.includes('ERROR: 0'), '요약에 ERROR: 0이어야 한다');
   assert.ok(result.stdout.includes('WARN:  0'), '요약에 WARN: 0이어야 한다');
 });
+
+// ── Codex 모델 핀 정책의 표면 간 일치 (드리프트 방지) ──
+//
+// 2026-08-01 에 cross-review.sh 에서 `--model gpt-5.6-sol` 핀을 제거했으나(특정 모델에
+// 핀하면 그 모델이 없거나 이름이 바뀔 때 조용히 실패하므로), 같은 훅을 설명하는
+// hook-reference(en/kr)와 peer-reviewer 지시문은 핀을 계속 안내했다. 문서를 보고
+// CODEX_MODEL 을 설정해도 스크립트에 그 변수가 없어 아무 효과가 없었다.
+// 스크립트를 단일 출처로 삼아 네 표면이 갈리지 않게 고정한다.
+test('Codex 모델 핀 정책이 cross-review.sh 와 문서·에이전트 지시문에서 일치한다 (드리프트 방지)', () => {
+  const script = fs.readFileSync(path.join(ROOT, 'agents', 'cli', 'hooks', 'cross-review.sh'), 'utf8');
+  const scriptPins = script.includes('--model');
+
+  // 핀 안내는 스크립트의 실제 동작과 일치해야 한다(양방향 — 핀을 되살리면 함께 갱신되도록).
+  for (const rel of [
+    'agents/cli/global/peer-reviewer.json',
+    'agents/ide/peer-reviewer.md',
+    'docs/en/hook-reference.md',
+    'docs/kr/hook-reference.md',
+  ]) {
+    const text = fs.readFileSync(path.join(ROOT, ...rel.split('/')), 'utf8');
+    assert.strictEqual(
+      text.includes('--model gpt-5.6-sol'),
+      scriptPins,
+      `${rel}: Codex 모델 핀 안내가 cross-review.sh 의 실제 동작과 불일치`,
+    );
+  }
+
+  // CODEX_MODEL 오버라이드는 스크립트 전용 개념이므로 스크립트를 설명하는 문서만 대상으로 한다.
+  const scriptHasEnvOverride = script.includes('CODEX_MODEL');
+  for (const rel of ['docs/en/hook-reference.md', 'docs/kr/hook-reference.md']) {
+    const text = fs.readFileSync(path.join(ROOT, ...rel.split('/')), 'utf8');
+    assert.strictEqual(
+      text.includes('CODEX_MODEL'),
+      scriptHasEnvOverride,
+      `${rel}: CODEX_MODEL 안내가 cross-review.sh 에 존재하지 않는 동작을 설명한다`,
+    );
+  }
+});
