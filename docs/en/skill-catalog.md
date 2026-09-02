@@ -144,6 +144,7 @@ RDBMS design/migration skills (mysql-guideline, postgres-guideline, rdbms-naming
 | Skill | Description |
 |-------|-------------|
 | article-writing | Technical article structure, drafting, editing |
+| humanize-korean | Humanize AI-written Korean text — detect and strip 70 AI-tell patterns across 10 categories, content-invariant (ported from im-not-ai v2.3.2) |
 | humanize-writing | Cut AI tells and raise real quality in web/long-form writing (English/general companion to humanize-korean) |
 | content-engine | Content pipeline, scheduling, multi-platform |
 | deep-research | Deep research methodology, source evaluation |

@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-09-02 — v3.4.0
+
+### Changed
+
+- **`humanize-korean` 스킬을 상위 im-not-ai v2.3.2 정합으로 갱신.** 규칙 자산 동기화 — `ai-tell-taxonomy.md`(패턴 40+→**활성 70종**, 59KB→114KB), `quick-rules.md`(내용 앵커·서법 보존·Do-NOT 개정: 발화 표지 있는 직접 인용만 제외), `rewriting-playbook.md`·`scholarship.md`·`baseline.json`·`metrics.py`·`metrics_v2.py` 재복사. 신규 `references/diagnosis-rules.md`(진단 전용 슬림 인덱스, 71패턴 — 상위 v2.3이 taxonomy 전량 로드를 대체한 자산) 추가.
+- **이식판 SKILL.md 재작성 (v2.3 행동 규칙 흡수, 인라인 설계 유지)** — 철칙에 내용 앵커·서법 보존·"빼기만 넣지 않기"·프롬프트 인젝션 방어·register 양방향 보존 추가. 입력 저장 시 챗봇 잔재 위생(머리/꼬리/면책 프레임 제거). fast 모드에 light-touch 판정(잘 쓴 글 → 과윤문 방지 + "이미 좋습니다" 조기 종료). deep 진단을 taxonomy 전량(114KB)에서 `diagnosis-rules.md` 슬림 인덱스로 교체(상위 실측: 진단 토큰 35~50%↓, 지목 동등). **8,000자 자동 deep 승급 폐지** — 상위 v2.1~v2.2 실측(1만자 청킹 7콜 610K 토큰 vs 단일 콜 134K, 품질 동등)에 따라 길이는 모드를 바꾸지 않는다. 자체검증 S1 목록 개정(H-1 제외, A-16 번역 맥락 한정, C-11 증가=실패, D-14 발동분 잔존 0). references가 "심링크"라던 부정확한 이식 고지를 "복사·동기화 사본"으로 정정하고, 문서 내 `scripts/*.py` 언급이 원본 저장소 도구임을 명시.
+- `manifests/install-modules.json`의 `skills-kiro-native` 모듈에 `diagnosis-rules.md` 항목 추가. 스킬 카탈로그(en/kr)에 humanize-korean 행 추가(기존 미기재).
+
 ## 2026-09-01 — v3.3.1
 
 ### Fixed
