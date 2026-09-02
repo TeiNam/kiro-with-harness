@@ -112,6 +112,7 @@
       "sources": [
         { "from": "skills/humanize-korean/SKILL.md", "output": "humanize-korean/SKILL.md" },
         { "from": "skills/humanize-korean/references/quick-rules.md", "output": "humanize-korean/references/quick-rules.md" },
+        { "from": "skills/humanize-korean/references/diagnosis-rules.md", "output": "humanize-korean/references/diagnosis-rules.md" },
         { "from": "skills/humanize-korean/references/ai-tell-taxonomy.md", "output": "humanize-korean/references/ai-tell-taxonomy.md" },
         { "from": "skills/humanize-korean/references/rewriting-playbook.md", "output": "humanize-korean/references/rewriting-playbook.md" },
         { "from": "skills/humanize-korean/references/scholarship.md", "output": "humanize-korean/references/scholarship.md" },

@@ -144,6 +144,7 @@ v2에서 RDBMS 설계/마이그레이션 스킬(mysql-guideline, postgres-guidel
 | 스킬 | 설명 |
 |-------|-------------|
 | article-writing | 기술 문서 구조, 초안 작성, 편집 |
+| humanize-korean | AI가 쓴 한글 텍스트 윤문 — 10대 카테고리 70개 AI 티 패턴 탐지·제거, 내용 불변 (im-not-ai v2.3.2 이식) |
 | humanize-writing | 웹/장문 글쓰기의 AI 티(tell) 제거 + 실제 품질 향상 (영어/범용, humanize-korean의 짝) |
 | content-engine | 콘텐츠 파이프라인, 스케줄링, 멀티 플랫폼 |
 | deep-research | 심층 리서치 방법론, 출처 평가 |
