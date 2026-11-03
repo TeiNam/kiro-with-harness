@@ -53,4 +53,4 @@ Kiro 는 effort 를 에이전트가 아니라 **모델 단위**로 적용하고,
 
 OpenAI GPT-5.6 3종이 Kiro에서 선택 가능하다: deep-reasoning→`gpt-5.6-sol`, balanced→`gpt-5.6-terra`, cost-optimized→`gpt-5.6-luna`. 설치 시 `node install.js <cli|ide> --provider=openai`를 쓰면 저장소 소스를 바꾸지 않고 모델 ID, `reasoning.effort` 안내, 운영 노트(1M 컨텍스트, 272K 토큰 초과 요청은 2배 요율)가 함께 적용된다. OpenAI가 주 패밀리면 독립 cross-family 백엔드는 Claude Code이고 Codex는 same-family 보강이다.
 
-**mixed 패턴**(`--provider=mixed`): 오케스트레이터(kiro-cli)만 `claude-opus-5.5`, 그 외 전 역할은 티어와 무관하게 `gpt-5.6-sol`. 운영 노트는 각 에이전트 **자기 모델의 패밀리**를 따르고, cross-review 는 Codex 를 먼저 부른다(오케스트레이터 산출물의 cross-family; Claude Code 는 Sol 산출물 담당).
+**mixed 패턴**(`--provider=mixed`): 산출물을 만드는 역할(오케스트레이터 포함)은 Claude 티어 그대로, 리뷰·판정 역할만 같은 티어의 GPT-5.6 — security-reviewer·tech-fidelity-auditor·doc-clarity-reviewer 는 `gpt-5.6-sol`, code-reviewer·database-reviewer·언어별 리뷰어는 `gpt-5.6-terra`. 작성자와 다른 패밀리가 리뷰하므로 하네스 안의 리뷰도 cross-family 다. 네이티브 리뷰어는 `--review-backend kiro` 에서만 설치된다. 운영 노트는 각 에이전트 **자기 모델의 패밀리**를 따르고, cross-review 는 anthropic 과 같이 Codex 를 먼저 부른다.

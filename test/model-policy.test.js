@@ -115,18 +115,34 @@ test('identifierForRole: 역할 → 식별자(프로바이더별)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// mixed 프로바이더 — 오케스트레이션만 Claude Opus 5.5, 나머지 전 역할 Sol
+// mixed 프로바이더 — 작성·조율은 Claude 티어, 리뷰·판정 역할만 같은 티어의 GPT-5.6
 // ---------------------------------------------------------------------------
 
-test('mixed: 오케스트레이터만 Anthropic 천장(Opus 5.5), 서브에이전트는 티어와 무관하게 전부 Sol', () => {
-  const { ROLE_MODEL_OVERRIDES } = require('../scripts/lib/model-policy');
-  assert.strictEqual(identifierForRole('kiro-cli', 'mixed'), tierIdentifier('deep-reasoning', 'anthropic'));
-  // 티어가 달라도(deep-reasoning/balanced/cost-optimized) 서브에이전트는 전부 Sol.
-  for (const role of ['architect', 'security-reviewer', 'code-reviewer', 'rust-build-resolver', 'translator-docs', 'article-writer', 'unknown-future-agent']) {
+test('mixed: 리뷰·판정 역할만 GPT-5.6(티어의 openai 열), 나머지는 anthropic 과 같은 Claude 티어', () => {
+  const { ROLE_MODEL_OVERRIDES, REVIEW_ROLES } = require('../scripts/lib/model-policy');
+  for (const role of ['kiro-cli', 'architect', 'devops', 'peer-reviewer', 'refactor-cleaner', 'rust-build-resolver', 'doc-quality-detector', 'tech-doc-writer', 'translator-docs', 'unknown-future-agent']) {
+    assert.strictEqual(identifierForRole(role, 'mixed'), identifierForRole(role, 'anthropic'), role);
+  }
+  for (const role of ['security-reviewer', 'tech-fidelity-auditor', 'doc-clarity-reviewer']) {
     assert.strictEqual(identifierForRole(role, 'mixed'), 'gpt-5.6-sol', role);
   }
-  // 오버라이드는 mixed 의 kiro-cli 하나뿐이다 — 넓어지면 의도된 정책 변경이어야 한다.
-  assert.deepStrictEqual(ROLE_MODEL_OVERRIDES, { mixed: { 'kiro-cli': 'claude-opus-5.5' } });
+  for (const role of ['code-reviewer', 'database-reviewer', 'typescript-reviewer']) {
+    assert.strictEqual(identifierForRole(role, 'mixed'), 'gpt-5.6-terra', role);
+  }
+  // 오버라이드는 mixed 의 리뷰 역할뿐이다 — 넓어지면 의도된 정책 변경이어야 한다.
+  assert.deepStrictEqual(Object.keys(ROLE_MODEL_OVERRIDES), ['mixed']);
+  assert.deepStrictEqual(Object.keys(ROLE_MODEL_OVERRIDES.mixed).sort(), [...REVIEW_ROLES].sort());
+});
+
+test('mixed: *-reviewer/*-auditor 에이전트가 REVIEW_ROLES 에서 빠지면 실패한다(peer-reviewer 는 조율자라 제외)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const { REVIEW_ROLES } = require('../scripts/lib/model-policy');
+  const names = ['global', 'workspace'].flatMap((d) =>
+    fs.readdirSync(path.join(__dirname, '..', 'agents', 'cli', d)).map((f) => path.basename(f, '.json'))
+  );
+  const judges = names.filter((n) => /-(reviewer|auditor)$/.test(n) && n !== 'peer-reviewer');
+  assert.deepStrictEqual(judges.sort(), [...REVIEW_ROLES].sort());
 });
 
 test('정책 식별자는 V3 가 서빙하지 않는 모델(Fable·GPT-6.x)을 핀하지 않는다 — V3 는 폴백 없이 요청을 실패시킨다', () => {
@@ -221,10 +237,13 @@ test('modelEffortDefaults: 프로바이더의 모든 모델을 한 객체로 —
     'claude-haiku-5.5': { output_config: { effort: 'medium' } },
   });
   assert.deepStrictEqual(modelEffortDefaults('openai')['gpt-5.6-luna'], { reasoning: { effort: 'medium' } });
-  // mixed: Sol 을 여러 티어가 공유하면 가장 높은 effort, 오케스트레이터 오버라이드는 Anthropic 경로.
+  // mixed: Claude 티어 3종 + 리뷰 역할의 GPT 2종이 한 객체에 — effort 경로는 모델 패밀리별.
   assert.deepStrictEqual(modelEffortDefaults('mixed'), {
-    'gpt-5.6-sol': { reasoning: { effort: 'max' } },
     'claude-opus-5.5': { output_config: { effort: 'max' } },
+    'claude-sonnet-5.5': { output_config: { effort: 'max' } },
+    'claude-haiku-5.5': { output_config: { effort: 'medium' } },
+    'gpt-5.6-sol': { reasoning: { effort: 'max' } },
+    'gpt-5.6-terra': { reasoning: { effort: 'max' } },
   });
 });
 

@@ -47,8 +47,8 @@ const DEFAULT_PROVIDER = 'anthropic';
  * 지원 프로바이더 목록(순서: 기본값 우선).
  *   - anthropic : Claude Opus/Sonnet/Haiku 5.5 3-티어 (기본)
  *   - openai    : GPT-5.6 Sol/Terra/Luna 3-티어
- *   - mixed     : 오케스트레이션(kiro-cli)만 Claude Opus 5.5, 그 외 전 역할은 GPT-5.6 Sol.
- *                 티어 구분 없이 서브에이전트를 Sol 로 평탄화한다(ROLE_MODEL_OVERRIDES).
+ *   - mixed     : 작성·실행·조율 역할은 Claude 티어 그대로, 리뷰·판정 역할(REVIEW_ROLES)만
+ *                 같은 티어의 GPT-5.6(Sol/Terra). 작성자와 다른 패밀리가 리뷰한다.
  */
 const PROVIDERS = ['anthropic', 'openai', 'mixed'];
 
@@ -90,18 +90,18 @@ const PROVIDER_PROFILES = deepFreeze({
       'For an independent family opinion, prefer Claude Code; Codex is same-family corroboration.',
     ],
   },
-  // mixed: 오케스트레이터(Opus 5.5=Anthropic) 기준 프로필. 에이전트별 운영 노트는
-  // 설치 시 familyOfModel(그 에이전트의 모델)로 결정되므로 이 operatingNote 는
-  // providerNote('mixed') 를 직접 부를 때의 안전한 폴백 설명일 뿐이다.
+  // mixed: 변경을 만드는 쪽(오케스트레이터 포함)이 Anthropic 이라 effort 경로·cross-family
+  // 우선순위는 anthropic 과 같다. 에이전트별 운영 노트는 설치 시 familyOfModel(그 에이전트의
+  // 모델)로 결정되므로 이 operatingNote 는 providerNote('mixed') 를 직접 부를 때의 폴백 설명일 뿐이다.
   mixed: {
-    label: 'Mixed (Claude Opus 5.5 orchestration + GPT-5.6 Sol subagents)',
+    label: 'Mixed (Claude authors + GPT-5.6 reviewers)',
     effortPath: ['output_config', 'effort'], // 오케스트레이터(Opus 5.5)가 Anthropic 계열
     effortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
-    contextWindow: 'per-family (Opus 5.5: 1M / Sol: 1M, 2x rate above 272K tokens)',
-    crossFamilyBackend: 'Codex', // 오케스트레이터(Anthropic 계열)의 cross-family 우선순위
+    contextWindow: 'per-family (Claude 5.5: 1M / GPT-5.6: 1M, 2x rate above 272K tokens)',
+    crossFamilyBackend: 'Codex', // 작성자가 Claude 이므로 cross-family 는 Codex
     sameFamilyBackend: 'Claude Code',
     operatingNote: [
-      'Mixed fleet: the orchestrator runs on Claude Opus 5.5; every subagent runs on GPT-5.6 Sol.',
+      'Mixed fleet: Claude models orchestrate and author; GPT-5.6 runs the review and audit roles.',
       'Per-agent operating guidance follows each agent\'s own model family (familyOfModel).',
     ],
   },
@@ -179,9 +179,8 @@ const TIERS = {
       // Opus 5.5: GA·Active, 1M, 2.0x — Anthropic 기준 대부분 작업에서 Fable 5.1 급.
       anthropic: 'claude-opus-5.5',
       openai: 'gpt-5.6-sol',
-      // mixed 는 서브에이전트를 전부 Sol 로 평탄화한다. 오케스트레이터(kiro-cli)만
-      // ROLE_MODEL_OVERRIDES 로 Opus 5.5 를 받는다.
-      mixed: 'gpt-5.6-sol',
+      // mixed 는 Claude 티어가 기본이고, 리뷰·판정 역할만 ROLE_MODEL_OVERRIDES 로 openai 열을 받는다.
+      mixed: 'claude-opus-5.5',
     },
   },
   balanced: {
@@ -191,7 +190,7 @@ const TIERS = {
       // Sonnet 5.5: GA, 1M, 1.3x, Sonnet 5 대비 출력 30%+ 빠름 — 서브에이전트 주력.
       anthropic: 'claude-sonnet-5.5',
       openai: 'gpt-5.6-terra',
-      mixed: 'gpt-5.6-sol',
+      mixed: 'claude-sonnet-5.5',
     },
   },
   'cost-optimized': {
@@ -202,27 +201,13 @@ const TIERS = {
       anthropic: 'claude-haiku-5.5',
       // cost-optimized 는 최저가 경량 티어인 Luna 를 쓴다.
       openai: 'gpt-5.6-luna',
-      mixed: 'gpt-5.6-sol',
+      mixed: 'claude-haiku-5.5',
     },
   },
 };
 
 /** 티어 식별자 목록(선언 순서 = 능력 내림차순). */
 const TIER_IDS = Object.keys(TIERS);
-
-/**
- * 프로바이더별 역할 단위 모델 오버라이드 — 티어 매핑보다 우선한다.
- * mixed: 오케스트레이션(kiro-cli)만 Anthropic 천장(Opus 5.5), 그 외 전 역할은 티어 매핑(Sol).
- * (이전의 Fable 핀은 제거했다 — Fable 5.1 은 Enterprise 전용이고, V3 는 미가용 모델을
- *  폴백하지 않고 요청을 실패시키므로 일반 계정에서 오케스트레이터가 멈춘다.)
- * 새 조합이 필요하면 프로바이더 키 아래 역할→모델을 등록한다.
- * @type {Record<string, Record<string, string>>}
- */
-const ROLE_MODEL_OVERRIDES = {
-  mixed: {
-    'kiro-cli': TIERS['deep-reasoning'].providers.anthropic,
-  },
-};
 
 /**
  * effort 사다리 — 천장 티어 안에서의 상향 조정. 티어를 점프하는 대신 같은 모델의
@@ -322,6 +307,43 @@ const ROLE_TIERS = {
 };
 
 /**
+ * mixed 에서 GPT-5.6 이 맡는 리뷰·판정 역할. 산출물을 만드는 역할(오케스트레이션·설계·리서치·
+ * 인프라·코딩·작성·번역)은 Claude 티어에 남고, 그 산출물을 판정하는 역할만 다른 패밀리가 읽어
+ * 상관된 blind spot 을 끊는다(CROSS_FAMILY). 모델은 그 역할 티어의 openai 열이다
+ * (deep-reasoning → Sol, balanced → Terra). 외부 CLI 와 달리 Kiro 안의 GPT 리뷰어는
+ * steering·skills·MCP 를 그대로 받는다.
+ * 일부러 뺀 역할: peer-reviewer 는 판정자가 아니라 외부 의견(Codex = GPT 계열)을 모으는 조율자다.
+ * doc-quality-detector 는 작성 전에 입력 문서를 스캔하는 단계라 작성 쪽이다.
+ * 새 `*-reviewer`/`*-auditor` 에이전트가 여기서 빠지면 테스트가 실패한다.
+ */
+const REVIEW_ROLES = [
+  'code-reviewer',
+  'security-reviewer',
+  'database-reviewer',
+  'cpp-reviewer',
+  'flutter-reviewer',
+  'go-reviewer',
+  'java-reviewer',
+  'kotlin-reviewer',
+  'python-reviewer',
+  'rust-reviewer',
+  'typescript-reviewer',
+  'tech-fidelity-auditor',
+  'doc-clarity-reviewer',
+];
+
+/**
+ * 프로바이더별 역할 단위 모델 오버라이드 — 티어 매핑보다 우선한다.
+ * mixed: 리뷰·판정 역할만 같은 티어의 GPT-5.6, 나머지는 TIERS 의 mixed 열(Claude).
+ * Fable 5.1 은 핀하지 않는다 — Enterprise 전용이고, V3 는 미가용 모델을 폴백하지 않고
+ * 요청을 실패시키므로 일반 계정에서 그 에이전트가 멈춘다.
+ * @type {Record<string, Record<string, string>>}
+ */
+const ROLE_MODEL_OVERRIDES = {
+  mixed: Object.fromEntries(REVIEW_ROLES.map((role) => [role, tierIdentifier(classifyRole(role), 'openai')])),
+};
+
+/**
  * 역할을 티어로 분류한다. 알 수 없는 역할은 DEFAULT_TIER.
  * @param {string} role 에이전트 이름.
  * @returns {string} 티어 식별자.
@@ -372,7 +394,7 @@ function effortForRole(role) {
 
 /**
  * 프로바이더의 각 모델에 줄 effort 기본값 — `chat.modelDefaults` 에 그대로 넣는 객체.
- * 한 모델을 여러 티어가 공유하면(mixed 의 Sol) 그중 가장 높은 effort 를 쓴다.
+ * 한 모델을 여러 티어·오버라이드가 공유하면 그중 가장 높은 effort 를 쓴다.
  * `kiro-cli settings chat.modelDefaults` 는 객체 전체를 교체하므로 한 번에 넣어야 한다.
  * @param {string} [provider]
  * @returns {Record<string, object>} 모델 ID → effort 설정 객체
@@ -402,7 +424,7 @@ function escalateEffort(effort) {
 /**
  * 역할 + 프로바이더 → 모델 식별자(에이전트 파일에 기록할 값).
  * ROLE_MODEL_OVERRIDES(역할 단위)가 티어 매핑보다 우선한다 — mixed 의
- * "오케스트레이터만 Opus 5.5" 가 이 경로다.
+ * "리뷰·판정 역할만 GPT-5.6" 이 이 경로다.
  * @param {string} role 에이전트 이름.
  * @param {string} [provider] 프로바이더(기본: anthropic).
  * @returns {string} 모델 식별자.
@@ -434,6 +456,7 @@ module.exports = {
   TIER_IDS,
   DEFAULT_TIER,
   ROLE_TIERS,
+  REVIEW_ROLES,
   ROLE_MODEL_OVERRIDES,
   EFFORT_LADDER,
   DEFAULT_EFFORT,

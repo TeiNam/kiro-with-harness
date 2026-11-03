@@ -191,16 +191,11 @@ run_claude() {
 }
 
 # 주 실행 패밀리와 다른 쪽을 먼저 불러 상관된 맹점을 끊는다. 같은 패밀리는 보강이다.
-# mixed(Claude Opus 5.5 오케스트레이션 + Sol 서브에이전트)는 두 패밀리가 공존한다 — 오케스트레이터
-# (Anthropic)가 주 저자이므로 Codex 를 먼저 부르고, Claude 는 Sol 산출물의 cross-family 다.
+# mixed(Claude 작성 + GPT-5.6 리뷰)는 변경을 쓰는 쪽이 Claude 이므로 anthropic 과 같은 순서다.
 if [ "$HOST_PROVIDER" = "openai" ]; then
   echo "=== cross-family primary: Claude; same-family corroboration: Codex ==="
   run_claude "cross-family primary"
   run_codex "same-family corroboration"
-elif [ "$HOST_PROVIDER" = "mixed" ]; then
-  echo "=== mixed fleet (Opus 5.5 + Sol): Codex first (vs Opus-authored); Claude covers Sol-authored ==="
-  run_codex "cross-family vs Opus(orchestrator)"
-  run_claude "cross-family vs Sol(subagents)"
 else
   echo "=== cross-family primary: Codex; same-family corroboration: Claude ==="
   run_codex "cross-family primary"

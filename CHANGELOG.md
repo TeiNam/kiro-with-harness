@@ -3,6 +3,18 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-11-03 — v4.1.0
+
+### Changed
+
+- **`--provider=mixed` 를 "Claude 작성 + GPT-5.6 리뷰"로 재정의.** 이전에는 오케스트레이터만 Opus 5.5 이고 나머지 전 역할이 티어와 무관하게 `gpt-5.6-sol`(4.4x)이었다. 이제 산출물을 만드는 역할(오케스트레이션·설계·리서치·인프라·코딩·작성·번역)은 기본 설치와 같은 Claude 티어를 쓰고, 리뷰·판정 역할 13종(`REVIEW_ROLES`)만 같은 티어의 GPT-5.6 을 쓴다. security-reviewer·tech-fidelity-auditor·doc-clarity-reviewer 는 `gpt-5.6-sol`, code-reviewer·database-reviewer·언어별 리뷰어 8종은 `gpt-5.6-terra` 다. 작성자와 다른 패밀리가 리뷰해야 blind spot 상관이 끊기고, Kiro 안의 GPT 리뷰어는 외부 CLI 와 달리 steering·skills·MCP 를 그대로 받는다. `peer-reviewer`(외부 의견 조율자, GPT 쪽은 Codex 담당)와 `doc-quality-detector`(작성 전 입력 문서 스캔)는 Claude 에 남는다. 필요 없어진 `kiro-cli` 오버라이드는 지웠다. 기본 설치 대비 비용은 balanced 리뷰어 1.3x → 2.2x, Opus 티어 판정 역할 2.0x → 4.4x 이고 나머지 역할은 그대로다. Fable 5.1 은 계정 모델 목록에 없어(Enterprise 전용) 이번에도 핀하지 않았다.
+- **`cross-review.sh` 의 mixed 전용 분기 제거.** 변경을 쓰는 쪽이 Claude 이므로 mixed 는 anthropic 과 같은 순서(Codex 먼저, Claude Code 는 same-family 보강)를 탄다.
+
+### Added
+
+- **mixed + 비-kiro 리뷰 백엔드 안내.** 네이티브 `*-reviewer` 는 `--review-backend kiro` 에서만 설치되므로, mixed 를 `claude`/`cross` 백엔드로 설치하면 GPT 리뷰어가 깔리지 않는다는 NOTE 를 출력한다.
+- **`REVIEW_ROLES` 드리프트 가드 테스트.** `agents/cli/` 의 `*-reviewer`/`*-auditor`(peer-reviewer 제외)가 목록에서 빠지면 실패한다. 새 언어 리뷰어가 mixed 에서 조용히 Claude 로 남는 것을 막는다.
+
 ## 2026-11-03 — v4.0.0
 
 ### Changed

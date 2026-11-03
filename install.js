@@ -309,6 +309,9 @@ function runInstall(opts) {
   if (useProxy && tier === 'cli') {
     console.log('  NOTE: --mcp-proxy 는 IDE 티어의 settings/mcp.json 에만 적용됩니다. CLI 티어는 mcp.json 을 생성하지 않아 효과가 없습니다.');
   }
+  if (provider === 'mixed' && reviewBackend !== 'kiro') {
+    console.log('  NOTE: mixed 의 GPT-5.6 리뷰어(*-reviewer)는 --review-backend kiro 에서만 설치됩니다. 지금 백엔드에서는 리뷰가 peer-reviewer(외부 CLI)로 갑니다.');
+  }
 
   const selection = selectAssets({ root: HARNESS_ROOT, tier, scope, workloads, reviewBackend });
   selection.mcp = selectMcpServers({ root: HARNESS_ROOT, activeGroups: selection.activeGroups, useProxy });
@@ -437,7 +440,7 @@ function printIntro() {
     '',
     '  옵션:',
     '    --provider anthropic|openai|mixed 모델 패밀리(기본 anthropic). anthropic=Claude Opus/Sonnet/Haiku 5.5, openai=GPT-5.6 Sol/Terra/Luna,',
-    '                                   mixed=오케스트레이션만 Claude Opus 5.5 + 나머지 전 역할 GPT-5.6 Sol',
+    '                                   mixed=작성·조율은 Claude 티어 + 리뷰·판정 역할만 같은 티어의 GPT-5.6(Sol/Terra)',
     '    (CLI 티어는 Kiro CLI V3 전용 — 에이전트는 V3 네이티브 스키마, 훅은 독립 .kiro/hooks/*.json)',
     '    --review-backend kiro|claude|cross  리뷰 백엔드(기본 claude=peer-reviewer→claude -p; cross=claude+codex 3-way + cross-review.sh 온디맨드)',
     '    --mcp-proxy                    IDE 티어: mcp.json을 mcp-proxy(:9090) 경유로 생성 + 프록시 컨테이너 자동 보장(없으면 docker compose up -d, 있으면 스킵). mcp-proxy/README.md',
