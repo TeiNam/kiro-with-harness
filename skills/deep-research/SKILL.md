@@ -118,6 +118,10 @@ Searched [N] queries across web and news. Analyzed [M] sources.
 Sub-questions investigated: [list]
 ```
 
+### Step 5.5: Verify Citations
+
+Check every claim in the draft against the Quality Rules below. If a claim has no source, or rests on a single source without an "unverified" label, go back to Step 3 for that sub-question and search again. Deliver only when every claim passes.
+
 ### Step 6: Deliver
 
 - **Short topics**: Post the full report in chat

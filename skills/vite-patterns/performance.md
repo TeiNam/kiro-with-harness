@@ -1,5 +1,22 @@
 # Performance
 
+## Contents
+
+- Avoid Barrel Files
+- Be Explicit With Import Extensions
+- Warm Up Hot-Path Routes
+- Profile Slow Dev Servers
+- Trim `tsconfig` Includes
+- Don't Pre-Bundle Everything
+- Limit Plugin Stack
+- Don't Run Two Type Checkers
+- Disable `reportCompressedSize` in CI
+- Workspace File Watching
+- Profile the Build
+- Memory During Build
+- Pitfalls
+- Related
+
 Slow `vite dev` is almost always a small set of repeat offenders.
 
 ## Avoid Barrel Files

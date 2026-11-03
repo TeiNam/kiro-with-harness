@@ -36,10 +36,10 @@ const {
   PROVIDERS,
   identifierForRole,
   effortForRole,
-  effortSettingsForModel,
+  modelEffortDefaults,
   familyOfModel,
-  MIXED_ORCHESTRATOR_FALLBACK,
   isKnownProvider,
+  operatingNoteFor,
   providerProfile,
 } = require(path.join(HARNESS_ROOT, 'scripts/lib/model-policy'));
 const {
@@ -50,6 +50,11 @@ const {
 
 let DRY_RUN = false;
 const MANIFEST_FILE = '.harness-manifest.json';
+// CLI 티어가 겨냥하는 엔진. V3(통합 하네스) 전용이다 — 에이전트는 V3 네이티브
+// 스키마(태그 tools + permissions)로, 훅은 독립 hooks/*.json 으로 설치한다.
+const CLI_VERSION = 3;
+// CLI 2.x(V2 엔진) 포맷을 마지막으로 설치하던 하네스 커밋(v3.4.0).
+const LAST_V2_HARNESS = '6d85d08 (v3.4.0)';
 // 하네스 소스 버전(package.json). 설치 시 매니페스트에 sourceVersion 으로 기록해
 // --status 에서 설치본이 현재 소스보다 오래됐는지(outdated)를 판정한다.
 const HARNESS_VERSION = (() => {
@@ -191,12 +196,17 @@ function dedupAgainstGlobal(ops, scope) {
 const PROVIDER_NOTE_START = '<!-- kiro-harness:provider-profile:start -->';
 const PROVIDER_NOTE_END = '<!-- kiro-harness:provider-profile:end -->';
 
-function providerNote(provider) {
+/**
+ * 운영 노트 블록. model 을 주면 그 모델의 패밀리 노트 + 모델 전용 노트(MODEL_NOTES)를,
+ * 생략하면 프로바이더 프로필 노트를 쓴다.
+ */
+function providerNote(provider, model = null) {
   const profile = providerProfile(provider);
+  const lines = model ? operatingNoteFor(model) : profile.operatingNote;
   return [
     PROVIDER_NOTE_START,
     `## Provider profile — ${profile.label}`,
-    ...profile.operatingNote.map((line) => `- ${line}`),
+    ...lines.map((line) => `- ${line}`),
     PROVIDER_NOTE_END,
   ].join('\n');
 }
@@ -210,7 +220,7 @@ function replaceProviderNote(text, block) {
 
 /** 선택한 provider를 설치 산출물에만 적용한다. 저장소의 Claude 기준 소스는 바꾸지 않는다.
  * 운영 노트는 프로바이더가 아니라 **각 에이전트 모델의 패밀리**를 따른다 — mixed 처럼
- * 한 설치 안에 Claude(Fable)와 GPT(Sol)가 공존하면 에이전트별로 노트가 갈린다. */
+ * 한 설치 안에 Claude(Opus 5.5)와 GPT(Sol)가 공존하면 에이전트별로 노트가 갈린다. */
 function applyProviderToOps(ops, provider) {
   let agents = 0;
   for (const op of ops) {
@@ -225,7 +235,7 @@ function applyProviderToOps(ops, provider) {
       const promptEdit = applyTopLevelJsonString(
         modelEdit.text,
         'prompt',
-        replaceProviderNote(parsed.prompt, providerNote(familyOfModel(model)))
+        replaceProviderNote(parsed.prompt, providerNote(familyOfModel(model), model))
       );
       if (promptEdit.reason) throw new Error(`${op.destRel}: ${promptEdit.reason}`);
       op.type = 'content';
@@ -240,7 +250,7 @@ function applyProviderToOps(ops, provider) {
       const modelEdit = applyModelToFrontmatter(raw, model);
       if (modelEdit.reason) throw new Error(`${op.destRel}: ${modelEdit.reason}`);
       op.type = 'content';
-      op.content = replaceProviderNote(modelEdit.text, providerNote(familyOfModel(model)));
+      op.content = replaceProviderNote(modelEdit.text, providerNote(familyOfModel(model), model));
       delete op.src;
       agents += 1;
     } else if (op.destRel === 'hooks/cross-review.sh') {
@@ -260,22 +270,15 @@ function orchestratorModel(provider = DEFAULT_PROVIDER) {
 
 function printEffortHint(model, provider) {
   const effort = effortForRole('kiro-cli');
-  // effort 설정 경로는 프로바이더가 아니라 오케스트레이터 모델의 패밀리를 따른다
-  // (mixed: Fable=Anthropic → output_config.effort).
-  const settings = JSON.stringify({ [model]: effortSettingsForModel(model, effort) });
+  // chat.modelDefaults 는 객체 전체를 교체한다 — 모델별 명령을 따로 주면 서로 덮어쓰므로
+  // 이 프로바이더가 쓰는 모든 모델의 effort 를 한 객체로 안내한다(경로는 모델 패밀리별).
+  const settings = JSON.stringify(modelEffortDefaults(provider));
   const profile = providerProfile(provider);
-  console.log(`  effort: 천장 티어 위로는 티어가 아니라 effort 를 올립니다 (권장: ${effort}).`);
+  console.log(`  effort: 천장 티어 위로는 티어가 아니라 effort 를 올립니다 (오케스트레이터 ${model}: ${effort}).`);
   console.log(`    kiro-cli settings chat.modelDefaults '${settings}'`);
-  console.log(`    세션 단위: kiro-cli chat --effort ${effort}`);
+  console.log('    (Kiro 는 effort 를 모델 단위로 적용 — 기존 chat.modelDefaults 객체를 통째로 교체합니다)');
+  console.log(`    세션 단위: kiro-cli chat --effort ${effort}  (V3 는 --effort 를 기본값으로 저장하지 않음)`);
   console.log(`    그 위는 없습니다 — cross-family 우선: ${profile.crossFamilyBackend} (${profile.sameFamilyBackend}는 same-family 보강).`);
-  if (provider === 'mixed') {
-    const fb = MIXED_ORCHESTRATOR_FALLBACK;
-    const fbSettings = JSON.stringify({ [fb.model]: effortSettingsForModel(fb.model, fb.effort) });
-    console.log(`  Fable 폴백: '${model}' 미서빙 환경이면 Kiro가 오케스트레이터를 chat.defaultModel 로 폴백시킵니다.`);
-    console.log(`    ${fb.model} ${fb.effort} 가 대체하도록 지정하세요:`);
-    console.log(`    kiro-cli settings chat.defaultModel ${fb.model}`);
-    console.log(`    kiro-cli settings chat.modelDefaults '${fbSettings}'`);
-  }
 }
 
 // ── 워크로드 정규화 ─────────────────────────────────────────
@@ -294,13 +297,13 @@ function runInstall(opts) {
   const workloads = resolveWorkloads(opts.workload);
   const reviewBackend = opts.reviewBackend || 'claude';
   const provider = opts.provider || DEFAULT_PROVIDER;
-  const cliVersion = opts.cliVersion || 2;
+  const cliVersion = CLI_VERSION;
   const useProxy = opts.mcpProxy === true;
 
   const kiroRoot = resolveKiroRoot(scope, opts.target);
   console.log(`\ntier=${tier} scope=${scope} provider=${provider}${tier === 'cli' ? ` cli-version=${cliVersion}` : ''} workloads=[${workloads.join(',') || 'core'}] review-backend=${reviewBackend}${useProxy ? ' mcp-proxy=on' : ''}`);
   if (tier === 'ide' && opts.cliVersion) {
-    console.log('  NOTE: --cli-version 은 CLI 티어 훅 포맷에만 적용됩니다. IDE 티어 훅은 이미 v1 JSON 독립 파일입니다.');
+    console.log('  NOTE: --cli-version 은 CLI 티어에만 의미가 있습니다. IDE 1.0 은 이미 V3 와 같은 에이전트·훅 스키마를 씁니다.');
   }
   console.log(`target: ${kiroRoot}`);
   if (useProxy && tier === 'cli') {
@@ -309,7 +312,7 @@ function runInstall(opts) {
 
   const selection = selectAssets({ root: HARNESS_ROOT, tier, scope, workloads, reviewBackend });
   selection.mcp = selectMcpServers({ root: HARNESS_ROOT, activeGroups: selection.activeGroups, useProxy });
-  const plan = tiers.plan(tier, selection, { root: HARNESS_ROOT, cliVersion });
+  const plan = tiers.plan(tier, selection, { root: HARNESS_ROOT });
 
   // 선택한 provider의 모델·운영 노트를 설치 산출물에만 굽는다.
   const profiledAgents = applyProviderToOps(plan.ops, provider);
@@ -320,10 +323,10 @@ function runInstall(opts) {
   if (hasOrchestrator) {
     console.log(`orchestrator(kiro-cli) model: ${orchModel} (ceiling tier: deep-reasoning)`);
     printEffortHint(orchModel, provider);
-    if (tier === 'cli' && cliVersion === 3) {
-      console.log('  cli-version=3: 훅을 독립 .kiro/hooks/*.json(v1 스키마)으로 설치하고 에이전트 embedded hooks 를 제거했습니다.');
-      console.log('  v3 엔진은 `kiro-cli --v3` 로 실행하며, toolsSettings→permissions 전환은 `/upgrade-agent` 또는 `kiro-cli agent migrate` 를 사용하세요.');
-    }
+  }
+  if (tier === 'cli') {
+    console.log('  CLI V3: 에이전트는 V3 네이티브(태그 tools + permissions)로, 훅은 독립 hooks/*.json 으로 설치합니다.');
+    console.log('    엔진 전환: kiro-cli settings chat.agentEngine v3  (일회성: kiro-cli --v3)');
   }
 
   // 글로벌↔워크스페이스 중복 제거: 워크스페이스 설치 시 글로벌에 이미 있는 동일 파일은 상속(스킵)
@@ -433,9 +436,9 @@ function printIntro() {
     '    --workload=<키,...> | all                       워크로드 키 직접 지정(저수준)',
     '',
     '  옵션:',
-    '    --provider anthropic|openai|mixed 모델 패밀리(기본 anthropic). anthropic=Claude 3-티어, openai=GPT-5.6 Sol/Terra/Luna,',
-    '                                   mixed=오케스트레이션만 Claude Fable + 나머지 전 역할 GPT-5.6 Sol (Fable 미서빙 시 opus-5 max 폴백 안내)',
-    '    --cli-version 2|3              CLI 티어 훅 포맷(기본 2=에이전트 embedded, 3=독립 .kiro/hooks/*.json — kiro-cli --v3 엔진용)',
+    '    --provider anthropic|openai|mixed 모델 패밀리(기본 anthropic). anthropic=Claude Opus/Sonnet/Haiku 5.5, openai=GPT-5.6 Sol/Terra/Luna,',
+    '                                   mixed=오케스트레이션만 Claude Opus 5.5 + 나머지 전 역할 GPT-5.6 Sol',
+    '    (CLI 티어는 Kiro CLI V3 전용 — 에이전트는 V3 네이티브 스키마, 훅은 독립 .kiro/hooks/*.json)',
     '    --review-backend kiro|claude|cross  리뷰 백엔드(기본 claude=peer-reviewer→claude -p; cross=claude+codex 3-way + cross-review.sh 온디맨드)',
     '    --mcp-proxy                    IDE 티어: mcp.json을 mcp-proxy(:9090) 경유로 생성 + 프록시 컨테이너 자동 보장(없으면 docker compose up -d, 있으면 스킵). mcp-proxy/README.md',
     '    --target <path>                설치 위치. global=이 경로가 곧 .kiro 루트(기본 ~/.kiro), workspace=이 경로 아래 .kiro(기본 cwd)',
@@ -505,7 +508,15 @@ function parseArgs(argv) {
   }
   if (opts.scope && !['global', 'workspace'].includes(opts.scope)) { console.error(`Invalid --scope: ${opts.scope}`); process.exit(1); }
   if (!isKnownProvider(opts.provider)) { console.error(`Invalid --provider: ${opts.provider} (use ${PROVIDERS.join('|')})`); process.exit(1); }
-  if (opts.cliVersion !== null && ![2, 3].includes(opts.cliVersion)) { console.error(`Invalid --cli-version: ${opts.cliVersion} (use 2|3)`); process.exit(1); }
+  if (opts.cliVersion !== null && opts.cliVersion !== CLI_VERSION) {
+    if (opts.cliVersion === 2) {
+      console.error(`Invalid --cli-version: 2 — CLI 2.x(V2 엔진) 포맷 설치는 지원을 종료했습니다. 이 하네스는 Kiro CLI V3 전용입니다.`);
+      console.error(`  V2 포맷이 꼭 필요하면 하네스 커밋 ${LAST_V2_HARNESS} 를 체크아웃해 설치하세요.`);
+    } else {
+      console.error(`Invalid --cli-version: ${opts.cliVersion} (only ${CLI_VERSION} is supported)`);
+    }
+    process.exit(1);
+  }
   if (opts.reviewBackend && !['kiro', 'claude', 'cross'].includes(opts.reviewBackend)) { console.error(`Invalid --review-backend: ${opts.reviewBackend} (use kiro|claude|cross)`); process.exit(1); }
   return opts;
 }

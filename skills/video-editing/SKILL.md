@@ -18,6 +18,10 @@ AI-assisted editing for real footage. Not generation from prompts. Editing exist
 - Reframing video for different platforms (YouTube, TikTok, Instagram)
 - User says "edit video", "cut this footage", "make a vlog", or "video workflow"
 
+## Safety
+
+ElevenLabs and fal.ai bill per request. List the assets to generate with an estimated cost and get the user's approval before the first call.
+
 ## Core Thesis
 
 AI video editing is useful when you stop asking it to create the whole video and start using it to compress, structure, and augment real footage. The value is not generation. The value is compression.
@@ -44,9 +48,9 @@ Collect the source material:
 
 Output: raw files ready for organization.
 
-## Layer 2: Organization (Claude / Codex)
+## Layer 2: Organization (coding agent)
 
-Use Claude Code or Codex to:
+Use your coding agent (Kiro, Claude Code, or Codex) to:
 - **Transcribe and label**: generate transcript, identify topics and themes
 - **Plan structure**: decide what stays, what gets cut, what order works
 - **Identify dead sections**: find pauses, tangents, repeated takes
@@ -64,6 +68,8 @@ This layer is about structure, not final creative taste.
 ## Layer 3: Deterministic Cuts (FFmpeg)
 
 FFmpeg handles the boring but critical work: splitting, trimming, concatenating, and preprocessing.
+
+Setup (이미 설치돼 있으면 건너뛴다.): `brew install ffmpeg` (macOS) · `apt install ffmpeg` (Linux).
 
 ### Extract segment by timestamp
 
@@ -170,6 +176,8 @@ See the [Remotion docs](https://www.remotion.dev/docs) for detailed patterns and
 ## Layer 5: Generated Assets (ElevenLabs / fal.ai)
 
 Generate only what you need. Do not generate the whole video.
+
+ElevenLabs and fal.ai bill per request. List the assets you plan to generate with an estimated cost and get the user's approval before the first call.
 
 ### Voiceover with ElevenLabs
 

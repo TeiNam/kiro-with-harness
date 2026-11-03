@@ -69,20 +69,21 @@ IDE 티어는 2개의 훅을 설치하며, 결정적 게이트는 CLI 계층과 
 - 트리거: `PreToolUse`, 매처 `shell`
 - 액션: agent
 - 셸 호출이 `git push`인지, 그 대상이 기본 브랜치인지 판정합니다(`git symbolic-ref --short refs/remotes/origin/HEAD`, 없으면 실재하는 `main`/`master`. refspec이 없으면 대상은 현재 브랜치). 기본 브랜치 푸시는 **차단**하고 파이프라인을 그대로 안내합니다: `git switch -c <type>/<slug>` → `git push -u origin <branch>` → `gh pr create --fill` → `gh pr merge --squash --delete-branch`.
-- 예외(차단하지 않음): 태그 전용 푸시(`--tags`), 브랜치 삭제(`--delete`/`-d`), 원격이 없는 로컬 전용 레포, 사용자가 "main에 직접"이라고 명시한 경우. 기본 브랜치가 아닌 푸시는 조용히 통과합니다.
-- CLI 티어는 결정적 등가물 `pre-push-guard.sh`(`exit 2`, 우회는 `KIRO_ALLOW_MAIN_PUSH=1`)를 배치합니다. 정책 본문: `rules/common/git-workflow.md`.
+- 예외(차단하지 않음): refspec이 없는 태그 전용 푸시(`git push --tags`), 기본 브랜치 이외의 브랜치 삭제(`--delete`/`-d`), 원격이 없는 로컬 전용 레포, 사용자가 명시적으로 "main에 직접"이라고 한 경우. 기본 브랜치 삭제와 `--all`/`--mirror`는 기본 브랜치로의 푸시로 간주됩니다. 기본 브랜치가 아닌 곳으로의 푸시는 조용히 통과합니다.
+- CLI 티어는 결정적 등가물 `pre-push-guard.sh`(`exit 2`; 우회는 사용자가 `KIRO_ALLOW_MAIN_PUSH=1` 환경으로 kiro-cli 를 띄운 경우만)를 배치합니다. 정책 본문: `rules/common/git-workflow.md`.
+- 두 게이트는 모두 **best-effort advisory** 검사입니다. 셸 권한 glob 과 토큰 파서로는 모든 우회를 잡을 수 없으므로(명령 안 브랜치 전환 `git switch main && git push`, 서브셸 `cd`, git config 주입 등), 권위 있는 기본 브랜치 보호는 서버 측 branch protection / ruleset 입니다. 게이트는 실수로 직접 푸시하는 비용을 높일 뿐, 강한 보안 경계가 아닙니다. (3-way 교차 리뷰로 이 한계를 확인했고, 스크립트의 `ponytail:` 주석에도 기록돼 있습니다.)
 
 ## 훅 추가/비활성화
 
 - **비활성화**: 훅 파일에서 `"enabled": false` 설정, `.kiro/hooks/`의 `.json` 파일 삭제, 또는 설치 명령에서 해당 워크로드 제외.
 - **커스텀 훅 추가**: 위 v1 스키마에 따라 `.kiro/hooks/<name>.json`을 생성하거나, 명령 팔레트 → "Kiro: Open Kiro Hook UI" → 자연어로 설명.
 
-> **CLI 티어 참고**: 기본값(`--cli-version 2`)으로는 CLI 티어(`kiro-cli chat`)가 이 파일들을 쓰지 않습니다. 훅을 에이전트 JSON(`hooks` 필드)에 임베드하고, CLI 훅 스크립트 2종을 결정적 게이트(`exit 2`)로 배치하며 `kiro-cli.json`의 preToolUse 훅 2개가 이를 참조합니다. `--cli-version 3`이면 (CLI 3.0 engine, `kiro-cli --v3`) 동일한 2개 게이트가 독립 `.kiro/hooks/pre-write-guard.json` / `pre-push-guard.json`(v1 schema, `PreToolUse` 트리거, matcher `write`/`shell`)으로 설치되고 임베디드 `hooks` 필드는 제거됩니다 — v3 엔진은 기존 camelCase 임베디드 포맷을 읽지 않습니다:
+> **CLI 티어 참고**: CLI 티어는 Kiro CLI V3 전용입니다. CLI 훅 스크립트 2종을 배치하며 이를 실행하는 PreToolUse 게이트 훅 2개 — standalone `~/.kiro/hooks/pre-write-guard.json` / `pre-push-guard.json`(v1 schema, `PreToolUse` 트리거, matcher `write`/`shell`). Global 훅 파일은 모든 에이전트 및 sub-agent 세션마다 실행되므로 gates는 더 이상 오케스트레이터 프로필에 의존하지 않습니다. 에이전트는 inline `hooks` 필드를 carry하지 않으며, CLI 2.x camelCase 임베디드 포맷은 사라졌습니다:
 >
 > | 스크립트 | matcher | 차단 조건 |
 > |---------|---------|----------|
-> | `pre-write-guard.sh` | `fs_write` | 하드코딩된 시크릿, 800줄 초과 콘텐츠 |
-> | `pre-push-guard.sh` | `execute_bash` | 기본 브랜치를 대상으로 하는 `git push` (우회: `KIRO_ALLOW_MAIN_PUSH=1`) |
+> | `pre-write-guard.sh` | `write` (`fs_write`, `fs_append`, `str_replace`, `delete_file`, `code`) | 하드코딩된 시크릿, 한 필드가 800줄을 넘는 콘텐츠(tool input의 모든 문자열을 중첩까지 훑되 경로·`command`·교체될 `oldStr` 는 제외) |
+> | `pre-push-guard.sh` | `shell` (`execute_bash`, `execute_pwsh`) | 기본 브랜치를 업데이트하거나 삭제하는 명령 내의 모든 `git push`: 모든 서브커맨드(`;`, `&&`, `\|\|`, `\|`, backtick, `bash -c`/`eval` 문자열) 확인, `--all`/`--mirror` 및 `-c remote.<r>.push=` 포함. `git -C`, 선행 `cd <dir>`, 또는 tool call `cwd`의 디렉터리에서 판정. `cd $PWD` 같은 런타임 경로는 무시. 우회: 사용자가 `KIRO_ALLOW_MAIN_PUSH=1` 환경으로 kiro-cli 를 띄운 경우(명령 앞에 붙인 변수는 훅에 전달되지 않음) |
 >
 > `cross-review.sh`는 훅이 **아닙니다** — 온디맨드 스크립트(아래 참조)이므로 이 카운트에 포함되지 않습니다.
 

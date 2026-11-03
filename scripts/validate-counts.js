@@ -49,10 +49,12 @@ function countCliHookScripts() {
   return fs.readdirSync(dir).filter((f) => f.endsWith('.sh') && f !== 'cross-review.sh').length;
 }
 
-/** 오케스트레이터 에이전트에 등록된 preToolUse 훅 수. */
+/** CLI V3 티어가 설치하는 독립 PreToolUse 게이트 훅 수(hooks/*.json 설치 계획에서 실측). */
 function countOrchestratorHooks() {
-  const agent = JSON.parse(fs.readFileSync(path.join(ROOT, 'agents/cli/global/kiro-cli.json'), 'utf8'));
-  return ((agent.hooks || {}).preToolUse || []).length;
+  const tiers = require('../scripts/lib/tiers');
+  return tiers.cliHookOps()
+    .flatMap((op) => JSON.parse(op.content).hooks)
+    .filter((h) => h.trigger === 'PreToolUse').length;
 }
 
 /** 모델 정책 티어 수. */
@@ -104,11 +106,11 @@ const ASSERTIONS = [
     ],
   },
   {
-    label: 'orchestrator preToolUse hooks',
+    label: 'CLI V3 PreToolUse gate hooks (hooks/*.json)',
     actual: countOrchestratorHooks,
     claims: [
-      { file: 'docs/en/hook-reference.md', re: /(\d+) preToolUse hooks/g },
-      { file: 'docs/kr/hook-reference.md', re: /preToolUse 훅 (\d+)개/g },
+      { file: 'docs/en/hook-reference.md', re: /(\d+) PreToolUse gate hooks/g },
+      { file: 'docs/kr/hook-reference.md', re: /PreToolUse 게이트 훅 (\d+)개/g },
     ],
   },
   {

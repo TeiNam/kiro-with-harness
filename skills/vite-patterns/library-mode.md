@@ -1,5 +1,20 @@
 # Library Mode
 
+## Contents
+
+- Two Pitfalls That Will Bite
+- Minimal Library Config
+- `package.json` Exports
+- Multiple Entry Points
+- CSS in Libraries
+- Externalize React Variants
+- Dual-Format Output
+- Bundling vs Externalizing Dependencies
+- Verify the Output
+- CI Publish
+- Pitfalls
+- Related
+
 When publishing an npm package, use `build.lib` instead of the default app bundling. Two pitfalls dominate; the rest is config.
 
 ## Two Pitfalls That Will Bite

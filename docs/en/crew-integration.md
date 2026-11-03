@@ -41,10 +41,10 @@ Configuration lives in `~/.kiro/crew/config.json`; channel tokens live in `~/.ki
 | Harness asset | Crew status |
 |---|---|
 | `~/.kiro/agents/*.json` (CLI global tier) | **Shared directory** — documented as the file-based agent location |
-| Agent `model` pin (`claude-opus-5` etc.) | Crew's own default is `auto`; whether a pinned identifier is honored is **not stated in the docs** |
-| `resources`, `toolsSettings`, `hooks`, `mcpServers` in harness JSON | Crew's documented example uses `name`/`description`/`model`/`prompt`/`tools` only; treatment of extra fields is **not stated** |
+| Agent `model` pin (`claude-opus-5.5` etc.) | Crew's own default is `auto`; whether a pinned identifier is honored is **not stated in the docs** |
+| `resources`, `permissions`, `mcpServers` in harness JSON | Crew's documented example uses `name`/`description`/`model`/`prompt`/`tools` only; treatment of extra fields is **not stated** |
 | `~/.kiro/steering/` (AGENTS.md, ponytail) | Crew has its own Steering surface ("workspace-level rules that every session inherits"); whether it reads the CLI global steering path is **not stated** |
-| `~/.kiro/skills/` (138 packages) | Crew has its own Skills surface; harness skills use `workloads:` frontmatter, which is a harness convention — compatibility **unverified** |
+| `~/.kiro/skills/` (135 packages) | Crew has its own Skills surface; harness skills use `workloads:` frontmatter, which is a harness convention — compatibility **unverified** |
 | `.kiro/settings/mcp.json` | Crew manages MCP under Integrations and ships `kirocrew-core` + `kirocrew-cron`; merge behavior **not stated** |
 | `.kiro/hooks/*.json` (IDE v1 hooks) | Crew has its own Hooks surface; schema overlap on the same directory is **unverified** |
 

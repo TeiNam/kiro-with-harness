@@ -1,7 +1,7 @@
 ---
 name: kotlin-reviewer
 description: Kotlin and Android/KMP code reviewer. Reviews Kotlin code for idiomatic patterns, coroutine safety, Compose best practices, clean architecture violations, and common Android pitfalls.
-model: claude-sonnet-5
+model: claude-sonnet-5.5
 tools: ["read"]
 ---
 

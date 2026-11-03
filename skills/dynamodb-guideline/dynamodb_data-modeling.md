@@ -1,5 +1,15 @@
 # Data Modeling
 
+## Contents
+
+- Step 1 — List Access Patterns (Required Before Design)
+- Step 2 — Single Table Design vs Multi Table
+- Single Table Design Implementation
+- Embed vs Reference (DynamoDB Perspective)
+- Hierarchical Sort Key Pattern
+- Denormalization Strategy
+- Data Modeling Checklist
+
 Core principle of DynamoDB design: **Define access patterns first, then design the table to match them.**
 Unlike MongoDB's "add indexes later" approach, this is very expensive and risky in DynamoDB.
 GSI addition is possible, but PK/SK changes mean recreating the table.

@@ -1,5 +1,15 @@
 # TypeScript & Chromium Optimization Details
 
+## Contents
+
+- TypeScript Patterns
+- Chromium (Electron) Optimization
+- CSS — Obsidian Theme Integration
+- Error Handling — Using Notice
+- Dev/Production Branching
+- Path Input — Vault File/Folder Autocomplete with AbstractInputSuggest
+- CodeMirror 6 Editor Integration
+
 ## TypeScript Patterns
 
 ### Type Guards for Safe Obsidian API Usage

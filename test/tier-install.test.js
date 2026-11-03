@@ -89,7 +89,7 @@ test('CLI 계획: .kiro.hook 없음 + pre-write-guard 스크립트 + mcp.json �
   const sel = selectAssets({ root: ROOT, tier: 'cli', scope: 'global', workloads: ['cloud'], reviewBackend: 'claude' });
   sel.mcp = selectMcpServers({ root: ROOT, activeGroups: sel.activeGroups });
   const plan = tiers.plan('cli', sel, { root: ROOT });
-  assert.ok(!plan.ops.some((o) => o.destRel.endsWith('.kiro.hook')), 'CLI는 .kiro.hook 미생성(훅은 에이전트 JSON 내부)');
+  assert.ok(!plan.ops.some((o) => o.destRel.endsWith('.kiro.hook')), 'CLI는 .kiro.hook 미생성(훅은 V3 독립 hooks/*.json)');
   assert.ok(plan.ops.some((o) => o.destRel === 'hooks/pre-write-guard.sh'), 'pre-write-guard 훅 스크립트 설치');
   assert.ok(!plan.ops.some((o) => o.destRel === 'settings/mcp.json'), 'CLI 글로벌은 mcp.json 미생성(IDE 전용)');
   assert.ok(plan.ops.some((o) => o.destRel === 'steering/ponytail.md'), 'ponytail core 규칙 always-on 설치');
@@ -225,9 +225,11 @@ test('e2e: 오케스트레이터(kiro-cli) 모델은 정책 천장 티어로 고
     assert.strictEqual(JSON.parse(fs.readFileSync(manifest, 'utf8')).orchestratorModel, ceiling);
 
     // effort 안내: 실행 가능한 settings 명령을 그대로 보여준다(에이전트 JSON 필드가 아니므로).
+    // chat.modelDefaults 는 통째로 교체되므로 세 모델을 한 명령에 담아야 한다.
     assert.match(r1.stdout, /ceiling tier: deep-reasoning/, '천장 티어임을 출력');
     assert.match(r1.stdout, /chat\.modelDefaults/, 'effort 설정 명령을 안내');
     assert.ok(r1.stdout.includes(`"effort":"${effortForRole('kiro-cli')}"`), '권장 effort 값을 안내');
+    assert.ok(r1.stdout.includes('"claude-haiku-5.5":{"output_config":{"effort":"medium"}}'), 'Haiku 5.5 는 medium');
     assert.match(r1.stdout, /cross-family/, 'max 위는 옆(cross-family)임을 안내');
 
     // 제거된 플래그는 거부된다 — 조용히 무시되면 사용자가 잘못된 기대를 갖는다.
@@ -256,7 +258,7 @@ test('e2e: --provider=openai는 Sol/Terra/Luna와 GPT 운영 프로필만 설치
     assert.match(architect, /^model: gpt-5\.6-sol$/m);
     assert.match(translator, /^model: gpt-5\.6-luna$/m);
     assert.match(peer, /For an independent family opinion, prefer Claude Code/);
-    assert.match(architect, /context window is 272K/);
+    assert.match(architect, /context window is 1M, but requests above 272K tokens bill at 2x/);
     assert.match(cross, /^HOST_PROVIDER="openai"$/m);
     assert.strictEqual(manifest.provider, 'openai');
     assert.match(r.stdout, /provider profile: GPT-5\.6/);
@@ -292,35 +294,49 @@ test('e2e: OpenAI CLI 설치는 reasoning.effort 안내를 출력하고 잘못�
   }
 });
 
-test('e2e: --provider=mixed는 오케스트레이터만 Fable, 서브에이전트는 전부 Sol + 패밀리별 노트 + 폴백 안내', () => {
+test('e2e: --provider=mixed는 오케스트레이터만 Opus 5.5, 서브에이전트는 전부 Sol + 패밀리별 노트', () => {
   const tmp = mkTmp();
   try {
     const r = runInstall(['cli', '--scope=global', '--workload=core', '--provider=mixed', '--review-backend=cross', `--target=${tmp}`]);
     assert.strictEqual(r.status, 0, `install exit 0 (${r.stderr})`);
 
-    // 오케스트레이터: Fable + Anthropic 계열 운영 노트(1M 컨텍스트 문구).
+    // 오케스트레이터: Opus 5.5 + Anthropic 계열 운영 노트(1M 컨텍스트 문구).
     const orch = JSON.parse(fs.readFileSync(path.join(tmp, 'agents', 'kiro-cli.json'), 'utf8'));
-    assert.strictEqual(orch.model, 'claude-fable-5');
+    assert.strictEqual(orch.model, 'claude-opus-5.5');
     assert.match(orch.prompt, /1M context window/, '오케스트레이터는 Claude 계열 노트를 받는다');
 
-    // 서브에이전트: 티어와 무관하게 전부 Sol + GPT 계열 노트(272K 문구).
+    // 서브에이전트: 티어와 무관하게 전부 Sol + GPT 계열 노트(272K 요율 경계 문구).
     for (const role of ['architect', 'peer-reviewer', 'translator-docs']) {
       const sub = JSON.parse(fs.readFileSync(path.join(tmp, 'agents', `${role}.json`), 'utf8'));
       assert.strictEqual(sub.model, 'gpt-5.6-sol', role);
-      assert.match(sub.prompt, /context window is 272K/, `${role} 는 GPT 계열 노트를 받는다`);
+      assert.match(sub.prompt, /272K tokens bill at 2x/, `${role} 는 GPT 계열 노트를 받는다`);
+      assert.ok(!/100K tokens/.test(sub.prompt), `${role}: Haiku 전용 노트는 Sol 에 붙지 않는다`);
     }
 
     // cross-review: mixed 프로바이더가 기록된다(Codex 우선 분기).
     const cross = fs.readFileSync(path.join(tmp, 'hooks', 'cross-review.sh'), 'utf8');
     assert.match(cross, /^HOST_PROVIDER="mixed"$/m);
 
-    // 매니페스트와 안내 출력: Fable effort 경로는 output_config, 폴백은 opus-5 max.
+    // 매니페스트와 안내 출력: effort 경로는 output_config, V2 시절 Fable 폴백 안내는 없다.
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, '.harness-manifest.json'), 'utf8'));
     assert.strictEqual(manifest.provider, 'mixed');
-    assert.strictEqual(manifest.orchestratorModel, 'claude-fable-5');
-    assert.match(r.stdout, /"claude-fable-5":\{"output_config":\{"effort":"max"\}\}/, 'Fable effort 는 Anthropic 경로');
-    assert.match(r.stdout, /chat\.defaultModel claude-opus-5/, 'Fable 미서빙 폴백 안내');
-    assert.match(r.stdout, /"claude-opus-5":\{"output_config":\{"effort":"max"\}\}/, '폴백 opus-5 는 effort max');
+    assert.strictEqual(manifest.orchestratorModel, 'claude-opus-5.5');
+    assert.match(r.stdout, /"claude-opus-5\.5":\{"output_config":\{"effort":"max"\}\}/, 'Opus 5.5 effort 는 Anthropic 경로');
+    assert.ok(!/Fable|chat\.defaultModel/.test(r.stdout), 'Fable 폴백 안내 제거');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('e2e: anthropic CLI 설치 — Haiku 5.5 에이전트만 100K 요율 노트를 받는다', () => {
+  const tmp = mkTmp();
+  try {
+    const r = runInstall(['cli', '--scope=global', '--workload=core', `--target=${tmp}`]);
+    assert.strictEqual(r.status, 0, r.stderr);
+    const read = (n) => JSON.parse(fs.readFileSync(path.join(tmp, 'agents', `${n}.json`), 'utf8'));
+    assert.strictEqual(read('translator-docs').model, 'claude-haiku-5.5');
+    assert.match(read('translator-docs').prompt, /under 100K tokens/);
+    assert.ok(!/100K tokens/.test(read('kiro-cli').prompt), 'Opus 5.5 오케스트레이터에는 없다');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

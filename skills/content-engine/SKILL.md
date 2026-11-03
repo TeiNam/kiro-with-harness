@@ -86,4 +86,11 @@ Before delivering:
 - hooks are strong and specific
 - no generic hype language
 - no duplicated copy across platforms unless requested
-- the CTA matches the content and audience
+- any CTA is earned and user-approved
+
+If a draft fails any item, rewrite that draft and run the gate again; deliver only when every draft passes.
+
+## Related Skills
+
+- `brand-guidelines` for brand voice and style guides
+- `crosspost` for platform-specific distribution

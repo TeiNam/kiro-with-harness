@@ -1,6 +1,6 @@
 # Plugins — Claude Code 플러그인을 Kiro 자산으로
 
-**Kiro CLI 에는 플러그인 시스템이 없다.** `kiro-cli plugin` 서브커맨드가 존재하지 않고(실측: `error: unrecognized subcommand 'plugin'`), 마켓플레이스·`enabledPlugins` 같은 개념도 없다. Claude Code 쪽 하네스가 `claude plugin install <name>@<marketplace>` 로 7종을 붙여 쓰는데, 그 목록을 Kiro 에 그대로 옮길 수는 없다.
+Kiro 에는 이제 플러그인 시스템이 있다 — **Powers**(Agent Plugins 규격: 패키지 루트의 `plugin.json` + `skills/` + `mcp.json`). CLI 는 V3 에서 `kiro-cli powers install <name|path>` 로 설치한다. 하지만 Claude Code 하네스가 `claude plugin install <name>@<marketplace>` 로 붙여 쓰는 플러그인 7종은 Claude Code 형식(`.claude-plugin/plugin.json`, commands·agents·hooks)이라 Powers 로 바로 설치되지 않는다(2026-11 실측: superpowers·obsidian-skills 모두 루트 `plugin.json` 없음). Powers 는 프롬프트 키워드로 활성화돼, 설명(description)으로 자동 발견되는 스킬과 동작도 다르다.
 
 그래서 이 디렉터리는 플러그인을 "설치"하지 않는다. 각 플러그인이 **실제로 무엇을 제공하는지** 확인해, Kiro 네이티브 구조(skills / steering / agents / MCP)로 옮길 수 있는 것만 옮기고, 옮길 수 없는 것은 **옮기지 않고 이유를 남긴다**.
 
@@ -40,7 +40,7 @@ node scripts/install-plugins.js --apply --uninstall
 
 ### bridge — 가져와서 변환한다
 
-**superpowers** (obra/superpowers, MIT) — 개발 규율 스킬 라이브러리 14종. 거의 전부 순수 마크다운이고, 헬퍼가 붙은 4종도 범용 런타임(node/bash, 선택적 graphviz)만 쓴다. 독점 바이너리가 없어 이식성이 높다. 11종을 설치하고 3종은 제외한다:
+**superpowers** (obra/superpowers, MIT) — 개발 규율 스킬 라이브러리 15종(v7.0.1, 2026-10-21). 거의 전부 순수 마크다운이고, 헬퍼가 붙은 것도 범용 런타임(node/bash, 선택적 graphviz)만 쓴다. 독점 바이너리가 없어 이식성이 높다. 12종을 설치하고 3종은 제외한다. 신규 `diagnosing-superpowers`(세션 기록을 근거로 문제 보고서를 만드는 하네스 무관 스킬)는 `ai-agent` 워크로드로 설치한다:
 
 - `using-superpowers` — Claude 플러그인 전용 스킬 발견 부트스트랩이다. `superpowers:<skill>` 네임스페이스 호출과 "모든 응답 전 스킬 호출" 강제를 담는데, Kiro 는 오케스트레이터의 `skill://~/.kiro/skills/**/SKILL.md` 리소스로 이미 스킬을 자동 발견하고 네임스페이스가 없다. 강제 조항은 `ponytail`(최소 코드)·`AGENTS.md`(위임 규약)와 충돌한다.
 - `test-driven-development` — 하네스 `tdd-workflow` 와 같은 주제. **이중 노출을 만들지 않는다.**
@@ -50,7 +50,7 @@ node scripts/install-plugins.js --apply --uninstall
 
 `using-git-worktrees` 는 하네스 `git-workflow` 와 겹치지 않는다(전자는 격리 워크스페이스 확보 기법, 후자는 브랜치·커밋·PR 파이프라인). 함께 설치한다.
 
-**obsidian** (kepano/obsidian-skills, MIT) — 볼트 콘텐츠 스킬 5종. 3종(`obsidian-markdown` / `obsidian-bases` / `json-canvas`)은 파일 포맷 지식만 담은 순수 지시문이라 의존 없이 동작하고, 2종(`obsidian-cli` / `defuddle`)은 외부 CLI 가 없으면 그 스킬만 무동작이다. 하네스 `obsidian-plugin-develop`(플러그인 저작·리뷰·빌드)과 영역이 달라 중복이 아니다 — 이쪽은 볼트 콘텐츠 편집이다.
+**obsidian** (kepano/obsidian-skills, MIT) — 볼트 콘텐츠 스킬 6종. 3종(`obsidian-markdown` / `obsidian-bases` / `json-canvas`)은 파일 포맷 지식만 담은 순수 지시문이라 의존 없이 동작하고, 3종(`obsidian-cli` / `defuddle` / `knap`)은 외부 CLI 가 없으면 그 스킬만 무동작이다(`knap` 은 템플릿·구조화 데이터로 Markdown 을 렌더링 — `npm install -g knap`, Node.js 20+). 하네스 `obsidian-plugin-develop`(플러그인 저작·리뷰·빌드)과 영역이 달라 중복이 아니다 — 이쪽은 볼트 콘텐츠 편집이다.
 
 ### external-cli — 상위 설치기를 쓴다
 

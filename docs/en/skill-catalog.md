@@ -1,6 +1,6 @@
 # Skill Catalog
 
-134 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
+135 skills organized by domain (highlights below; the full set is tagged by workload and installed on selection). Each skill is installed as manual-inclusion steering — load on demand via `#` context key in Kiro chat.
 
 ## Infrastructure
 
@@ -144,6 +144,7 @@ RDBMS design/migration skills (mysql-guideline, postgres-guideline, rdbms-naming
 | Skill | Description |
 |-------|-------------|
 | article-writing | Technical article structure, drafting, editing |
+| readme-rule | README badge banner — badges only for tech actually used in the project; sponsor badge only when the git remote owner is `teinam` |
 | humanize-korean | Humanize AI-written Korean text — detect and strip 70 AI-tell patterns across 10 categories, content-invariant (ported from im-not-ai v2.3.2) |
 | humanize-writing | Cut AI tells and raise real quality in web/long-form writing (English/general companion to humanize-korean) |
 | content-engine | Content pipeline, scheduling, multi-platform |

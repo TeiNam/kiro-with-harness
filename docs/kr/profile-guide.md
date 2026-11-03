@@ -10,7 +10,7 @@
 node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
 ```
 
-- **티어(tier)** — `cli`(`kiro-cli chat`용: JSON 에이전트, 에이전트 JSON 내부 훅, `skill://` 스킬) 또는 `ide`(Kiro IDE용: Markdown 에이전트, `.kiro/hooks/*.json` v1 JSON 훅, 스티어링).
+- **티어(tier)** — `cli`(`kiro-cli chat`용, V3 엔진 전용: 태그 기반 `tools`·`permissions` 를 갖춘 V3 네이티브 JSON 에이전트, 독립 `hooks/*.json` 게이트 훅, `skill://` 스킬) 또는 `ide`(Kiro IDE용: Markdown 에이전트, `.kiro/hooks/*.json` v1 JSON 훅, 스티어링).
 - **스코프(scope)** — `global`(`~/.kiro`, CLI 기본) 또는 `workspace`(프로젝트 `.kiro`, IDE 기본).
 - **카테고리(category)** — 대분류(dev, cloud, ai, data, research, writing) + 중분류 드릴다운(--dev=rust,python). `core`는 항상 설치되고, 미선택 레벨은 모든 하위 옵션을 기본값으로 사용합니다. 하위 호환성을 위해 `--workload`도 저수준 워크로드 키 직접 지정으로 남아 있습니다.
 
@@ -94,10 +94,10 @@ node install.js cli --scope global --workload rust,mongodb,cloud
 
 ## 오케스트레이터 모델
 
-`kiro-cli` 오케스트레이터(CLI global 전용)는 **deep-reasoning 능력 티어**로 배정되며, 기본으로 **`claude-opus-5`**를 씁니다. 더 깊은 추론이 필요하면 티어를 바꾸지 말고 추론 effort를 올리세요:
+`kiro-cli` 오케스트레이터(CLI global 전용)는 **deep-reasoning 능력 티어**로 배정되며, 기본으로 **`claude-opus-5.5`**를 씁니다. 더 깊은 추론이 필요하면 티어를 바꾸지 말고 추론 effort를 올리세요:
 
-- `kiro-cli chat --effort max` — 현 세션의 최대 추론 effort 활성화
-- `kiro-cli settings chat.modelDefaults` — 모델 기본값 영구 커스터마이즈
+- `kiro-cli chat --effort max` — 현 세션의 최대 추론 effort 활성화(V3 는 기본값으로 저장하지 않음)
+- `kiro-cli settings chat.modelDefaults '<json>'` — 모델별 기본값. 이 설정은 객체 전체를 교체하므로, 설치기는 프로바이더가 쓰는 모든 모델을 담은 명령 하나를 출력한다
 
 상세한 모델 라우팅 정책, 에이전트 전체 티어 배정, 프로바이더별 매핑은 [모델 라우팅](model-routing.md)을 참조하세요.
 

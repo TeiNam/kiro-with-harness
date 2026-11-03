@@ -1,5 +1,20 @@
 # Plugins
 
+## Contents
+
+- Essential Plugins
+- Critical: Vite Does Not Type-Check
+- Authoring Custom Plugins
+- Key Plugin Hooks
+- Virtual Modules
+- `transformIndexHtml`
+- `configureServer` — Dev Middleware
+- `apply: 'serve' | 'build'`
+- Functional Form
+- Plugin Ordering
+- Debugging Plugins
+- Related
+
 Most plugin needs are covered by maintained packages. Reach for those before authoring your own.
 
 ## Essential Plugins

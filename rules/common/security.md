@@ -16,6 +16,7 @@ Before merging to main branch:
 - Use environment variables or a dedicated secret manager (Vault, AWS Secrets Manager, etc.)
 - Validate that required secrets are present at application startup — fail fast if missing
 - Rotate any secrets that may have been exposed; treat exposure as an incident
+- When checking or verifying a secret, never print the value. Presence and format are enough: print at most the first 4 characters and the length (or a hash), e.g. `ghp_…` / `len 40`. Widening the prefix to identify the token type leaks the random part into the transcript.
 
 ## Security Risk Tiers
 

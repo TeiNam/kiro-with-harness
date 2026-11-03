@@ -1,5 +1,18 @@
 # HMR — `import.meta.hot`
 
+## Contents
+
+- Framework Plugins Do This For You
+- Manual HMR for a Vanilla Module
+- Key APIs
+- Mutate `data`, Don't Reassign
+- When Auto-Accept Fails
+- Custom HMR Events from Plugins
+- `hotUpdate` (v7+) — Plugin-Side HMR Customization
+- When HMR Becomes "Full Reload"
+- Pitfalls
+- Related
+
 Framework plugins handle HMR for you. Reach for `import.meta.hot` directly only when building custom state stores, dev tools, or framework-agnostic utilities that need to persist state across updates.
 
 ## Framework Plugins Do This For You

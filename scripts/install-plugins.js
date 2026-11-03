@@ -4,9 +4,10 @@
 /**
  * install-plugins.js — Claude Code 플러그인을 Kiro 자산으로 브리지한다.
  *
- * Kiro CLI 에는 플러그인 시스템이 없다(`kiro-cli plugin` 서브커맨드 부재). 그래서
- * 플러그인을 '설치'하는 대신 각 플러그인이 실제로 제공하는 것을 Kiro 네이티브 구조로
- * 옮긴다. 무엇을 어떻게 옮기는지는 `plugins/catalog.json` 이 단일 출처다.
+ * Kiro 의 플러그인 시스템(Powers, Agent Plugins 규격)은 패키지 루트의 `plugin.json` 을
+ * 요구하는데, 대상 상위 리포는 Claude Code 형식(`.claude-plugin/plugin.json`)이라 바로
+ * 설치되지 않는다. 그래서 플러그인을 '설치'하는 대신 각 플러그인이 실제로 제공하는 것을
+ * Kiro 네이티브 구조로 옮긴다. 무엇을 어떻게 옮기는지는 `plugins/catalog.json` 이 단일 출처다.
  *
  * 이 레포는 서드파티 소스를 벤더링하지 않는다(mcp-proxy 와 같은 원칙) — 카탈로그·브리지·
  * 문서만 담고, 자산은 설치 시 상위 리포에서 얕은 clone 으로 가져온다.

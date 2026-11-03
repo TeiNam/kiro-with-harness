@@ -28,6 +28,12 @@ Inspired by the visual exploration approach showcased in work by zarazhangrui (c
 
 Before generating, read `STYLE_PRESETS.md` for the viewport-safe CSS base, density limits, preset catalog, and CSS gotchas.
 
+Reference files (open only the one the current step needs):
+
+- `STYLE_PRESETS.md` — viewport-safe CSS base, density limits, preset catalog, CSS gotchas
+- `html-template.md` — base HTML structure and slide navigation JS every deck follows
+- `animation-patterns.md` — effect-to-feeling guide for choosing animations
+
 ## Workflow
 
 ### 1. Detect Mode
@@ -98,7 +104,7 @@ Check the finished deck at these sizes:
 - 375x667
 - 667x375
 
-If browser automation is available, use it to verify no slide overflows and that keyboard navigation works.
+If browser automation is available, use it to verify no slide overflows and that keyboard navigation works. If any slide overflows at any size, go back to step 5 and split or trim it, then validate again; deliver only when all five sizes show zero overflow.
 
 ### 7. Deliver
 
@@ -115,12 +121,18 @@ Use the correct opener for the current OS:
 ## PPT / PPTX Conversion
 
 For PowerPoint conversion:
-1. Prefer `python3` with `python-pptx` to extract text, images, and notes.
-2. If `python-pptx` is unavailable, ask whether to install it or fall back to a manual/export-based workflow.
+1. Extract text, images, and notes with the bundled script:
+   ```bash
+   pip install python-pptx                      # 이미 설치돼 있으면 건너뛴다.
+   python3 scripts/extract-pptx.py <input.pptx> [output_dir]
+   ```
+2. If installing is not allowed, ask whether to fall back to a manual/export-based workflow.
 3. Preserve slide order, speaker notes, and extracted assets.
 4. After extraction, run the same style-selection workflow as a new presentation.
 
 Keep conversion cross-platform. Do not rely on macOS-only tools when Python can do the job.
+
+To export a finished deck to PDF: `bash scripts/export-pdf.sh <deck.html> [out.pdf]`. Needs Node (`npx`); the script installs `playwright` + Chromium into a temp dir on first run.
 
 ## Implementation Requirements
 

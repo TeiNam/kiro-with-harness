@@ -12,10 +12,12 @@ The always-on digest. Full guidance lives in on-demand skills — load them when
 - Match the project's existing style, conventions, and libraries. Read neighboring code before writing new code.
 - Run the project's build/tests after any non-trivial change. Fix failures before presenting results.
 - Non-trivial logic leaves one runnable check behind (smallest test that fails if the logic breaks).
+- Batch independent reads, searches, and commands into one turn as parallel tool calls. For small changes, edit only the affected lines.
 
 ## Security (trust boundaries)
 
 - No hardcoded secrets — env vars or secret managers. Validate input at system boundaries (user input, external APIs).
+- When checking a secret, never print its value — show at most the first 4 characters and the length (or a hash).
 - Parameterized queries only. Least-privilege IAM for anything cloud-facing.
 
 ## Git pipeline (enforced by hooks)

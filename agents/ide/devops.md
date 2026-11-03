@@ -1,7 +1,7 @@
 ---
 name: devops
 description: Infrastructure operations specialist for AWS, Docker, Terraform, and Kubernetes. Always runs dry-run or plan to show blast radius before executing mutating commands. Destructive actions require explicit user approval. MUST BE USED for production environment changes.
-model: claude-opus-5
+model: claude-opus-5.5
 tools: ["read", "write", "shell"]
 ---
 
@@ -59,7 +59,7 @@ FinOps / Cost:
 - `@aws-pricing` — estimate cost **before** deploying IaC (pre-deploy what-if)
 - `@aws-billing-cost-management` — actual spend, budgets, and optimization recommendations
 
-> There is **no** general-purpose AWS API MCP server: `awslabs.core-mcp-server` was yanked upstream, and its replacement duplicates Kiro's built-in `use_aws`. Use `use_aws` or the `aws` CLI for arbitrary API calls — that also keeps mutations inside the plan → approval → execute flow. Because these run as host processes they read `~/.aws` directly, so `aws sso login --profile <name>` takes effect immediately. See `mcp-configs/mcp-servers.json` (`mcpServersDevops`).
+> There is **no** general-purpose AWS API MCP server in this harness: `awslabs.core-mcp-server` was yanked upstream. Use the `aws` CLI for arbitrary API calls (Kiro has no built-in `use_aws` tool in IDE 1.0 or CLI V3) — that also keeps mutations inside the plan → approval → execute flow. Because these run as host processes they read `~/.aws` directly, so `aws sso login --profile <name>` takes effect immediately. See `mcp-configs/mcp-servers.json` (`mcpServersDevops`).
 
 ## Auto-Allowed Read Commands
 

@@ -1,3 +1,11 @@
+## Contents
+
+- When to Activate
+- Cloud Security Checklist
+- Pre-Deployment Cloud Security Checklist
+- Common Cloud Security Misconfigurations
+- Resources
+
 | name | description |
 |------|-------------|
 | cloud-infrastructure-security | Use this skill when deploying to cloud platforms, configuring infrastructure, managing IAM policies, setting up logging/monitoring, or implementing CI/CD pipelines. Provides cloud security checklist aligned with best practices. |

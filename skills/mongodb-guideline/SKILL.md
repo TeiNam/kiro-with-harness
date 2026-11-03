@@ -60,10 +60,10 @@ workloads: [mongodb]
 - Schema-less by habit: always define expected fields
 
 ## Reference Files
-- `document-design.md` — Embed vs Reference strategy, content-centric design, global query avoidance
-- `index-strategy.md` — MongoDB index strategies that differ from RDBMS, multikey/partial/TTL
-- `shard-key.md` — Shard key selection principles, pattern-specific guides
-- `connection-and-features.md` — Async connection (PyMongo Async `AsyncMongoClient`; motor deprecated as of 2026-05), transactions, change streams
+- `mongodb_document-design.md` — Embed vs Reference strategy, content-centric design, global query avoidance
+- `mongodb_index-strategy.md` — MongoDB index strategies that differ from RDBMS, multikey/partial/TTL
+- `mongodb_shard-key.md` — Shard key selection principles, pattern-specific guides
+- `mongodb_connection-and-features.md` — Async connection (PyMongo Async `AsyncMongoClient`; motor deprecated as of 2026-05), transactions, change streams
 
 ## Related
 - `mongodb-patterns` — Runtime query/aggregation/index/transaction/connection pool/diagnostic patterns (this guideline covers design conventions; patterns covers execution patterns).

@@ -1,6 +1,6 @@
 ---
-name: obsidian-plugin-dev
-description: |
+name: obsidian-plugin-develop
+description: >
   Obsidian plugin development best practices guide. Covers TypeScript, i18n multilingual support, and Chromium optimization for a complete plugin development workflow. Use this skill whenever the user mentions Obsidian plugin creation, development, modification, or publishing. Actively apply this skill to all requests containing keywords such as "obsidian plugin", "plugin development", "BRAT", "obsidian API", "plugin publishing", or "community plugin".
 origin: harness
 workloads: [frontend, obsidian]
@@ -11,11 +11,16 @@ workloads: [frontend, obsidian]
 ## 📋 Overview
 
 This skill covers the entire lifecycle of Obsidian plugin development.
-It reflects community plugin review criteria (Developer Policies, Submission Requirements, Plugin Guidelines 2026-03).
+It reflects community plugin review criteria (Developer Policies, Submission Requirements, Plugin Guidelines — synced 2026-09).
+Note: Developer Policies and Submission Requirements moved under `Community directory/` on docs.obsidian.md; plugins are now submitted via the community directory with automated review, not an obsidian-releases PR (see `release-checklist.md`).
 
 ---
 
-## 🗂️ Project Structure
+## Safety
+
+A GitHub release or community directory submission is public and starts automated review. Run `release-checklist.md` end to end, then tag, release, or submit only after the user approves.
+
+## Project Structure
 
 ```
 your-plugin/
@@ -57,13 +62,15 @@ your-plugin/
 ```
 
 **Review criteria:**
-- `id`: lowercase + hyphens only, must not duplicate existing plugins
-- `description`: max 250 chars, ends with period (`.`), starts with action sentence
-  - ✅ `"Translate selected text into multiple languages."`
-  - ❌ `"This is a plugin..."`, no emoji/special characters
-- `minAppVersion`: set according to the APIs used
+- `id`: lowercase + hyphens only, unique across all plugins, must NOT end with `plugin`, must NOT contain `obsidian`
+- `name`: unique across all plugins AND themes, no "Plugin" word, no "Obsidian" (including "Obsi-"/"-sidian" variants), no emoji, no punctuation except hyphen/`+`/parentheses, Basic Latin recommended, no core-feature names ("Live Preview" etc.)
+- `description`: max 250 chars, ends with period (`.`), starts with action sentence, correct trademark capitalization ("Obsidian", "Markdown", "PDF")
+  - PASS: `"Translate selected text into multiple languages."`
+  - FAIL: `"This is a plugin..."`, no emoji/special characters
+- `minAppVersion`: set according to the APIs used (if unknown, use the latest stable build number)
 - `isDesktopOnly`: must be `true` when using Node.js/Electron APIs
-- `fundingUrl`: sponsorship service links only, omit if unnecessary
+- `fundingUrl`: sponsorship service links only (string, or label→URL object for multiple), omit if unnecessary
+- `version`: SemVer `x.y.z` only — release tag must match exactly
 
 ---
 
@@ -80,9 +87,13 @@ your-plugin/
 | `detachLeavesOfType` in `onunload()` | Do not call (prevents leaf restoration) |
 | Default hotkeys on commands | Let users configure their own |
 | Hardcoded styles `el.style.color` | CSS classes + `var(--text-normal)` |
-| `eval()` / `new Function()` | Prohibited |
+| Plugin ID prefix in command IDs | Bare ID — Obsidian auto-prefixes |
+| Sample-plugin remnants (`MyPlugin`, `SampleSettingTab`) | Rename/remove all placeholder code before submission |
+| Node `crypto` / Electron clipboard | `SubtleCrypto` / `navigator.clipboard.readText()/writeText()` |
 | Code obfuscation | Prohibited |
 | Client telemetry / dynamic ads / self-update | Prohibited |
+
+> `eval()` / `new Function()`: not listed in the current official docs, but still avoid — security (CSP/XSS) risk.
 
 ---
 
@@ -135,7 +146,7 @@ export function createI18n(locale: SupportedLocale): Translations {
 }
 ```
 
-Advanced patterns (plurals, dates, view refresh on language change): `references/i18n-patterns.md`
+Advanced patterns (plurals, dates, view refresh on language change): `i18n-patterns.md`
 
 ---
 
@@ -190,11 +201,10 @@ export default class YourPlugin extends Plugin {
 ## 5️⃣ settings-tab.ts
 
 ```typescript
-// ✅ Section headings: use setHeading() (createEl("h2") prohibited)
-// ✅ No heading needed for single section, do not include "Settings" in text
-// ✅ Sentence case: "Template folder location" (not Title Case)
-
-new Setting(containerEl).setName('General').setHeading();
+// PASS: NO top-level heading — never add "General", "Settings", or the plugin name as a heading
+// PASS: General settings go at the very top WITHOUT a heading
+// PASS: Sub-section headings (only when there are 2+ real sections): setHeading() (createEl("h2") prohibited)
+// PASS: Sentence case: "Template folder location" (not Title Case)
 
 new Setting(containerEl)
   .setName(t.settings.language.name)       // #1: Language selection
@@ -244,7 +254,7 @@ import { normalizePath } from 'obsidian';
 ## 7️⃣ README Required Disclosures
 
 If applicable, the following must be stated in the README:
-Network usage (which service, why), paid features, account requirements, vault-external file access, server-side telemetry (include privacy policy link), static ads in the interface
+Network usage (which service, why), paid features, account requirements, vault-external file access, server-side telemetry (include privacy policy link), static ads in the interface, closed-source code (allowed case-by-case only with README disclosure)
 
 ---
 
@@ -271,7 +281,9 @@ esbuild.build({
 }).catch(() => process.exit(1));
 ```
 
-Deployment details: `references/release-checklist.md`
+Deployment details: `release-checklist.md`
+
+A GitHub release or directory submission is public and starts automated review. Run every item in `release-checklist.md`, fix failures and re-run the list, then publish (tag push, GitHub release, directory submit) only after the user approves.
 
 ---
 
@@ -285,7 +297,7 @@ Deployment details: `references/release-checklist.md`
 6. **Command callback types**: `callback` (unconditional), `checkCallback` (conditional), `editorCallback` (editor required)
 7. **DocumentFragment**: For 100+ items, collect in fragment and append once
 8. **CSS variables**: Use `var(--background-primary)`, `var(--text-accent)` etc. for automatic theme compatibility
-9. **Path input with AbstractInputSuggest**: Connect vault folder/file autocomplete to text fields → see `references/typescript-chromium.md`
+9. **Path input with AbstractInputSuggest**: Connect vault folder/file autocomplete to text fields → see `typescript-chromium.md`
 
 ---
 
@@ -293,6 +305,6 @@ Deployment details: `references/release-checklist.md`
 
 | File | Contents |
 |------|----------|
-| `references/i18n-patterns.md` | Plurals, date formatting, view refresh on language change |
-| `references/typescript-chromium.md` | Type patterns, DOM optimization, memory management, CSS variables |
-| `references/release-checklist.md` | Community submission checklist + full review criteria |
+| `i18n-patterns.md` | Plurals, date formatting, view refresh on language change |
+| `typescript-chromium.md` | Type patterns, DOM optimization, memory management, CSS variables |
+| `release-checklist.md` | Community submission checklist + full review criteria |

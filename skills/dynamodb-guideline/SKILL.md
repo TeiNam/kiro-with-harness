@@ -66,7 +66,7 @@ workloads: [dynamodb]
 - Schema-less design: Never create tables without defining access patterns first
 
 ## Reference Files
-- `data-modeling.md` — Single Table Design, access pattern first design, Entity Overloading
-- `key-and-index.md` — Partition Key / Sort Key design, GSI/LSI strategy, hot partition prevention
-- `query-patterns.md` — Query vs Scan, pagination, condition expressions, Batch/Transaction
-- `connection-and-features.md` — boto3/aioboto3, TTL, DynamoDB Streams, error handling
+- `dynamodb_data-modeling.md` — Single Table Design, access pattern first design, Entity Overloading
+- `dynamodb_key-and-index.md` — Partition Key / Sort Key design, GSI/LSI strategy, hot partition prevention
+- `dynamodb_query-patterns.md` — Query vs Scan, pagination, condition expressions, Batch/Transaction
+- `dynamodb_connection-and-features.md` — boto3/aioboto3, TTL, DynamoDB Streams, error handling

@@ -162,57 +162,49 @@ ORDER BY market_id, date;
 ### Bulk Insert (Recommended)
 
 ```typescript
-import { ClickHouse } from 'clickhouse'
+import { createClient } from '@clickhouse/client' // npm i @clickhouse/client
 
-const clickhouse = new ClickHouse({
+const clickhouse = createClient({
   url: process.env.CLICKHOUSE_URL,
-  port: 8123,
-  basicAuth: {
-    username: process.env.CLICKHOUSE_USER,
-    password: process.env.CLICKHOUSE_PASSWORD
-  }
+  username: process.env.CLICKHOUSE_USER,
+  password: process.env.CLICKHOUSE_PASSWORD
 })
 
-// ✅ Batch insert (efficient)
+// PASS: Batch insert (efficient). Rows go as JSONEachRow data, never
+// interpolated into SQL, so values cannot inject statements.
 async function bulkInsertTrades(trades: Trade[]) {
-  const values = trades.map(trade => `(
-    '${trade.id}',
-    '${trade.market_id}',
-    '${trade.user_id}',
-    ${trade.amount},
-    '${trade.timestamp.toISOString()}'
-  )`).join(',')
-
-  await clickhouse.query(`
-    INSERT INTO trades (id, market_id, user_id, amount, timestamp)
-    VALUES ${values}
-  `).toPromise()
+  await clickhouse.insert({
+    table: 'trades',
+    values: trades.map(t => ({
+      id: t.id,
+      market_id: t.market_id,
+      user_id: t.user_id,
+      amount: t.amount,
+      timestamp: t.timestamp.toISOString()
+    })),
+    format: 'JSONEachRow'
+  })
 }
 
-// ❌ Individual inserts (slow)
+// FAIL: Individual inserts in a loop (slow), and building SQL with
+// template strings (`VALUES ('${trade.id}', ...)`) is SQL injection.
 async function insertTrade(trade: Trade) {
-  // Don't do this in a loop!
-  await clickhouse.query(`
-    INSERT INTO trades VALUES ('${trade.id}', ...)
-  `).toPromise()
+  await clickhouse.insert({ table: 'trades', values: [trade], format: 'JSONEachRow' })
 }
 ```
 
 ### Streaming Insert
 
 ```typescript
-// For continuous data ingestion
-import { createWriteStream } from 'fs'
-import { pipeline } from 'stream/promises'
+// For continuous data ingestion: the client consumes an object stream
+import { Readable } from 'stream'
 
-async function streamInserts() {
-  const stream = clickhouse.insert('trades').stream()
-
-  for await (const batch of dataSource) {
-    stream.write(batch)
-  }
-
-  await stream.end()
+async function streamInserts(dataSource: AsyncIterable<Trade>) {
+  await clickhouse.insert({
+    table: 'trades',
+    values: Readable.from(dataSource),
+    format: 'JSONEachRow'
+  })
 }
 ```
 

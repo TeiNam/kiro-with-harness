@@ -56,9 +56,9 @@ Before writing any content, produce the full outline and get confirmation:
 
 ### Step 3: Assemble at the End
 
-Only after all sections are confirmed, assemble using `fsWrite` for the first chunk and `fsAppend` for every subsequent section.
+Only after all sections are confirmed, assemble by creating the file with `Write` for the first chunk, then appending each subsequent section with `Edit` (insert after the last line) — or `cat >> file <<'EOF'` in Bash.
 
-**Never use a single `fsWrite` call for a document longer than 50 lines.**
+**Do not write a document longer than 50 lines in a single `Write` call.**
 
 ## Section Size Limits
 
@@ -76,8 +76,8 @@ If a section exceeds its limit, split into sub-sections and write each separatel
 
 ## File Writing Rules
 
-- Use `fsWrite` only for the first chunk
-- Use `fsAppend` for every section after the first
+- Use `Write` only for the first chunk
+- Append every later section (`Edit` after the last line, or `cat >>`)
 - Never pipe or echo content through terminal commands
 - Never use `cat <<EOF` to create files
 
@@ -114,6 +114,8 @@ Before delivering any section:
 
 Before final assembly:
 - [ ] All sections confirmed by user
-- [ ] `fsWrite` used only for first chunk
-- [ ] `fsAppend` used for all subsequent chunks
+- [ ] `Write` used only for the first chunk
+- [ ] Every later chunk appended, not rewritten
 - [ ] Full document renders correctly in preview
+
+If any gate item fails, fix that section and run its gate again before moving on; assemble only when every section passes.

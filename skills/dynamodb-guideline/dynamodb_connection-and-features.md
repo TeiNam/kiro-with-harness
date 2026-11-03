@@ -1,5 +1,14 @@
 # Connection Management and DynamoDB Features
 
+## Contents
+
+- boto3 / aioboto3 Client Configuration
+- TTL (Time To Live)
+- DynamoDB Streams
+- Error Handling
+- DynamoDB Local (Local Development)
+- Performance Checklist
+
 ## boto3 / aioboto3 Client Configuration
 
 ```python

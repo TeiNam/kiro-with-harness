@@ -22,24 +22,32 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.join(__dirname, '..');
 const PEER_REVIEWER_PATH = path.join(ROOT, 'agents', 'cli', 'global', 'peer-reviewer.json');
 
-// 설계 C4 / 모델 정책에서 확정된 기대값.
-const EXPECTED_MODEL = 'claude-opus-5';
-const EXPECTED_ALLOWED_PATTERN = 'claude( .*)?';
-// deniedCommands가 반드시 유지해야 하는 안전 목록(rm/sudo/파괴적 git).
+// 모델 정책 SSOT 에서 파생한 기대값(peer-reviewer = deep-reasoning 천장 티어).
+const EXPECTED_MODEL = require('../scripts/lib/model-policy').identifierForRole('peer-reviewer');
+// V3 permissions(glob) — claude 호출은 묻지 않고 실행한다.
+const EXPECTED_ALLOWED_PATTERN = 'claude *';
+// shell deny 가 반드시 유지해야 하는 안전 목록(rm/sudo/파괴적 git).
 const REQUIRED_DENIED = [
-  'rm( .*)?',
-  'sudo( .*)?',
-  'git push --force.*',
-  'git push -f.*',
-  'git reset --hard.*',
-  'git clean -f.*',
-  'git branch -D.*',
+  'rm *',
+  'sudo *',
+  'git push --force*',
+  'git push -f*',
+  'git reset --hard*',
+  'git clean -f*',
+  'git branch -D*',
 ];
 
 /** peer-reviewer.json 원문을 읽어 파싱한 객체를 반환한다. */
 function loadAgent() {
   const raw = fs.readFileSync(PEER_REVIEWER_PATH, 'utf8');
   return JSON.parse(raw);
+}
+
+/** V3 permissions 에서 shell 규칙의 match 를 effect 별로 모은다. */
+function shellMatches(agent, effect) {
+  return (agent.permissions?.rules || [])
+    .filter((r) => r.capability === 'shell' && r.effect === effect)
+    .flatMap((r) => r.match || []);
 }
 
 test('peer-reviewer.json 파일이 존재한다 (R9.1)', () => {
@@ -54,30 +62,26 @@ test('peer-reviewer.json은 구문 오류 없이 파싱되는 유효한 JSON이�
   assert.doesNotThrow(() => JSON.parse(raw), 'JSON.parse가 구문 오류 없이 성공해야 한다');
 });
 
-test('peer-reviewer의 model은 claude-opus-5이다 (R9.6, R8.1)', () => {
+test('peer-reviewer의 model은 정책 천장 티어 식별자다 (R9.6, R8.1)', () => {
   const agent = loadAgent();
   assert.strictEqual(agent.model, EXPECTED_MODEL);
 });
 
-test('allowedCommands가 claude 호출 패턴을 포함한다 (R9.3)', () => {
-  const agent = loadAgent();
-  const allowed = agent.toolsSettings?.execute_bash?.allowedCommands;
-  assert.ok(Array.isArray(allowed), 'execute_bash.allowedCommands는 배열이어야 한다');
+test('V3 shell allow 가 claude 호출 패턴을 포함한다 (R9.3)', () => {
+  const allowed = shellMatches(loadAgent(), 'allow');
   assert.ok(
     allowed.includes(EXPECTED_ALLOWED_PATTERN),
-    `allowedCommands는 '${EXPECTED_ALLOWED_PATTERN}' 패턴을 포함해야 한다 (actual=${JSON.stringify(allowed)})`
+    `shell allow 는 '${EXPECTED_ALLOWED_PATTERN}' 패턴을 포함해야 한다 (actual=${JSON.stringify(allowed)})`
   );
 });
 
-test('deniedCommands가 안전 목록(rm/sudo/파괴적 git)을 유지한다 (R9.3)', () => {
-  const agent = loadAgent();
-  const denied = agent.toolsSettings?.execute_bash?.deniedCommands;
-  assert.ok(Array.isArray(denied), 'execute_bash.deniedCommands는 배열이어야 한다');
+test('V3 shell deny 가 안전 목록(rm/sudo/파괴적 git)을 유지한다 (R9.3)', () => {
+  const denied = shellMatches(loadAgent(), 'deny');
   const missing = REQUIRED_DENIED.filter((cmd) => !denied.includes(cmd));
   assert.deepStrictEqual(
     missing,
     [],
-    `deniedCommands에서 누락된 안전 항목: ${missing.join(', ')}`
+    `shell deny 에서 누락된 안전 항목: ${missing.join(', ')}`
   );
 });
 

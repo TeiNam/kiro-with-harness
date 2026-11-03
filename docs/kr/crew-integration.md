@@ -41,10 +41,10 @@ kirocrew gateway         # 서버 시작 -> http://localhost:5476
 | 하네스 자산 | Crew 상태 |
 |---|---|
 | `~/.kiro/agents/*.json` (CLI 글로벌 티어) | **공유 디렉토리** — 파일 기반 에이전트 위치로 문서화됨 |
-| 에이전트 `model` 핀(`claude-opus-5` 등) | Crew의 기본값은 `auto`; 핀된 식별자를 인정하는지는 **문서에 명시되지 않음** |
-| 하네스 JSON의 `resources`, `toolsSettings`, `hooks`, `mcpServers` | Crew 문서 예제는 `name`/`description`/`model`/`prompt`/`tools`만 사용; 여분 필드의 처리는 **문서에 명시되지 않음** |
+| 에이전트 `model` 핀(`claude-opus-5.5` 등) | Crew의 기본값은 `auto`; 핀된 식별자를 인정하는지는 **문서에 명시되지 않음** |
+| 하네스 JSON의 `resources`, `permissions`, `mcpServers` | Crew 문서 예제는 `name`/`description`/`model`/`prompt`/`tools`만 사용; 여분 필드의 처리는 **문서에 명시되지 않음** |
 | `~/.kiro/steering/` (AGENTS.md, ponytail) | Crew는 자체 Steering 표면 ("모든 세션이 상속하는 워크스페이스 레벨 규칙")을 가짐; CLI 글로벌 steering 경로를 읽는지는 **문서에 명시되지 않음** |
-| `~/.kiro/skills/` (138개 패키지) | Crew는 자체 Skills 표면을 가짐; 하네스 기술은 `workloads:` 메타데이터를 사용하는데, 이는 하네스 관례 — 호환성 **미검증** |
+| `~/.kiro/skills/` (135개 패키지) | Crew는 자체 Skills 표면을 가짐; 하네스 기술은 `workloads:` 메타데이터를 사용하는데, 이는 하네스 관례 — 호환성 **미검증** |
 | `.kiro/settings/mcp.json` | Crew는 Integrations 아래에서 MCP를 관리하고 `kirocrew-core` + `kirocrew-cron`을 제공; 병합 동작 **문서에 명시되지 않음** |
 | `.kiro/hooks/*.json` (IDE v1 훅) | Crew는 자체 Hooks 표면을 가짐; 동일 디렉토리의 스키마 겹침 **미검증** |
 

@@ -10,7 +10,7 @@
 node install.js <cli|ide> [--scope global|workspace] [--category <list>] [--<category>=<list>] [--<category>-<sub>=<list>] [--workload a,b|all] [--review-backend kiro|claude|cross] [--dry-run]
 ```
 
-- **Tier** — `cli` (for `kiro-cli chat`: JSON agents, hooks embedded in agent JSON, `skill://` skills) or `ide` (for Kiro IDE: Markdown agents, `.kiro/hooks/*.json` v1 JSON hooks, steering).
+- **Tier** — `cli` (for `kiro-cli chat`, V3 engine only: V3-native JSON agents with tag-based `tools` and `permissions`, standalone `hooks/*.json` gate hooks, `skill://` skills) or `ide` (for Kiro IDE: Markdown agents, `.kiro/hooks/*.json` v1 JSON hooks, steering).
 - **Scope** — `global` (`~/.kiro`, CLI default) or `workspace` (project `.kiro`, IDE default).
 - **Category** — major categories (dev, cloud, ai, data, research, writing) + sub-category drill-down (--dev=rust,python). `core` is always installed; unselected levels default to all sub-options. For backward compatibility, `--workload` remains available for direct low-level workload key specification.
 
@@ -94,10 +94,10 @@ Programming, build, and orchestrator agents are always Kiro-native regardless of
 
 ## Orchestrator model
 
-The `kiro-cli` orchestrator (CLI global only) is assigned the **deep-reasoning capability tier**, which defaults to **`claude-opus-5`**. To request deeper reasoning when needed, adjust the reasoning effort—don't change the tier:
+The `kiro-cli` orchestrator (CLI global only) is assigned the **deep-reasoning capability tier**, which defaults to **`claude-opus-5.5`**. To request deeper reasoning when needed, adjust the reasoning effort—don't change the tier:
 
-- `kiro-cli chat --effort max` — enable maximum reasoning effort for the current session
-- `kiro-cli settings chat.modelDefaults` — customize model defaults persistently
+- `kiro-cli chat --effort max` — enable maximum reasoning effort for the current session (V3 does not save it as a default)
+- `kiro-cli settings chat.modelDefaults '<json>'` — per-model defaults; the setting replaces the whole object, so the installer prints one command covering every model the provider uses
 
 For detailed model routing policy, tier assignments across agents, and provider-specific mappings, see [Model routing](model-routing.md).
 

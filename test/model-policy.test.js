@@ -64,7 +64,7 @@ test('classifyRole: 오케스트레이터는 천장 티어(deep-reasoning) — �
 });
 
 test('classifyRole: deep-reasoning 역할', () => {
-  for (const role of ['architect', 'security-reviewer', 'deep-researcher', 'devops', 'peer-reviewer']) {
+  for (const role of ['architect', 'security-reviewer', 'deep-researcher', 'devops', 'peer-reviewer', 'tech-fidelity-auditor', 'doc-clarity-reviewer']) {
     assert.strictEqual(classifyRole(role), 'deep-reasoning', role);
   }
 });
@@ -88,10 +88,10 @@ test('classifyRole: balanced 역할 및 미등록 역할 기본값', () => {
 // tierIdentifier / identifierForRole
 // ---------------------------------------------------------------------------
 
-test('tierIdentifier: anthropic 기본 식별자', () => {
-  assert.strictEqual(tierIdentifier('deep-reasoning'), 'claude-opus-5');
-  assert.strictEqual(tierIdentifier('balanced'), 'claude-sonnet-5');
-  assert.strictEqual(tierIdentifier('cost-optimized'), 'claude-haiku-4.5');
+test('tierIdentifier: anthropic 기본 식별자(Claude 5.5 패밀리)', () => {
+  assert.strictEqual(tierIdentifier('deep-reasoning'), 'claude-opus-5.5');
+  assert.strictEqual(tierIdentifier('balanced'), 'claude-sonnet-5.5');
+  assert.strictEqual(tierIdentifier('cost-optimized'), 'claude-haiku-5.5');
 });
 
 test('tierIdentifier: openai 식별자(GPT-5.6 3종)', () => {
@@ -106,46 +106,57 @@ test('tierIdentifier: 알 수 없는 티어/프로바이더는 throw', () => {
 });
 
 test('identifierForRole: 역할 → 식별자(프로바이더별)', () => {
-  assert.strictEqual(identifierForRole('kiro-cli'), 'claude-opus-5');
-  assert.strictEqual(identifierForRole('architect'), 'claude-opus-5');
-  assert.strictEqual(identifierForRole('code-reviewer'), 'claude-sonnet-5');
-  assert.strictEqual(identifierForRole('translator-docs'), 'claude-haiku-4.5');
+  assert.strictEqual(identifierForRole('kiro-cli'), 'claude-opus-5.5');
+  assert.strictEqual(identifierForRole('architect'), 'claude-opus-5.5');
+  assert.strictEqual(identifierForRole('code-reviewer'), 'claude-sonnet-5.5');
+  assert.strictEqual(identifierForRole('translator-docs'), 'claude-haiku-5.5');
   assert.strictEqual(identifierForRole('code-reviewer', 'openai'), 'gpt-5.6-terra');
   assert.strictEqual(identifierForRole('kiro-cli', 'openai'), 'gpt-5.6-sol');
 });
 
 // ---------------------------------------------------------------------------
-// mixed 프로바이더 — 오케스트레이션만 Fable, 나머지 전 역할 Sol
+// mixed 프로바이더 — 오케스트레이션만 Claude Opus 5.5, 나머지 전 역할 Sol
 // ---------------------------------------------------------------------------
 
-test('mixed: 오케스트레이터만 Fable, 서브에이전트는 티어와 무관하게 전부 Sol', () => {
+test('mixed: 오케스트레이터만 Anthropic 천장(Opus 5.5), 서브에이전트는 티어와 무관하게 전부 Sol', () => {
   const { ROLE_MODEL_OVERRIDES } = require('../scripts/lib/model-policy');
-  assert.strictEqual(identifierForRole('kiro-cli', 'mixed'), 'claude-fable-5');
+  assert.strictEqual(identifierForRole('kiro-cli', 'mixed'), tierIdentifier('deep-reasoning', 'anthropic'));
   // 티어가 달라도(deep-reasoning/balanced/cost-optimized) 서브에이전트는 전부 Sol.
   for (const role of ['architect', 'security-reviewer', 'code-reviewer', 'rust-build-resolver', 'translator-docs', 'article-writer', 'unknown-future-agent']) {
     assert.strictEqual(identifierForRole(role, 'mixed'), 'gpt-5.6-sol', role);
   }
   // 오버라이드는 mixed 의 kiro-cli 하나뿐이다 — 넓어지면 의도된 정책 변경이어야 한다.
-  assert.deepStrictEqual(ROLE_MODEL_OVERRIDES, { mixed: { 'kiro-cli': 'claude-fable-5' } });
+  assert.deepStrictEqual(ROLE_MODEL_OVERRIDES, { mixed: { 'kiro-cli': 'claude-opus-5.5' } });
 });
 
-test('mixed: Fable 미서빙 폴백은 opus-5 + effort max (SSOT 파생)', () => {
-  const { MIXED_ORCHESTRATOR_FALLBACK } = require('../scripts/lib/model-policy');
-  assert.deepStrictEqual(MIXED_ORCHESTRATOR_FALLBACK, { model: 'claude-opus-5', effort: 'max' });
-  assert.strictEqual(MIXED_ORCHESTRATOR_FALLBACK.model, tierIdentifier('deep-reasoning', 'anthropic'), '폴백 모델은 anthropic 천장 티어에서 파생된다');
+test('정책 식별자는 V3 가 서빙하지 않는 모델(Fable·GPT-6.x)을 핀하지 않는다 — V3 는 폴백 없이 요청을 실패시킨다', () => {
+  const policy = require('../scripts/lib/model-policy');
+  assert.ok(!('MIXED_ORCHESTRATOR_FALLBACK' in policy), 'V2 폴백 전제의 Fable 대체 장치는 제거됐다');
+  const ids = [
+    ...TIER_IDS.flatMap((t) => Object.values(providersFor(t))),
+    ...Object.values(policy.ROLE_MODEL_OVERRIDES).flatMap((o) => Object.values(o)),
+  ];
+  for (const id of ids) assert.ok(!/fable|gpt-6/.test(id), id);
+});
+
+test('MODEL_NOTES: Haiku 5.5 에이전트는 100K 토큰 요율 경계 노트를 받는다', () => {
+  const { operatingNoteFor } = require('../scripts/lib/model-policy');
+  assert.match(operatingNoteFor('claude-haiku-5.5').join(' '), /100K tokens/);
+  assert.ok(!/100K tokens/.test(operatingNoteFor('claude-sonnet-5.5').join(' ')), '다른 모델에는 붙지 않는다');
+  assert.match(operatingNoteFor('gpt-5.6-sol').join(' '), /272K tokens bill at 2x/);
 });
 
 test('familyOfModel: 모델 접두어 → 패밀리, 미지 접두어는 throw', () => {
   const { familyOfModel } = require('../scripts/lib/model-policy');
-  assert.strictEqual(familyOfModel('claude-fable-5'), 'anthropic');
-  assert.strictEqual(familyOfModel('claude-opus-5'), 'anthropic');
+  assert.strictEqual(familyOfModel('claude-opus-5.5'), 'anthropic');
+  assert.strictEqual(familyOfModel('claude-haiku-5.5'), 'anthropic');
   assert.strictEqual(familyOfModel('gpt-5.6-sol'), 'openai');
   assert.throws(() => familyOfModel('gemini-3'), /Unknown model family/);
 });
 
 test('effortSettingsForModel: 에이전트 모델의 패밀리가 effort 경로를 결정한다(mixed 핵심)', () => {
   const { effortSettingsForModel } = require('../scripts/lib/model-policy');
-  assert.deepStrictEqual(effortSettingsForModel('claude-fable-5', 'max'), { output_config: { effort: 'max' } });
+  assert.deepStrictEqual(effortSettingsForModel('claude-opus-5.5', 'max'), { output_config: { effort: 'max' } });
   assert.deepStrictEqual(effortSettingsForModel('gpt-5.6-sol', 'max'), { reasoning: { effort: 'max' } });
 });
 
@@ -191,15 +202,30 @@ test('EFFORT_LADDER: 낮은 것부터 정렬되어 있고 max 가 최상단', ()
   assert.strictEqual(EFFORT_LADDER[EFFORT_LADDER.length - 1], 'max');
 });
 
-test('effortForRole: 기본값이 max — 추론이 필요한 모든 역할은 최상단에서 시작하고, 기계적 역할만 낮춘다', () => {
-  const { effortForRole, DEFAULT_EFFORT } = require('../scripts/lib/model-policy');
-  assert.strictEqual(DEFAULT_EFFORT, 'max', '디폴트 effort 는 max — 추론 예산을 아끼지 않는다');
-  for (const r of ['kiro-cli', 'architect', 'security-reviewer', 'peer-reviewer', 'code-reviewer', 'nonexistent-agent']) {
+test('effortForRole: 티어가 effort 를 결정한다 — Kiro 는 effort 를 모델 단위로만 적용한다', () => {
+  const { effortForRole, TIER_EFFORT } = require('../scripts/lib/model-policy');
+  assert.deepStrictEqual(TIER_EFFORT, { 'deep-reasoning': 'max', balanced: 'max', 'cost-optimized': 'medium' });
+  for (const r of ['kiro-cli', 'architect', 'security-reviewer', 'peer-reviewer', 'code-reviewer', 'refactor-cleaner', 'nonexistent-agent']) {
     assert.strictEqual(effortForRole(r), 'max', r);
   }
-  // 낮추는 예외만 존재한다(올리는 예외는 있을 수 없다 — 기본이 최상단).
-  assert.strictEqual(effortForRole('refactor-cleaner'), 'low');
-  assert.strictEqual(effortForRole('translator-docs'), 'low');
+  // 5.5 공식 지침: low 는 긴 에이전트 프롬프트에서 검색·검사를 건너뛴다 → 어떤 역할도 low 가 아니다.
+  assert.strictEqual(effortForRole('translator-docs'), 'medium');
+  assert.ok(!Object.values(TIER_EFFORT).includes('low'));
+});
+
+test('modelEffortDefaults: 프로바이더의 모든 모델을 한 객체로 — chat.modelDefaults 는 통째로 교체된다', () => {
+  const { modelEffortDefaults } = require('../scripts/lib/model-policy');
+  assert.deepStrictEqual(modelEffortDefaults('anthropic'), {
+    'claude-opus-5.5': { output_config: { effort: 'max' } },
+    'claude-sonnet-5.5': { output_config: { effort: 'max' } },
+    'claude-haiku-5.5': { output_config: { effort: 'medium' } },
+  });
+  assert.deepStrictEqual(modelEffortDefaults('openai')['gpt-5.6-luna'], { reasoning: { effort: 'medium' } });
+  // mixed: Sol 을 여러 티어가 공유하면 가장 높은 effort, 오케스트레이터 오버라이드는 Anthropic 경로.
+  assert.deepStrictEqual(modelEffortDefaults('mixed'), {
+    'gpt-5.6-sol': { reasoning: { effort: 'max' } },
+    'claude-opus-5.5': { output_config: { effort: 'max' } },
+  });
 });
 
 test('escalateEffort: 한 칸 올리고, 최상단(max)에서는 null — 그 지점이 cross-family 신호', () => {
@@ -236,4 +262,6 @@ test('PROVIDER_PROFILES: Claude/GPT effort 경로와 cross-family가 올바르�
   assert.strictEqual(gpt.crossFamilyBackend, 'Claude Code');
   assert.match(gpt.operatingNote.join(' '), /272K/);
   assert.throws(() => providerProfile('bogus'), /Unknown provider/);
+  // 공유 객체라 호출부가 바꾸면 이후 설치 전체가 오염된다 — 깊게 얼어 있어야 한다.
+  assert.ok(Object.isFrozen(claude) && Object.isFrozen(claude.operatingNote) && Object.isFrozen(claude.effortPath));
 });

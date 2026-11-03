@@ -1,6 +1,6 @@
 ---
 name: deployment-patterns
-description: Deployment workflows, CI/CD pipeline patterns, Docker containerization, health checks, rollback strategies, and production readiness checklists for web applications.
+description: Use when deploying, or rolling back a release or a database migration, and when preparing for production. Deployment workflows, CI/CD pipeline patterns, Docker containerization, health checks, rollback strategies, and production readiness checklists for web applications.
 origin: harness
 workloads: [cloud]
 ---
@@ -17,6 +17,11 @@ Production deployment workflows and CI/CD best practices.
 - Implementing health checks and readiness probes
 - Preparing for a production release
 - Configuring environment-specific settings
+- Rolling back a release or a database migration
+
+## Rollback Safety
+
+For any rollback: confirm the target revision with the user, back up the database before touching it, and prefer rolling back the app alone when the migration was additive. A database rollback is a reviewed down script applied first; `prisma migrate resolve --rolled-back` only records history. Commands per platform and Prisma version are in "Rollback Strategy" below.
 
 ## Deployment Strategies
 
@@ -368,6 +373,8 @@ export const env = envSchema.parse(process.env);
 
 ### Instant Rollback
 
+Run the command for your platform exactly as written — do not add flags or chain other commands. Confirm the target revision with the user first.
+
 ```bash
 # Docker/Kubernetes: point to previous image
 kubectl rollout undo deployment/app
@@ -378,8 +385,23 @@ vercel rollback
 # Railway: redeploy previous commit
 railway up --commit <previous-sha>
 
-# Database: rollback migration (if reversible)
-npx prisma migrate resolve --rolled-back <migration-name>
+# Database: Prisma has no automatic down migration. Back up first, generate
+# the down SQL from the previous schema, review it, apply it, then mark the
+# migration as rolled back. If the migration only added nullable columns or
+# tables, rolling back the app alone is usually safer than touching the DB.
+git show <previous-sha>:prisma/schema.prisma > /tmp/prev-schema.prisma
+# Prisma 6:
+npx prisma migrate diff --from-url "$DATABASE_URL" \
+  --to-schema-datamodel /tmp/prev-schema.prisma --script > ./rollback/<migration-name>.sql
+# Prisma 7 (datasource from prisma.config.ts):
+npx prisma migrate diff --from-config-datasource \
+  --to-schema /tmp/prev-schema.prisma --script > ./rollback/<migration-name>.sql
+# Then (Prisma 6–7, the
+# project-local CLI; Prisma 6 also needs --schema prisma/schema.prisma,
+# Prisma 7 reads the datasource from prisma.config.ts; the Prisma 8 CLI has
+# neither command — check `npx prisma --version` first):
+npx prisma db execute --file ./rollback/<migration-name>.sql
+npx prisma migrate resolve --rolled-back <migration-name>  # 기록만 바꾼다 — 스키마는 위 스크립트가 되돌린다
 ```
 
 ### Rollback Checklist

@@ -134,30 +134,18 @@ test('kiro-cli prompt에 기존 파이프라인 패턴 목록이 보존되어 �
 });
 
 // ---------------------------------------------------------------------------
-// 2) toolsSettings.subagent 에 peer-reviewer 등록 (R9.4)
+// 2) V3 permissions — peer-reviewer 는 사용자 확인 없이 시작된다 (R9.4)
 // ---------------------------------------------------------------------------
 
-test('kiro-cli toolsSettings.subagent.availableAgents/trustedAgents에 peer-reviewer가 포함된다 (R9.4)', () => {
+test('kiro-cli V3 permissions 의 subagent allow 에 peer-reviewer 가 포함되고, tools 로 시작할 수 있다 (R9.4)', () => {
   const parsed = JSON.parse(readText(KIRO_CLI));
-  const subagent = parsed.toolsSettings && parsed.toolsSettings.subagent;
-  assert.ok(subagent, 'toolsSettings.subagent 설정이 존재해야 한다');
-
+  // V3: tools 의 '*'(invoke_sub_agent 포함)이 시작 가능 범위, subagent allow 가 무확인 시작 범위다.
+  assert.ok(parsed.tools.includes('*') || parsed.tools.includes('subagent/peer-reviewer'), 'peer-reviewer 를 시작할 수 있어야 한다');
+  const allowRules = (parsed.permissions?.rules || []).filter((r) => r.capability === 'subagent' && r.effect === 'allow');
+  assert.ok(allowRules.length > 0, 'subagent allow 규칙이 존재해야 한다');
   assert.ok(
-    Array.isArray(subagent.availableAgents),
-    'availableAgents는 배열이어야 한다'
-  );
-  assert.ok(
-    subagent.availableAgents.includes('peer-reviewer'),
-    'availableAgents는 peer-reviewer를 포함해야 한다'
-  );
-
-  assert.ok(
-    Array.isArray(subagent.trustedAgents),
-    'trustedAgents는 배열이어야 한다'
-  );
-  assert.ok(
-    subagent.trustedAgents.includes('peer-reviewer'),
-    'trustedAgents는 peer-reviewer를 포함해야 한다'
+    allowRules.some((r) => Array.isArray(r.match) && r.match.includes('peer-reviewer')),
+    'subagent allow 는 peer-reviewer 를 포함해야 한다'
   );
 });
 

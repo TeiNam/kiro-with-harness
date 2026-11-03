@@ -1,5 +1,16 @@
 # Connection Management and MongoDB Features
 
+## Contents
+
+- Async Connection Pool (Python)
+- Node.js Native Driver (Async)
+- Application Layer Schema Validation
+- Transaction Management
+- Change Streams (Real-Time Change Detection)
+- Aggregation Pipeline Helpers
+- MongoDB-Specific Features
+- Performance Checklist
+
 ## Async Connection Pool (Python)
 
 > New code should use **PyMongo Async (`AsyncMongoClient`)**. motor is

@@ -19,7 +19,13 @@ In-process analytical SQL. Treat DuckDB as a SQL-fluent replacement for the pand
 
 Don't reach for it as a transactional store — it's an OLAP engine, single writer. Use Postgres / SQLite for OLTP.
 
+## Safety
+
+`COPY ... (OVERWRITE_OR_IGNORE)` and `OVERWRITE` replace existing files. Check the target directory first and confirm with the user before writing over existing output.
+
 ## Connection Modes
+
+Setup (이미 설치돼 있으면 건너뛴다.): `pip install duckdb` (Python) · `brew install duckdb` (CLI).
 
 ```python
 import duckdb
@@ -89,7 +95,9 @@ COPY (SELECT * FROM sales)
 COPY sales TO 'sales.csv' (HEADER, DELIMITER '|');
 ```
 
-`OVERWRITE_OR_IGNORE` is the safe default for partitioned writes — without it, an existing directory aborts the write.
+Without `OVERWRITE_OR_IGNORE`, an existing target directory aborts the write.
+With it, files of the same name are overwritten in place, so list the target
+directory first and confirm with the user before writing over existing output.
 
 ## DataFrame Interop
 

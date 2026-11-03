@@ -85,7 +85,6 @@ Build tool and dev-server patterns for Vite 6/7+. Configuration, plugins, HMR, e
 
 ## See Also
 
-- `_archive/SKILL-original.md` — original harness single-file version (449 lines).
 - [vite.dev/guide](https://vite.dev/guide/) — official docs.
 
 **Remember**: Vite is fast in dev because it skips bundling. Surprises happen when dev (esbuild transform) and build (Rolldown bundle) disagree — always smoke-test with `vite build && vite preview` before deploying.
