@@ -294,37 +294,58 @@ test('e2e: OpenAI CLI 설치는 reasoning.effort 안내를 출력하고 잘못�
   }
 });
 
-test('e2e: --provider=mixed는 오케스트레이터만 Opus 5.5, 서브에이전트는 전부 Sol + 패밀리별 노트', () => {
+test('e2e: --provider=mixed는 작성·조율 역할은 Claude 티어, 리뷰·판정 역할만 GPT-5.6 + 패밀리별 노트', () => {
   const tmp = mkTmp();
+  const tmpCross = mkTmp();
   try {
-    const r = runInstall(['cli', '--scope=global', '--workload=core', '--provider=mixed', '--review-backend=cross', `--target=${tmp}`]);
+    // 네이티브 리뷰어(*-reviewer)는 --review-backend=kiro 에서만 설치된다.
+    const r = runInstall(['cli', '--scope=global', '--workload=core', '--provider=mixed', '--review-backend=kiro', `--target=${tmp}`]);
     assert.strictEqual(r.status, 0, `install exit 0 (${r.stderr})`);
+    const read = (n) => JSON.parse(fs.readFileSync(path.join(tmp, 'agents', `${n}.json`), 'utf8'));
 
-    // 오케스트레이터: Opus 5.5 + Anthropic 계열 운영 노트(1M 컨텍스트 문구).
-    const orch = JSON.parse(fs.readFileSync(path.join(tmp, 'agents', 'kiro-cli.json'), 'utf8'));
-    assert.strictEqual(orch.model, 'claude-opus-5.5');
-    assert.match(orch.prompt, /1M context window/, '오케스트레이터는 Claude 계열 노트를 받는다');
+    // 작성·조율 역할: anthropic 과 같은 Claude 티어 + Claude 계열 노트(1M 컨텍스트 문구).
+    for (const [role, model] of [
+      ['kiro-cli', 'claude-opus-5.5'],
+      ['architect', 'claude-opus-5.5'],
+      ['peer-reviewer', 'claude-opus-5.5'],
+      ['refactor-cleaner', 'claude-sonnet-5.5'],
+      ['translator-docs', 'claude-haiku-5.5'],
+    ]) {
+      const a = read(role);
+      assert.strictEqual(a.model, model, role);
+      assert.match(a.prompt, /1M context window/, `${role} 는 Claude 계열 노트를 받는다`);
+    }
+    assert.match(read('translator-docs').prompt, /under 100K tokens/, 'Haiku 5.5 요율 노트 유지');
 
-    // 서브에이전트: 티어와 무관하게 전부 Sol + GPT 계열 노트(272K 요율 경계 문구).
-    for (const role of ['architect', 'peer-reviewer', 'translator-docs']) {
-      const sub = JSON.parse(fs.readFileSync(path.join(tmp, 'agents', `${role}.json`), 'utf8'));
-      assert.strictEqual(sub.model, 'gpt-5.6-sol', role);
-      assert.match(sub.prompt, /272K tokens bill at 2x/, `${role} 는 GPT 계열 노트를 받는다`);
-      assert.ok(!/100K tokens/.test(sub.prompt), `${role}: Haiku 전용 노트는 Sol 에 붙지 않는다`);
+    // 리뷰·판정 역할: 같은 티어의 GPT-5.6 + GPT 계열 노트(272K 요율 경계 문구).
+    for (const [role, model] of [['security-reviewer', 'gpt-5.6-sol'], ['code-reviewer', 'gpt-5.6-terra']]) {
+      const a = read(role);
+      assert.strictEqual(a.model, model, role);
+      assert.match(a.prompt, /272K tokens bill at 2x/, `${role} 는 GPT 계열 노트를 받는다`);
+      assert.ok(!/1M context window/.test(a.prompt), `${role}: Claude 노트는 붙지 않는다`);
     }
 
-    // cross-review: mixed 프로바이더가 기록된다(Codex 우선 분기).
-    const cross = fs.readFileSync(path.join(tmp, 'hooks', 'cross-review.sh'), 'utf8');
+    // cross-review: mixed 가 기록되고, 작성자가 Claude 라 anthropic 과 같은 Codex 우선 분기를 탄다.
+    // kiro 가 아닌 백엔드는 네이티브 리뷰어를 빼므로 그 사실을 안내한다.
+    const rc = runInstall(['cli', '--scope=global', '--workload=core', '--provider=mixed', '--review-backend=cross', `--target=${tmpCross}`]);
+    assert.strictEqual(rc.status, 0, `install exit 0 (${rc.stderr})`);
+    const cross = fs.readFileSync(path.join(tmpCross, 'hooks', 'cross-review.sh'), 'utf8');
     assert.match(cross, /^HOST_PROVIDER="mixed"$/m);
+    assert.ok(!/"\$HOST_PROVIDER" = "mixed"/.test(cross), 'mixed 전용 분기는 없다');
+    const note = /GPT-5\.6 리뷰어\(\*-reviewer\)는 --review-backend kiro 에서만/;
+    assert.match(rc.stdout, note, 'cross 백엔드는 GPT 리뷰어 미설치를 안내한다');
+    assert.ok(!note.test(r.stdout), 'kiro 백엔드에서는 안내하지 않는다');
 
-    // 매니페스트와 안내 출력: effort 경로는 output_config, V2 시절 Fable 폴백 안내는 없다.
+    // 매니페스트와 안내 출력: chat.modelDefaults 한 객체에 두 패밀리의 effort 경로가 공존한다.
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, '.harness-manifest.json'), 'utf8'));
     assert.strictEqual(manifest.provider, 'mixed');
     assert.strictEqual(manifest.orchestratorModel, 'claude-opus-5.5');
-    assert.match(r.stdout, /"claude-opus-5\.5":\{"output_config":\{"effort":"max"\}\}/, 'Opus 5.5 effort 는 Anthropic 경로');
-    assert.ok(!/Fable|chat\.defaultModel/.test(r.stdout), 'Fable 폴백 안내 제거');
+    assert.match(r.stdout, /"claude-opus-5\.5":\{"output_config":\{"effort":"max"\}\}/, 'Claude 는 output_config 경로');
+    assert.match(r.stdout, /"gpt-5\.6-terra":\{"reasoning":\{"effort":"max"\}\}/, 'GPT 리뷰어는 reasoning 경로');
+    assert.ok(!/Fable|chat\.defaultModel/.test(r.stdout), 'Fable 폴백 안내 없음');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(tmpCross, { recursive: true, force: true });
   }
 });
 

@@ -69,7 +69,7 @@ async function runInteractiveInstall(io = {}) {
       options: [
         { id: 'anthropic', label: 'anthropic (기본 — Claude Opus/Sonnet/Haiku 5.5 3-티어)' },
         { id: 'openai', label: 'openai   (GPT-5.6 Sol/Terra/Luna 3-티어)' },
-        { id: 'mixed', label: 'mixed    (Claude Opus 5.5 오케스트레이션 + GPT-5.6 Sol 서브에이전트)' },
+        { id: 'mixed', label: 'mixed    (Claude 작성 + GPT-5.6 리뷰 — 리뷰·판정 역할만 Sol/Terra)' },
       ],
     }));
     if (!provider) return null;

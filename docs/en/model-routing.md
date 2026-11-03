@@ -1,6 +1,6 @@
 # Model Routing
 
-The harness assigns each agent a model by **capability tier**, not by hand-picking a model per file. This is a **3-tier** policy and the tiers are **provider-agnostic**: the same tiers map to Claude identifiers (the default) and to the OpenAI GPT-5.6 identifiers. A third install-time pattern, **`mixed`**, combines the families role-wise — Claude Opus 5.5 for orchestration, GPT-5.6 Sol for every other role (see [Mixed pattern](#mixed-pattern-opus-55-orchestration--sol-subagents)). The single source of truth is [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js).
+The harness assigns each agent a model by **capability tier**, not by hand-picking a model per file. This is a **3-tier** policy and the tiers are **provider-agnostic**: the same tiers map to Claude identifiers (the default) and to the OpenAI GPT-5.6 identifiers. A third install-time pattern, **`mixed`**, combines the families by function: Claude models orchestrate and author, and GPT-5.6 runs the review and audit roles (see [Mixed pattern](#mixed-pattern-claude-authors-gpt-56-reviews)). The single source of truth is [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js).
 
 **Opus 5.5 is the ceiling.** There is no tier above it. When a task needs more than the top tier is producing, escalate in two directions only — **inward** (raise effort within the tier) and **sideways** (a different model family). See [Above the ceiling](#above-the-ceiling-effort-then-cross-family).
 
@@ -60,7 +60,7 @@ Note that `effort` is **not** an agent-config field — Kiro's agent schema has 
 
 ### 2) Sideways — a different model family
 
-At `max` there is nothing above. The remaining axis is a different model family, because re-prompting the same family cannot break correlated blind spots — same training, same failure modes. Kiro surfaces this through the `peer-reviewer` agent (terminal `claude -p` + `codex`) and, with `--review-backend cross`, the on-demand `bash .kiro/hooks/cross-review.sh`. The installed provider profile sets the independent backend first: Anthropic → Codex; OpenAI → Claude Code. The other CLI is labeled same-family corroboration rather than an independent vote.
+At `max` there is nothing above. The remaining axis is a different model family, because re-prompting the same family cannot break correlated blind spots — same training, same failure modes. Kiro surfaces this through the `peer-reviewer` agent (terminal `claude -p` + `codex`) and, with `--review-backend cross`, the on-demand `bash .kiro/hooks/cross-review.sh`. The installed provider profile sets the independent backend first: Anthropic and mixed → Codex; OpenAI → Claude Code. The other CLI is labeled same-family corroboration rather than an independent vote. Under `mixed`, the native reviewers already run on GPT-5.6, so the in-harness review is cross-family as well.
 
 Hand work to another family when **independence** or **grind** is the value:
 
@@ -98,25 +98,38 @@ node install.js cli --scope global --provider=anthropic
 node install.js cli --scope global --provider=openai
 node install.js ide --provider=openai --dev=frontend
 
-# Mixed profile — Opus 5.5 orchestration + Sol subagents
-node install.js cli --scope global --provider=mixed
+# Mixed profile — Claude authors, GPT-5.6 reviews (native reviewers need --review-backend=kiro)
+node install.js cli --scope global --provider=mixed --review-backend=kiro
 ```
 
 The provider profile changes four things together:
 
-1. Role-tier model IDs (`Opus/Sonnet/Haiku 5.5`, `Sol/Terra/Luna`, or Opus 5.5 + all-`Sol` for mixed).
+1. Role-tier model IDs (`Opus/Sonnet/Haiku 5.5`, `Sol/Terra/Luna`, or for mixed the Claude tiers with the review and audit roles on `Sol`/`Terra`).
 2. The printed `chat.modelDefaults` object, one entry per model the provider uses, each with its family's field path (`output_config.effort` for Claude, `reasoning.effort` for GPT).
 3. A concise operating note injected into every installed agent, keyed to **that agent's model** — not the global flag. Claude-family agents get plan/self-verification and 1M-context guidance; GPT-family agents get batched-tool guidance plus the 272K-token pricing boundary (1M window, 2x rate above 272K); Haiku 5.5 agents also get the 100K-token boundary (0.06x below, 0.3x above). Under `mixed` the note kinds coexist in one install.
-4. Cross-family priority. Anthropic runs Codex first; OpenAI runs Claude Code first; mixed runs Codex first (versus the Opus-authored side) with Claude Code covering the Sol-authored side.
+4. Cross-family priority. Anthropic and mixed run Codex first, because Claude authors the changes; OpenAI runs Claude Code first.
 
 The manifest records `provider`, and `node install.js --status` shows it. Re-run the installer with another provider to switch a workspace. Global and workspace installs may use different providers; content-based deduplication keeps a provider-specific workspace copy when it differs from the global one.
 
-### Mixed pattern (Opus 5.5 orchestration + Sol subagents)
+### Mixed pattern (Claude authors, GPT-5.6 reviews)
 
-`--provider=mixed` is a role-wise combination, not a fourth tier column:
+`--provider=mixed` splits the fleet by function, not by a fourth tier column:
 
-- **Orchestrator (`kiro-cli`) → `claude-opus-5.5`** via `ROLE_MODEL_OVERRIDES` — Claude drives planning, delegation, and convergence.
-- **Every other role → `gpt-5.6-sol`**, regardless of tier. Subagent work is deliberately flattened to OpenAI's ceiling model rather than Terra/Luna: the point of the pattern is Claude-ceiling orchestration over uniformly strong Sol workers.
+- **Roles that produce or change artifacts keep their Claude tier.** Orchestration, architecture, research, infrastructure, coding, build fixes, refactors, e2e, drafting, and translation run exactly as in the default install (Opus 5.5 / Sonnet 5.5 / Haiku 5.5).
+- **Review and audit roles run on the GPT-5.6 model of the same tier** (`REVIEW_ROLES` and `ROLE_MODEL_OVERRIDES` in `model-policy.js`):
+
+| Tier | Review / audit roles | Model under mixed |
+|------|----------------------|-------------------|
+| deep-reasoning | security-reviewer, tech-fidelity-auditor, doc-clarity-reviewer | `gpt-5.6-sol` |
+| balanced | code-reviewer, database-reviewer, all language reviewers (python, rust, go, java, kotlin, cpp, typescript, flutter) | `gpt-5.6-terra` |
+
+A reviewer from the author's family shares the author's blind spots. Running the reviewers on GPT-5.6 inside Kiro breaks that correlation and keeps the steering rules, skills, MCP servers, and hooks that an external CLI would start without.
+
+Two roles stay on Claude on purpose. `peer-reviewer` coordinates external opinions rather than issuing a verdict, and it already gets the GPT side through Codex. `doc-quality-detector` scans the input document before drafting, so it belongs to the authoring side. A test fails if a new `*-reviewer` or `*-auditor` agent is missing from `REVIEW_ROLES`.
+
+The native `*-reviewer` agents are installed only with `--review-backend kiro`. With `claude` or `cross`, reviews go through `peer-reviewer` instead, and the installer prints a note saying so. `tech-fidelity-auditor` is not a `*-reviewer`, so it runs on Sol under any backend.
+
+Cost compared with the default Anthropic install: the balanced reviewers move from Sonnet 5.5 (1.3x credits) to Terra (2.2x), and the Opus-tier judges move from 2.0x to Sol (4.4x). Every other role keeps its Claude rate. The previous `mixed` ran every subagent on Sol (4.4x).
 
 Earlier versions pinned the orchestrator to Claude Fable and printed a `chat.defaultModel` fallback. Both are gone: Fable 5.1 is available only to Kiro Enterprise organizations, and CLI V3 does not fall back from an unavailable pin — the request fails — so a Fable pin would stop the orchestrator on any other account.
 

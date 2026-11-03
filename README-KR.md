@@ -7,7 +7,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자로 워크로드와 모델 프로바이더를 선택하여, 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. CLI 계층은 **Kiro CLI V3 엔진**을 대상으로 합니다(tag 기반 `tools`와 능력 기반 `permissions`를 갖춘 V3-native 에이전트, standalone 훅 파일). 설치 관리자는 동일 역할 티어를 세 가지 모델 사용 패턴 — Claude(기본: Opus 5.5 / Sonnet 5.5 / Haiku 5.5), GPT-5.6, 또는 **mixed**(Claude Opus 5.5 오케스트레이션 + GPT-5.6 Sol 서브에이전트)으로 최적화하며, 자산 fleet을 중복하지 않습니다: 프로바이더 특화 모델 ID, 노력(effort) 가이드, 운영 노트, 교차 패밀리 리뷰 우선순위를 설치 산출물에 기록합니다. 천장 티어는 **노력**으로 에스컬레이션하고, 그 다음 다른 모델 패밀리로 옆(sideways) 에스컬레이션합니다 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 강제 git 파이프라인, 공유 에이전트 협업 가이드(AGENTS.md).
+Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자로 워크로드와 모델 프로바이더를 선택하여, 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. CLI 계층은 **Kiro CLI V3 엔진**을 대상으로 합니다(tag 기반 `tools`와 능력 기반 `permissions`를 갖춘 V3-native 에이전트, standalone 훅 파일). 설치 관리자는 동일 역할 티어를 세 가지 모델 사용 패턴 — Claude(기본: Opus 5.5 / Sonnet 5.5 / Haiku 5.5), GPT-5.6, 또는 **mixed**(Claude가 작성, GPT-5.6이 리뷰·감사 역할 담당)으로 최적화하며, 자산 fleet을 중복하지 않습니다: 프로바이더 특화 모델 ID, 노력(effort) 가이드, 운영 노트, 교차 패밀리 리뷰 우선순위를 설치 산출물에 기록합니다. 천장 티어는 **노력**으로 에스컬레이션하고, 그 다음 다른 모델 패밀리로 옆(sideways) 에스컬레이션합니다 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 강제 git 파이프라인, 공유 에이전트 협업 가이드(AGENTS.md).
 
 ## 빠른 시작
 
@@ -23,8 +23,8 @@ node install.js cli --scope global
 # OpenAI GPT-5.6 Sol / Terra / Luna로 최적화한 동일 fleet
 node install.js cli --scope global --provider=openai
 
-# Mixed: Claude Opus 5.5가 오케스트레이션, GPT-5.6 Sol이 모든 서브에이전트 실행
-node install.js cli --scope global --provider=mixed
+# Mixed: Claude가 작성, GPT-5.6이 네이티브 리뷰어 실행(--review-backend=kiro로 설치)
+node install.js cli --scope global --provider=mixed --review-backend=kiro
 
 # Claude는 기본값; 프로바이더 선택은 IDE/워크스페이스 설치에도 적용됨
 node install.js ide --provider=anthropic --dev=frontend
@@ -158,7 +158,7 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 설계 원칙: **Opus 5.5가 오케스트레이션과 추론을 담당하고, Sonnet 5.5가 코딩 물량을 처리하며, Haiku 5.5는 값싼 대량 작업을 맡는다.** 기술 작성 파이프라인에서는 stage별로 분담합니다: 탐지와 드래프팅은 Sonnet으로 유지되고, fidelity와 clarity 판정(개방형 판단)은 Opus에서 실행됩니다. 동일한 능력 티어가 OpenAI에도 매핑됩니다: `deep-reasoning → gpt-5.6-sol`, `balanced → gpt-5.6-terra`, `cost-optimized → gpt-5.6-luna`. `--provider=anthropic|openai|mixed`로 선택하세요. 설치기는 설치된 산출물만 변경하며 Anthropic 우선 소스 자산은 손대지 않습니다. 또한 모든 설치된 에이전트에 그 에이전트의 모델 패밀리에 맞는 간결한 운영 노트를 주입합니다(글로벌 플래그가 아니라): Claude 패밀리 에이전트는 plan/자가검증과 1M 컨텍스트 가이드를 받고, GPT 패밀리 에이전트는 배치 도구 가이드 및 272K 토큰 가격 경계(1M 윈도우, 272K 이상 2배 요금)를 받으며, Haiku 5.5 에이전트는 100K 토큰 가격 경계도 받습니다(이하 0.06배, 이상 0.3배). 전체 배정·훅→티어 가이드·프로바이더 전환: [모델 라우팅](docs/kr/model-routing.md).
 
-**`mixed` 패턴(Opus 5.5 오케스트레이션 + Sol 서브에이전트).** `--provider=mixed`는 오케스트레이터(`kiro-cli`)만 `claude-opus-5.5`로 고정하고 **다른 모든 역할을 티어 무관 `gpt-5.6-sol`**로 라우팅합니다 — Claude가 오케스트레이션·위임·수렴을 담당하고, GPT-5.6 Sol이 위임된 작업 전부를 OpenAI 천장 티어에서 처리합니다. 각 에이전트는 자신의 패밀리에 맞는 운영 노트를 받으며, `cross-review.sh`는 Codex를 먼저 실행하고(Opus가 작성한 변경에 대한 cross-family 리뷰), Sol이 작성한 쪽은 Claude Code가 맡습니다. 이전 버전들은 오케스트레이터를 Claude Fable로 핀했으며 폴백을 출력했습니다. 둘 다 사라졌습니다: Fable 5.1은 Kiro Enterprise 조직만 사용 가능하며, CLI V3은 사용 불가능한 pin에서 폴백하지 않습니다 — 요청이 실패합니다 — 따라서 다른 계정에서는 Fable pin이 오케스트레이터를 멈추게 합니다.
+**`mixed` 패턴(Claude 작성, GPT-5.6 리뷰).** `--provider=mixed`는 산출물을 만들거나 변경하는 역할을 모두 Claude 티어에 그대로 두고, 리뷰·감사 역할만 같은 티어의 GPT-5.6 모델로 옮깁니다: `security-reviewer`, `tech-fidelity-auditor`, `doc-clarity-reviewer`는 `gpt-5.6-sol`에서, `code-reviewer`, `database-reviewer`, 언어별 리뷰어는 `gpt-5.6-terra`에서 실행합니다. 작성자와 같은 패밀리의 리뷰어는 작성자와 같은 맹점을 공유하며, 이 리뷰어들은 외부 CLI에는 없는 하네스의 스티어링, 스킬, MCP 서버를 그대로 받습니다. `peer-reviewer`는 외부 의견을 모으는 역할이라 Opus에 남고(GPT 쪽은 Codex가 담당), `cross-review.sh`는 Anthropic 프로필과 같이 Codex를 먼저 실행합니다. 네이티브 `*-reviewer` 에이전트는 `--review-backend kiro`에서만 설치됩니다. Fable 5.1은 고정하지 않습니다. Enterprise 전용이며, CLI V3은 사용 불가능한 pin에서 `chat.defaultModel`로 폴백하지 않고 요청을 실패시키기 때문입니다.
 
 ### Opus 5.5가 천장이다 — 안으로 에스컬레이션한 후 옆으로
 
@@ -284,7 +284,7 @@ node install.js <tier> [options]
   --<category>= <list>           중분류 선택 (예: --dev=frontend,python; 미선택 = 전체 중분류)
   --<category>-<sub>= <list>     소분류 옵션 (예: --writing-social=voice; 소분류가 있는 중분류만)
   --workload <list|all>          저수준: 워크로드 키 직접 지정 (쉼표로 구분 또는 'all'; 레거시 표면, 카테고리와 합집합)
-  --provider <anthropic|openai|mixed>  모델 프로바이더 프로필 (기본: anthropic); 역할 모델·effort 가이드·운영 노트·교차 패밀리 우선순위를 설치 에이전트에 기록. mixed = Claude Opus 5.5 오케스트레이션 + 나머지 전 역할 Sol
+  --provider <anthropic|openai|mixed>  모델 프로바이더 프로필 (기본: anthropic); 역할 모델·effort 가이드·운영 노트·교차 패밀리 우선순위를 설치 에이전트에 기록. mixed = 산출물 작성 역할은 Claude 티어, 리뷰·감사 역할은 GPT-5.6(Sol/Terra)
   --cli-version 3                호환성을 위해 수용; CLI 계층은 V3 전용 (2는 거부됨)
   --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE 전용: mcp.json을 범용 mcp-proxy(:9090) 경유로 구성 + 그 컨테이너 자동 기동

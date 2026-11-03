@@ -1,6 +1,6 @@
 # 모델 라우팅(Model Routing)
 
-하네스는 파일마다 모델을 손으로 고르는 대신, 각 에이전트를 **능력 티어(capability tier)**로 배정한다. 이는 **3-티어** 정책이며, 티어는 **프로바이더 독립적(provider-agnostic)**이다 — 동일한 티어가 Claude 식별자(기본)와 OpenAI GPT-5.6 식별자에 모두 매핑된다. 세 번째 설치 패턴인 **`mixed`**는 역할 단위 조합을 한다 — Claude Opus 5.5가 오케스트레이션, 그 외 전 역할은 GPT-5.6 Sol([Mixed 패턴](#mixed-패턴-opus-55-오케스트레이션--sol-서브에이전트) 참조). 단일 출처(SSOT)는 [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js)다.
+하네스는 파일마다 모델을 손으로 고르는 대신, 각 에이전트를 **능력 티어(capability tier)**로 배정한다. 이는 **3-티어** 정책이며, 티어는 **프로바이더 독립적(provider-agnostic)**이다 — 동일한 티어가 Claude 식별자(기본)와 OpenAI GPT-5.6 식별자에 모두 매핑된다. 세 번째 설치 패턴인 **`mixed`**는 기능별로 조합한다 — Claude 모델이 오케스트레이션과 작성을 맡고, GPT-5.6이 리뷰·감사 역할을 맡는다([Mixed 패턴](#mixed-패턴-claude-작성-gpt-56-리뷰) 참조). 단일 출처(SSOT)는 [`scripts/lib/model-policy.js`](../../scripts/lib/model-policy.js)다.
 
 **Opus 5.5가 천장(ceiling)이다.** 그 위의 티어는 없다. 최상위 티어가 충분한 결과를 내지 못할 때, 두 방향으로만 확대한다 — **내향**(티어 내에서 노력 증가)과 **횡향**(다른 모델 가족). [천장 위: 노력, 그 다음 크로스 패밀리](#천장-위-노력-그-다음-크로스-패밀리) 참조.
 
@@ -60,7 +60,7 @@ kiro-cli chat --effort max
 
 ### 2) 횡향 — 다른 모델 가족
 
-`max`에는 위가 없다. 남은 축은 다른 모델 가족이다. 같은 가족을 다시 프롬프트하는 것은 상관된 맹점을 깨뜨릴 수 없기 때문이다 — 같은 학습, 같은 실패 모드. Kiro는 이를 `peer-reviewer` 에이전트(터미널 `claude -p` + `codex`)와 `--review-backend cross` 옵션의 온디맨드 `bash .kiro/hooks/cross-review.sh`로 노출한다. 설치된 프로바이더 프로필이 독립 백엔드 우선순위를 정한다: Anthropic → Codex를 먼저 호출, OpenAI → Claude Code를 먼저 호출. 다른 CLI는 같은 가족 상호 검증으로 남는다.
+`max`에는 위가 없다. 남은 축은 다른 모델 가족이다. 같은 가족을 다시 프롬프트하는 것은 상관된 맹점을 깨뜨릴 수 없기 때문이다 — 같은 학습, 같은 실패 모드. Kiro는 이를 `peer-reviewer` 에이전트(터미널 `claude -p` + `codex`)와 `--review-backend cross` 옵션의 온디맨드 `bash .kiro/hooks/cross-review.sh`로 노출한다. 설치된 프로바이더 프로필이 독립 백엔드 우선순위를 정한다: Anthropic과 mixed → Codex를 먼저 호출, OpenAI → Claude Code를 먼저 호출. 다른 CLI는 같은 가족 상호 검증으로 남는다. mixed에서는 네이티브 리뷰어가 이미 GPT-5.6에서 실행되므로, 하네스 내부 리뷰도 교차 패밀리다.
 
 **독립성**이나 **수고**가 가치인 경우 다른 가족에 작업을 넘긴다:
 
@@ -100,25 +100,38 @@ node install.js cli --scope global --provider=anthropic
 node install.js cli --scope global --provider=openai
 node install.js ide --provider=openai --dev=frontend
 
-# Mixed 프로필 — Opus 5.5 오케스트레이션 + Sol 서브에이전트
-node install.js cli --scope global --provider=mixed
+# Mixed 프로필 — Claude가 작성, GPT-5.6이 리뷰 (네이티브 리뷰어에는 --review-backend=kiro 필요)
+node install.js cli --scope global --provider=mixed --review-backend=kiro
 ```
 
 프로바이더 프로필이 네 가지를 함께 변경합니다:
 
-1. 역할-티어 모델 ID (`Opus/Sonnet/Haiku 5.5`, `Sol/Terra/Luna`, 또는 mixed의 Opus 5.5 + 전부 `Sol`).
+1. 역할-티어 모델 ID (`Opus/Sonnet/Haiku 5.5`, `Sol/Terra/Luna`, 또는 mixed의 Claude 티어 + 리뷰·감사 역할은 `Sol`/`Terra`).
 2. 출력된 `chat.modelDefaults` 객체, 프로바이더가 쓰는 모델당 하나의 항목, 각각 그 패밀리의 필드 경로(`output_config.effort` for Claude, `reasoning.effort` for GPT).
 3. 모든 설치된 에이전트에 주입된 간결한 운영 노트, **그 에이전트의 모델** 기준(글로벌 플래그 아님). Claude 패밀리 에이전트는 plan/자가검증과 1M 컨텍스트 가이드를 받고, GPT 패밀리 에이전트는 배치 도구 가이드 및 272K 토큰 가격 경계(1M 윈도우, 272K 이상 2배 요금)를 받으며, Haiku 5.5 에이전트는 100K 토큰 경계도 받습니다(이하 0.06배, 이상 0.3배). Mixed에서는 두 종류 운영 노트가 한 설치에서 공존합니다.
-4. Cross-family 우선순위. Anthropic은 Codex 우선, OpenAI는 Claude Code 우선; mixed는 Codex 우선(Opus 작성 쪽의 cross-family) — Claude Code는 Sol 작성 쪽을 커버.
+4. Cross-family 우선순위. Anthropic과 mixed는 Codex 우선(Claude가 변경을 작성하므로), OpenAI는 Claude Code 우선.
 
 매니페스트가 `provider`를 기록하며, `node install.js --status`로 확인 가능합니다. 다른 프로바이더로 설치기를 다시 실행하면 워크스페이스를 전환합니다. 글로벌·워크스페이스 설치는 다른 프로바이더를 사용할 수 있으며, 콘텐츠 기반 중복 제거가 차이나는 프로바이더별 워크스페이스 사본을 유지합니다.
 
-### Mixed 패턴 (Opus 5.5 오케스트레이션 + Sol 서브에이전트)
+### Mixed 패턴 (Claude 작성, GPT-5.6 리뷰)
 
-`--provider=mixed`는 역할 단위 조합이지, 네 번째 티어 열이 아니다:
+`--provider=mixed`는 기능별로 나누며, 네 번째 티어 열이 아니다:
 
-- **오케스트레이터(`kiro-cli`) → `claude-opus-5.5`** via `ROLE_MODEL_OVERRIDES` — Claude가 planning·delegation·convergence를 담당한다.
-- **모든 다른 역할 → `gpt-5.6-sol`**, 티어 무관. 서브에이전트 작업은 의도적으로 Terra/Luna가 아닌 OpenAI 천장 모델로 평탄화된다. 패턴의 목표는 균일하게 강한 Sol 워커들 위의 Claude-천장 오케스트레이션이다.
+- **산출물을 만들거나 변경하는 역할은 Claude 티어를 유지한다.** 오케스트레이션, 아키텍처, 리서치, 인프라, 코딩, 빌드 수정, 리팩터, e2e, 초안 작성, 번역은 기본 Anthropic 설치와 똑같이 실행된다(Opus 5.5 / Sonnet 5.5 / Haiku 5.5).
+- **리뷰·감사 역할은 같은 티어의 GPT-5.6 모델에서 실행한다** (`model-policy.js`의 `REVIEW_ROLES`와 `ROLE_MODEL_OVERRIDES`):
+
+| 티어 | 리뷰/감사 역할 | mixed에서의 모델 |
+|------|----------------|------------------|
+| deep-reasoning | security-reviewer, tech-fidelity-auditor, doc-clarity-reviewer | `gpt-5.6-sol` |
+| balanced | code-reviewer, database-reviewer, 전체 언어 리뷰어(python, rust, go, java, kotlin, cpp, typescript, flutter) | `gpt-5.6-terra` |
+
+작성자와 같은 패밀리의 리뷰어는 작성자와 같은 맹점을 공유한다. Kiro 안에서 리뷰어를 GPT-5.6으로 돌리면 그 상관관계가 끊기고, 외부 CLI에는 없는 steering 규칙, 스킬, MCP 서버, 훅도 그대로 쓴다.
+
+두 역할은 의도적으로 Claude에 남긴다. `peer-reviewer`는 판정을 내리지 않고 외부 의견을 조율하며, 이미 Codex를 통해 GPT 쪽 의견을 받는다. `doc-quality-detector`는 초안 작성 전에 입력 문서를 스캔하므로 작성 쪽에 속한다. 새 `*-reviewer` 또는 `*-auditor` 에이전트가 `REVIEW_ROLES`에서 빠지면 테스트가 실패한다.
+
+네이티브 `*-reviewer` 에이전트는 `--review-backend kiro`에서만 설치된다. `claude`나 `cross`를 쓰면 리뷰는 `peer-reviewer`로 가며, 설치기가 그 사실을 안내한다. `tech-fidelity-auditor`는 `*-reviewer`가 아니므로 백엔드와 관계없이 Sol에서 실행된다.
+
+기본 Anthropic 설치와 비교한 비용: balanced 리뷰어는 Sonnet 5.5(1.3x 크레딧)에서 Terra(2.2x)로, Opus 티어 판정 역할은 2.0x에서 Sol(4.4x)로 옮겨간다. 다른 역할은 Claude 요율을 그대로 유지한다. 이전 `mixed`는 모든 서브에이전트를 Sol(4.4x)에서 실행했다.
 
 이전 버전들은 오케스트레이터를 Claude Fable로 핀했으며 폴백을 출력했습니다. 둘 다 사라졌습니다: Fable 5.1은 Kiro Enterprise 조직만 사용 가능하며, CLI V3은 사용 불가능한 pin에서 폴백하지 않습니다 — 요청이 실패합니다 — 따라서 다른 계정에서는 Fable pin이 오케스트레이터를 멈추게 합니다.
 

@@ -7,7 +7,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload and model-provider selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. The CLI tier targets the **Kiro CLI V3 engine** (V3-native agents with tag-based `tools` and capability `permissions`, standalone hook files). The installer optimizes the same role tiers for three model-usage patterns — Claude (default: Opus 5.5 / Sonnet 5.5 / Haiku 5.5), GPT-5.6, or **mixed** (Claude Opus 5.5 orchestration + GPT-5.6 Sol subagents) — without duplicating the asset fleet: it writes provider-specific model IDs, effort guidance, operating notes, and cross-family review priority into the installed output. The ceiling tier escalates by **effort** rather than by another tier, then sideways to a different model family, with role-based model routing, DAG-style parallel delegation, an enforced git pipeline, and a shared agent collaboration guide (AGENTS.md).
+Harness engineering for Kiro IDE. Tier-based installer (CLI / IDE) with workload and model-provider selection, deploying curated steering rules, hooks, agents, skills, and MCP configs into Kiro workspaces. The CLI tier targets the **Kiro CLI V3 engine** (V3-native agents with tag-based `tools` and capability `permissions`, standalone hook files). The installer optimizes the same role tiers for three model-usage patterns — Claude (default: Opus 5.5 / Sonnet 5.5 / Haiku 5.5), GPT-5.6, or **mixed** (Claude authors, GPT-5.6 runs the review and audit roles) — without duplicating the asset fleet: it writes provider-specific model IDs, effort guidance, operating notes, and cross-family review priority into the installed output. The ceiling tier escalates by **effort** rather than by another tier, then sideways to a different model family, with role-based model routing, DAG-style parallel delegation, an enforced git pipeline, and a shared agent collaboration guide (AGENTS.md).
 
 ## Quick Start
 
@@ -23,8 +23,8 @@ node install.js cli --scope global
 # Same fleet optimized for OpenAI GPT-5.6 Sol / Terra / Luna
 node install.js cli --scope global --provider=openai
 
-# Mixed: Claude Opus 5.5 orchestrates, GPT-5.6 Sol runs every subagent
-node install.js cli --scope global --provider=mixed
+# Mixed: Claude authors, GPT-5.6 runs the native reviewers (installed with --review-backend=kiro)
+node install.js cli --scope global --provider=mixed --review-backend=kiro
 
 # Claude is the default; provider selection also works for IDE/workspace installs
 node install.js ide --provider=anthropic --dev=frontend
@@ -158,7 +158,7 @@ Agent model assignments are role-based, organized into three **provider-agnostic
 
 The design principle: **Opus 5.5 orchestrates and reasons, Sonnet 5.5 does the coding volume, Haiku 5.5 handles cheap high-throughput work.** In the tech-writing pipeline the split is per stage: detection and drafting stay on Sonnet, while the fidelity and clarity verdicts (open-ended judgments) run on Opus. The same capability tiers map to OpenAI as `deep-reasoning → gpt-5.6-sol`, `balanced → gpt-5.6-terra`, and `cost-optimized → gpt-5.6-luna`. Choose with `--provider=anthropic|openai|mixed`; the installer changes only the installed output, leaving the Anthropic-first source assets untouched. It also injects a concise operating note into every installed agent, keyed to **that agent's model family** (not the global flag): Claude-family agents get plan/self-verification and 1M-context guidance, GPT-family agents get batched-tool guidance plus the 272K-token pricing boundary (the window is 1M, requests above 272K bill at 2x), and Haiku 5.5 agents also get its 100K-token pricing boundary (0.06x below, 0.3x above). Full details, hook→tier guidance, and provider switching: [Model routing](docs/en/model-routing.md).
 
-**The `mixed` pattern (Opus 5.5 orchestration + Sol subagents).** `--provider=mixed` pins only the `kiro-cli` orchestrator to `claude-opus-5.5` and routes **every other role, regardless of tier, to `gpt-5.6-sol`** — Claude does the orchestration, GPT-5.6 Sol does all delegated work at OpenAI's ceiling tier. Each agent still receives the operating note of its own family, and `cross-review.sh` runs Codex first (cross-family versus the Opus-authored changes) with Claude Code covering the Sol-authored side. Earlier versions pinned the orchestrator to Claude Fable with a fallback; that is gone — Fable 5.1 is Enterprise-only, and CLI V3 fails the request instead of falling back to `chat.defaultModel`.
+**The `mixed` pattern (Claude authors, GPT-5.6 reviews).** `--provider=mixed` keeps every role that produces or changes artifacts on its Claude tier and moves only the review and audit roles to the GPT-5.6 model of the same tier: `security-reviewer`, `tech-fidelity-auditor`, and `doc-clarity-reviewer` run on `gpt-5.6-sol`; `code-reviewer`, `database-reviewer`, and the language reviewers run on `gpt-5.6-terra`. A reviewer from the author's family shares the author's blind spots, and these reviewers still get the harness's steering, skills, and MCP servers, which an external CLI starts without. `peer-reviewer` stays on Opus because it gathers external opinions (Codex covers the GPT side), and `cross-review.sh` runs Codex first, as in the Anthropic profile. The native `*-reviewer` agents install only with `--review-backend kiro`. Fable 5.1 is not pinned: it is Enterprise-only, and CLI V3 fails the request instead of falling back to `chat.defaultModel`.
 
 ### Opus 5.5 is the ceiling — escalate inward, then sideways
 
@@ -284,7 +284,7 @@ Options:
   --<category>= <list>           Sub-category selection (e.g., --dev=frontend,python; unselected = all subs)
   --<category>-<sub>= <list>     Detail option (e.g., --writing-social=voice; for subs with drill-down only)
   --workload <list|all>          Low-level: comma-separated workload keys or 'all' (legacy surface, merges with categories via union)
-  --provider <anthropic|openai|mixed> Model-usage pattern (default: anthropic); writes role models, effort guidance, per-family operating notes, and cross-family priority into installed agents. mixed = Claude Opus 5.5 orchestration + GPT-5.6 Sol for every other role
+  --provider <anthropic|openai|mixed> Model-usage pattern (default: anthropic); writes role models, effort guidance, per-family operating notes, and cross-family priority into installed agents. mixed = Claude tiers for authoring roles + GPT-5.6 (Sol/Terra) for review and audit roles
   --cli-version 3                Accepted for compatibility; the CLI tier is V3-only (2 is rejected)
   --review-backend <kiro|claude|cross> Code review routing (default: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE only: route mcp.json through the general mcp-proxy (:9090) and auto-start that container if not already running
