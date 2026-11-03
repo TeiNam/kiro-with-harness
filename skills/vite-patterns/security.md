@@ -1,5 +1,23 @@
 # Security
 
+## Contents
+
+- `VITE_` Prefix Is NOT a Security Boundary
+- The `loadEnv('')` Trap
+- Don't Inline Secrets via `define`
+- Source Maps in Production
+- Restrict Dev Server Access
+- File System Allow
+- Strict CORS in Dev
+- CSP Compatibility
+- `.gitignore` Checklist
+- XSS in Dev Middleware
+- `eval` in Dependencies
+- Subresource Integrity (SRI) for CDN Scripts
+- Update Dependencies
+- Pre-Launch Checklist
+- Related
+
 Vite's defaults are mostly safe. The dangerous patches all involve env vars and source maps.
 
 ## `VITE_` Prefix Is NOT a Security Boundary

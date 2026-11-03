@@ -1,5 +1,11 @@
 # CQRS
 
+## Contents
+
+- Command (Write)
+- Query (Read)
+- Router (Command/Query Separation)
+
 Separate Read (Query) and Write (Command) operations completely.
 Suitable for systems where reads vastly outnumber writes or the models significantly differ.
 

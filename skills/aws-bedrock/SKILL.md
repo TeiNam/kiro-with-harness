@@ -41,20 +41,58 @@ import boto3
 client = boto3.client("bedrock-runtime", region_name="us-east-1")
 
 response = client.converse(
-    modelId="us.anthropic.claude-sonnet-5",
+    modelId="us.anthropic.claude-sonnet-5-5",  # Sonnet 5.5 has no in-region ID — call it through an inference profile
     messages=[{"role": "user", "content": [{"text": "Summarise this PR"}]}],
     system=[{"text": "You are a senior reviewer. Be concise."}],
-    inferenceConfig={"maxTokens": 1024, "temperature": 0.2},
+    # No temperature/topP: non-default sampling params return 400 on the Claude 5 family
+    inferenceConfig={"maxTokens": 1024},
 )
 text = response["output"]["message"]["content"][0]["text"]
 ```
 
-Use `ConverseStream` for token-by-token streaming. The event shape is the same across providers — switching models is a `modelId` change, nothing else.
+```javascript
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
+
+const client = new BedrockRuntimeClient({ region: "us-east-1" });
+const out = await client.send(new ConverseCommand({
+  modelId: "us.anthropic.claude-sonnet-5-5",
+  messages: [{ role: "user", content: [{ text: "Summarise this PR" }] }],
+  // No temperature/topP: non-default sampling params return 400 on the Claude 5 family
+  inferenceConfig: { maxTokens: 1024 },
+}));
+```
+
+Use `ConverseStream` for token-by-token streaming. The event shape is the
+same across providers — switching models is a `modelId` change, nothing else.
 
 ## Model IDs and Inference Profiles
 
-- **Foundation model ID** — `anthropic.claude-sonnet-5` (region-bound; only callable where the model is hosted).
-- **Cross-region inference profile** — `us.anthropic.claude-sonnet-5` (`us.*`, `eu.*`, `apac.*`). Routes across AZs/regions for higher availability and throughput. **Default to inference profiles** in production unless data residency forbids it.
+Bedrock model IDs come in two flavours:
+
+- **Foundation model ARN/ID** — `anthropic.claude-sonnet-5-5`
+  (region-bound; only callable in regions where the model is hosted).
+- **Cross-region inference profile** — `us.anthropic.claude-sonnet-5-5`
+  (`us.*`, `eu.*`, `apac.*`, `global.*`). Routes across AZs/regions for higher
+  availability and throughput. **Default to inference profiles** in production
+  unless data residency forbids it. Regional/multi-region endpoints carry a 10%
+  premium over `global.*`.
+
+Current Claude IDs: `anthropic.claude-opus-5-5`, `anthropic.claude-fable-5-1`,
+`anthropic.claude-sonnet-5-5`, `anthropic.claude-haiku-5-5` —
+e.g. `global.anthropic.claude-opus-5-5`, `global.anthropic.claude-fable-5-1`,
+`global.anthropic.claude-sonnet-5-5`, `global.anthropic.claude-haiku-5-5`
+(Sonnet 5.5 and Haiku 5.5 have no in-region ID — use a `us.`/`eu.`/`global.` profile).
+Haiku 5.5 bills prompts over 100K tokens at 5× its base rate; keep high-volume calls under that.
+The previous Haiku generation is `anthropic.claude-haiku-4-5-20251001-v1:0`. Opus 5.5 / Fable 5.1 reject forced
+`toolChoice` (`any`/`tool`) and disabled thinking — see `claude-api` for the
+full breaking-change table.
+
+Fast mode is not available on Bedrock.
+
+```python
+# Cross-region profile — recommended default
+modelId = "us.anthropic.claude-sonnet-5-5"
+```
 
 Each region has different model availability — check `ListFoundationModels` before assuming.
 
@@ -101,7 +139,9 @@ response = client.converse(
 )
 ```
 
-Cache hits are ~10% of input cost; misses cost a premium. Worth it for any reused prompt prefix over ~2k tokens.
+Cache hits are 10% of input cost (5% on Opus 5.5, 2.5% on Fable 5.1); misses
+cost a 25% premium. Worth it for any
+prompt > ~2k tokens that gets reused.
 
 ## Knowledge Bases (Managed RAG)
 
@@ -116,7 +156,7 @@ response = agent_runtime.retrieve_and_generate(
         "type": "KNOWLEDGE_BASE",
         "knowledgeBaseConfiguration": {
             "knowledgeBaseId": "ABCDEFGHIJ",
-            "modelArn": "us.anthropic.claude-sonnet-5",
+            "modelArn": "us.anthropic.claude-sonnet-5-5",
         },
     },
 )
@@ -156,10 +196,18 @@ Use `InvokeModel` for embeddings — Converse is text-generation only.
 ## Pricing Discipline
 
 - **On-demand** for spiky / experimental workloads.
-- **Provisioned Throughput** only when measured steady RPS justifies the hourly commit. Most teams overprovision.
-- **Batch inference** for non-interactive jobs — cheaper than on-demand, hours-scale latency.
-- Tag invocations via `requestMetadata.applicationId` (CloudTrail) to attribute spend per feature.
-- CloudWatch: alarm on `InvocationThrottles` before they bite.
+- **Provisioned Throughput** only when you've measured a steady RPS that
+  justifies the hourly commit (math: monthly commit / on-demand cost at that
+  RPS). Most teams overprovision.
+  Buying it is a commitment billed by the hour: show the RPS evidence, model
+  units, term, and monthly cost, and let the user buy it. Do not call
+  `CreateProvisionedModelThroughput` yourself.
+- **Batch inference** for non-interactive jobs — 50% cheaper than on-demand,
+  hours-scale latency.
+- Tag `bedrock-runtime` invocations via the `applicationId` field in
+  `requestMetadata` (CloudTrail) to attribute spend per feature.
+- CloudWatch metrics: `Invocations`, `InputTokenCount`, `OutputTokenCount`,
+  `InvocationThrottles`. Alarm on throttles before they bite.
 
 ## Networking
 

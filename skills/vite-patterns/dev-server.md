@@ -1,5 +1,20 @@
 # Dev Server
 
+## Contents
+
+- Backend Proxy
+- Bind Address — Containers, Remote Dev
+- Strict Port
+- File System Allow
+- Warmup — Pre-Transform Hot Routes
+- CORS
+- HTTPS in Dev
+- Custom Middleware
+- `vite preview` — Not a Production Server
+- Hot Reload Behaviors
+- Pitfalls
+- Related
+
 `server.proxy`, `server.host`, `server.fs`, `server.warmup` — the day-to-day knobs for development.
 
 ## Backend Proxy

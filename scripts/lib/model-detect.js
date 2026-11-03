@@ -14,11 +14,12 @@ const { tierIdentifier } = require('./model-policy.js');
  * 모델 정책 상수. 티어별 기대 식별자의 하위호환 별칭(alias)이다.
  * 3-티어 라우팅(천장=deep-reasoning)의 정식 단일 출처는 scripts/lib/model-policy.js 이며,
  * 아래 값들은 그 anthropic 기본값에서 직접 파생한다(하드코딩 금지 → 드리프트 0).
- *   - Target(=deep-reasoning): claude-opus-5
- *   - Balanced:                claude-sonnet-5
- *   - Cost_Optimized:          claude-haiku-4.5
- * Legacy_Model_Identifier 는 잔존 구식별자 스캔 대상(직전 정책 opus-4.8 → opus-5
- * 마이그레이션 흔적)이므로 상수 유지.
+ *   - Target(=deep-reasoning): claude-opus-5.5
+ *   - Balanced:                claude-sonnet-5.5
+ *   - Cost_Optimized:          claude-haiku-5.5
+ * Legacy_Model_Identifier 는 잔존 구식별자 스캔 대상(직전 정책 opus-4.8 → opus-5 →
+ * opus-5.5 마이그레이션의 가장 오래된 흔적)이므로 상수 유지. 직전 세대(opus-5 등)는
+ * 소스에 핀으로 남아 있으면 validate-models 의 정책 일치 점검이 이미 잡는다.
  * @type {{ Target_Model_Identifier: string, Balanced_Model_Identifier: string, Cost_Optimized_Model_Identifier: string, Legacy_Model_Identifier: string }}
  */
 const MODEL_POLICY = {

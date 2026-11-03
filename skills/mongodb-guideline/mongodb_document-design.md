@@ -1,5 +1,13 @@
 # Document Design
 
+## Contents
+
+- Embed vs Reference Decision Principles
+- Content-Centric Input/Output Design
+- Design to Avoid Global Queries
+- Standard Fields (Common to All Collections)
+- Collection Design Checklist
+
 The core principle of MongoDB schema design starts with **"How will data be read?"**
 Do not start with normalization like RDBMS. Define the application's read patterns first, then design accordingly.
 

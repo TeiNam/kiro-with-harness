@@ -117,6 +117,10 @@ test('Property 6: heading 텍스트만 다르고 레벨·사실 토큰이 같으
       fieldsArb,
       numsArb,
       (levels, models, events, fields, nums) => {
+        // 모든 배열이 비면 빈 문서 쌍이 되고, 그것은 이 속성이 아니라
+        // 'missing-counterpart' 속성의 입력이다(compareDocPair 가 정상적으로 보고한다).
+        // 이 조합(시드 약 2.6%)을 걸러야 테스트가 플레이키하지 않다.
+        fc.pre(levels.length + models.length + events.length + fields.length + nums.length > 0);
         const en = buildDoc(levels, enHeading, models, events, fields, nums);
         const kr = buildDoc(levels, krHeading, models, events, fields, nums);
         const res = compareDocPair(en, kr, OPTS);

@@ -1,5 +1,14 @@
 # Index Strategy
 
+## Contents
+
+- Key Differences from RDBMS
+- Index Types
+- Covering Index (Index-Only Scan)
+- Cursor Pagination (Prohibit skip)
+- EXPLAIN Analysis
+- Index Checklist
+
 MongoDB indexes share the same concept as RDBMS, but require completely different strategies based on **document structure and query patterns**.
 
 ---

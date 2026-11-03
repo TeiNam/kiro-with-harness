@@ -1,5 +1,10 @@
 # Saga
 
+## Contents
+
+- Saga Orchestrator
+- Usage in Router
+
 Distributed transactions spanning multiple services. Define compensating (rollback) logic for each step.
 
 ## Saga Orchestrator

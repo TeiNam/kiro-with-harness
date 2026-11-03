@@ -89,10 +89,70 @@ test('값을 먹는 push 옵션(-o) 뒤의 positional 을 remote 로 오인하�
   });
 });
 
-test('파이프라인 대상이 아닌 푸시는 통과한다 — 태그 전용·브랜치 삭제', () => {
+test('파이프라인 대상이 아닌 푸시는 통과한다 — 태그 전용·다른 브랜치 삭제', () => {
   withRepo('main', (dir) => {
     assert.strictEqual(probe(dir, 'git push --tags').status, 0, '태그 푸시');
-    assert.strictEqual(probe(dir, 'git push origin --delete main').status, 0, '브랜치 삭제');
+    assert.strictEqual(probe(dir, 'git push origin --delete feat/x').status, 0, '피처 브랜치 삭제');
+    // 예외는 그 push 의 인자 안에서만 본다 — 기본 브랜치 삭제·태그와 함께 민 main 은 차단.
+    assert.strictEqual(probe(dir, 'git push origin --delete main').status, 2, '기본 브랜치 삭제는 차단');
+    assert.strictEqual(probe(dir, 'git push origin main --tags').status, 2, '--tags 가 있어도 refspec 이 main 이면 차단');
+  });
+});
+
+test('하위 명령·따옴표·우회 형태 — 리뷰에서 실측한 우회가 모두 막힌다', () => {
+  withRepo('main', (dir, git) => {
+    git('switch', '-qc', 'feat/x');
+    for (const cmd of [
+      'git push origin "main"',
+      'git push origin main;echo done',
+      'git push origin feat/x && git push origin main',
+      'ls -d . && git push origin main',
+      '"git" push origin main',
+      'git push --all origin',
+      'git push --mirror origin',
+      'git push origin :',
+      'git -c remote.origin.push=refs/heads/main push',
+      'git config remote.origin.push refs/heads/main && git push',
+      'bash -c "git push origin main"',
+      'git push \\\norigin main',
+      'echo `git push origin main`',
+    ]) {
+      assert.strictEqual(probe(dir, cmd).status, 2, `차단 기대: ${JSON.stringify(cmd)}`);
+    }
+    assert.strictEqual(probe(dir, 'git push origin feat/x && echo main').status, 0, '피처 브랜치 푸시 + 무관한 main 문자열');
+  });
+});
+
+test('파서 우회 형태 — 따옴표 분할·리다이렉트 fd·plumbing·subtree (교차 리뷰 실측)', () => {
+  withRepo('main', (dir, git) => {
+    git('switch', '-qc', 'feat/x');
+    for (const cmd of [
+      'git pu"sh" origin main',          // 단어 내 따옴표 — shlex 가 push 로 붙인다
+      'git 2>/dev/null push origin main', // fd 번호가 서브커맨드로 새지 않게
+      'git send-pack origin main',        // push 와 동등한 plumbing
+      'git subtree push --prefix=x origin main',
+    ]) {
+      assert.strictEqual(probe(dir, cmd).status, 2, `차단 기대: ${JSON.stringify(cmd)}`);
+    }
+    // 같은 형태라도 대상이 기본 브랜치가 아니면 통과한다(오차단 회귀 방지).
+    assert.strictEqual(probe(dir, 'git 2>/dev/null push origin feat/x').status, 0, '리다이렉트 + 피처 브랜치');
+    assert.strictEqual(probe(dir, 'git send-pack origin feat/x').status, 0, 'send-pack + 피처 브랜치');
+  });
+});
+test('런타임 경로(`cd $PWD`)는 판정 디렉터리를 바꾸지 않는다 — fail-closed', () => {
+  withRepo('main', (dir) => {
+    const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'kh-cdvar-'));
+    try {
+      const r = spawnSync('bash', [HOOK], {
+        cwd: elsewhere,
+        input: JSON.stringify({ tool_input: { command: 'cd $PWD && git push origin main', cwd: dir } }),
+        encoding: 'utf8', timeout: 15000,
+      });
+      assert.strictEqual(r.status, 2, '$PWD 를 리터럴 경로로 풀면 레포 밖으로 판정돼 통과해 버린다');
+      assert.match(r.stderr, /kiro-cli 를 다시 띄워야/, '우회 변수는 훅 환경에서만 통한다고 안내');
+    } finally {
+      fs.rmSync(elsewhere, { recursive: true, force: true });
+    }
   });
 });
 
@@ -207,13 +267,32 @@ test('훅이 CLI 설치 계획에 배선되어 있다 (스크립트만 있고 �
   assert.ok(dests.includes('hooks/pre-write-guard.sh'), 'pre-write-guard.sh 회귀 방지');
 });
 
-test('오케스트레이터 에이전트가 훅을 preToolUse 로 참조한다', () => {
-  const agent = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'agents', 'cli', 'global', 'kiro-cli.json'), 'utf8'));
-  const pre = agent.hooks.preToolUse;
-  const push = pre.find((h) => String(h.command).includes('pre-push-guard.sh'));
-  assert.ok(push, 'pre-push-guard 훅이 등록되어 있다');
-  assert.strictEqual(push.matcher, 'execute_bash', 'bash 도구 실행을 가로챈다');
-  assert.ok(push.timeout_ms >= 5000, 'git 조회 여유가 있는 타임아웃');
+test('CLI V3 독립 훅 파일이 pre-push-guard 를 shell 태그로 실행한다', () => {
+  const tiers = require('../scripts/lib/tiers');
+  const op = tiers.cliHookOps().find((o) => o.destRel === 'hooks/pre-push-guard.json');
+  assert.ok(op, 'pre-push-guard 훅 파일이 설치 계획에 있다');
+  const hook = JSON.parse(op.content).hooks[0];
+  assert.strictEqual(hook.trigger, 'PreToolUse');
+  assert.strictEqual(hook.matcher, 'shell', 'V3 shell 태그(execute_bash/execute_pwsh)를 가로챈다');
+  assert.match(hook.action.command, /pre-push-guard\.sh/);
+  assert.ok(hook.timeout >= 5, 'git 조회 여유가 있는 타임아웃(초)');
+});
+
+test('V3 execute_bash 의 cwd 인자와 `cd <repo> &&` 접두를 판정 디렉터리로 쓴다', () => {
+  withRepo('main', (dir) => {
+    const other = fs.mkdtempSync(path.join(os.tmpdir(), 'kh-elsewhere-'));
+    const run = (toolInput) => spawnSync('bash', [HOOK], {
+      cwd: other, input: JSON.stringify({ tool_input: toolInput }), encoding: 'utf8', timeout: 15000,
+    }).status;
+    try {
+      assert.strictEqual(run({ command: 'git push origin main', cwd: dir }), 2, 'cwd 인자의 레포에서 판정');
+      assert.strictEqual(run({ command: `cd ${dir} && git push origin main` }), 2, 'cd 접두의 레포에서 판정');
+      assert.strictEqual(run({ command: `git -C ${path.basename(dir)} push origin main`, cwd: path.dirname(dir) }), 2, '-C 상대경로는 cwd 기준');
+      assert.strictEqual(run({ command: 'git push origin main' }), 0, '레포가 아닌 훅 디렉터리만 보면 통과');
+    } finally {
+      fs.rmSync(other, { recursive: true, force: true });
+    }
+  });
 });
 
 test('IDE 티어에도 동등한 파이프라인 게이트 훅이 있다', () => {

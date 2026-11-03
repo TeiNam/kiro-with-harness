@@ -1,5 +1,20 @@
 # Environment Variables
 
+## Contents
+
+- Loading Order
+- Client-Side Access
+- In `vite.config.ts`
+- Security — `VITE_` Is NOT a Boundary
+- The `loadEnv('')` Trap
+- Server-Only Env Vars (SSR / Build Scripts)
+- Multiple Modes — `--mode`
+- Per-User Overrides
+- `.gitignore` Checklist
+- Boolean / Number Env Vars
+- Pitfalls
+- Related
+
 `VITE_`-prefixed vars are statically inlined into the client bundle. They are **public** — anyone with the JS can read them. Plan accordingly.
 
 ## Loading Order

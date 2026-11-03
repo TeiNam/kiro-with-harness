@@ -2,9 +2,12 @@
   "$comment": [
     "Claude Code 플러그인 → Kiro 자산 브리지 카탈로그 (SSOT).",
     "",
-    "Kiro CLI 에는 플러그인 시스템이 없다(`kiro-cli plugin` 서브커맨드 없음 — 실측 확인).",
-    "따라서 플러그인을 '설치'하는 대신, 각 플러그인이 실제로 제공하는 것을 Kiro 네이티브",
-    "구조(skills / steering / agents / MCP)로 옮긴다. 옮길 수 없는 것은 옮기지 않고 이유를 남긴다.",
+    "Kiro 에는 이제 Powers 가 있다(Agent Plugins 규격 — 패키지 루트의 `plugin.json` + `skills/` + `mcp.json`,",
+    "`kiro-cli powers install <name|path>`, CLI 는 V3 전용). 그러나 아래 상위 리포는 Claude Code 형식",
+    "(`.claude-plugin/plugin.json`, commands·agents·hooks)이라 Powers 로 바로 설치되지 않고(2026-11 실측: 루트",
+    "`plugin.json` 없음), Powers 는 키워드로 활성화돼 스킬 단위 자동 발견과 동작이 다르다. 그래서 각 플러그인이",
+    "실제로 제공하는 것을 Kiro 네이티브 구조(skills / steering / agents / MCP)로 옮긴다. 옮길 수 없는 것은 옮기지",
+    "않고 이유를 남긴다.",
     "",
     "이 레포는 서드파티 소스를 벤더링하지 않는다 — mcp-proxy 와 같은 원칙이다. 카탈로그와",
     "브리지 스크립트, 문서만 담고 실제 자산은 설치 시 상위 리포에서 가져온다.",
@@ -26,19 +29,45 @@
       "label": "Superpowers — 개발 규율 스킬 라이브러리",
       "author": "Jesse Vincent (obra)",
       "license": "MIT",
-      "upstream": { "repo": "obra/superpowers", "ref": "main" },
+      "upstream": {
+        "repo": "obra/superpowers",
+        "ref": "main"
+      },
       "claudeInstall": "claude plugin install superpowers@claude-plugins-official",
       "skillsPath": "skills",
-      "defaultWorkloads": ["core"],
+      "defaultWorkloads": [
+        "core"
+      ],
       "skillWorkloads": {
-        "writing-skills": ["ai-agent"],
-        "subagent-driven-development": ["core", "ai-agent"],
-        "dispatching-parallel-agents": ["core", "ai-agent"]
+        "writing-skills": [
+          "ai-agent"
+        ],
+        "subagent-driven-development": [
+          "core",
+          "ai-agent"
+        ],
+        "dispatching-parallel-agents": [
+          "core",
+          "ai-agent"
+        ],
+        "diagnosing-superpowers": [
+          "ai-agent"
+        ]
       },
       "requires": [
-        { "bin": "bash", "for": "systematic-debugging (find-polluter.sh), subagent-driven-development 헬퍼 3종" },
-        { "bin": "node", "for": "brainstorming(로컬 서버), writing-skills(그래프 렌더)" },
-        { "bin": "dot", "optional": true, "for": "writing-skills 의 graphviz 플로차트 렌더 — 없으면 그 기능만 빠진다" }
+        {
+          "bin": "bash",
+          "for": "systematic-debugging (find-polluter.sh), subagent-driven-development 헬퍼 3종"
+        },
+        {
+          "bin": "node",
+          "for": "brainstorming(로컬 서버), writing-skills(그래프 렌더)"
+        },
+        {
+          "bin": "dot",
+          "optional": true,
+          "for": "writing-skills 의 graphviz 플로차트 렌더 — 없으면 그 기능만 빠진다"
+        }
       ],
       "exclude": [
         {
@@ -59,7 +88,8 @@
       "notes": [
         "상위의 SessionStart 훅(using-superpowers 주입)은 이식하지 않는다 — 위 exclude 근거와 같다.",
         "`using-git-worktrees` 는 하네스 `git-workflow` 와 겹치지 않는다(전자는 격리 워크스페이스 확보 기법, 후자는 브랜치·커밋·PR 파이프라인). 함께 설치한다.",
-        "스킬 본문의 `superpowers:<name>` 네임스페이스 참조는 브리지가 평범한 스킬명으로 다시 쓴다."
+        "스킬 본문의 `superpowers:<name>` 네임스페이스 참조는 브리지가 평범한 스킬명으로 다시 쓴다.",
+        "v7.0.1(2026-10-21) 기준 15종: 신규 `diagnosing-superpowers`(세션 기록을 근거로 문제 보고서를 만드는 하네스 무관 스킬)는 ai-agent 워크로드로 설치한다."
       ]
     },
     {
@@ -68,18 +98,36 @@
       "label": "Obsidian 볼트 콘텐츠 스킬 (Markdown / Bases / Canvas)",
       "author": "Steph Ango (kepano)",
       "license": "MIT",
-      "upstream": { "repo": "kepano/obsidian-skills", "ref": "main" },
+      "upstream": {
+        "repo": "kepano/obsidian-skills",
+        "ref": "main"
+      },
       "claudeInstall": "claude plugin install obsidian@obsidian-skills --scope project",
       "skillsPath": "skills",
-      "defaultWorkloads": ["obsidian"],
+      "defaultWorkloads": [
+        "obsidian"
+      ],
       "requires": [
-        { "bin": "obsidian", "optional": true, "for": "obsidian-cli 스킬 — 외부 CLI + 실행 중인 Obsidian 앱 필요" },
-        { "bin": "defuddle", "optional": true, "for": "defuddle 스킬 — `npm i -g defuddle-cli`" }
+        {
+          "bin": "obsidian",
+          "optional": true,
+          "for": "obsidian-cli 스킬 — 외부 CLI + 실행 중인 Obsidian 앱 필요"
+        },
+        {
+          "bin": "defuddle",
+          "optional": true,
+          "for": "defuddle 스킬 — `npm i -g defuddle-cli`"
+        },
+        {
+          "bin": "knap",
+          "optional": true,
+          "for": "knap 스킬 — `npm install -g knap`(Node.js 20+) 또는 `npx knap`"
+        }
       ],
       "exclude": [],
       "notes": [
         "하네스 `obsidian-plugin-develop`(플러그인 저작·리뷰·빌드)과 영역이 다르다 — 이쪽은 볼트 콘텐츠 편집(.md/.base/.canvas)이다. 중복 아님, 공존.",
-        "5종 중 3종(obsidian-markdown / obsidian-bases / json-canvas)은 파일 포맷 지식만 담은 순수 지시문이라 의존 없이 동작한다. 나머지 2종은 외부 CLI 가 없으면 그 스킬만 무동작이다.",
+        "6종 중 3종(obsidian-markdown / obsidian-bases / json-canvas)은 파일 포맷 지식만 담은 순수 지시문이라 의존 없이 동작한다. 나머지 3종(obsidian-cli / defuddle / knap)은 외부 CLI 가 없으면 그 스킬만 무동작이다.",
         "상위는 project scope 설치를 권하지만 Kiro 는 글로벌 `~/.kiro/skills/` 에서 progressive 로드하므로 컨텍스트 비용 없이 전역 배치가 안전하다."
       ]
     },
@@ -88,13 +136,21 @@
       "mode": "external-cli",
       "label": "UI/UX Pro Max — 디자인 인텔리전스(스타일·팔레트·폰트 DB)",
       "author": "nextlevelbuilder",
-      "upstream": { "repo": "nextlevelbuilder/ui-ux-pro-max-skill" },
+      "upstream": {
+        "repo": "nextlevelbuilder/ui-ux-pro-max-skill"
+      },
       "claudeInstall": "claude plugin install ui-ux-pro-max@ui-ux-pro-max-skill",
       "command": "npx -y ui-ux-pro-max-cli init --ai kiro",
       "installsTo": ".kiro/steering/",
       "requires": [
-        { "bin": "npx", "for": "공식 설치기" },
-        { "bin": "python3", "for": "핵심 스킬이 로컬 검색 DB 를 scripts/search.py 로 조회한다" }
+        {
+          "bin": "npx",
+          "for": "공식 설치기"
+        },
+        {
+          "bin": "python3",
+          "for": "핵심 스킬이 로컬 검색 DB 를 scripts/search.py 로 조회한다"
+        }
       ],
       "notes": [
         "공식 CLI 가 `kiro` 를 1급 타깃으로 지원한다(실측: cli/src/types/index.ts 의 AIType 에 'kiro', detect.ts 가 .kiro 감지, '.kiro/steering/' 로 설치). 브리지로 재구현하지 않고 상위 설치기를 그대로 쓴다.",
@@ -110,7 +166,10 @@
       "kiroEquivalent": "`code` 툴의 LSP 연산 (find_references / goto_definition / get_hover / get_diagnostics / rename_symbol)",
       "reason": "이 플러그인은 로직이 없다 — marketplace.json 에 `lspServers.rust-analyzer` 를 선언하는 설정일 뿐이다(실측: 리포에 README+LICENSE 만 존재). Kiro CLI 의 `code` 툴은 LSP 연산을 이미 내장하므로 옮길 것이 없다.",
       "requires": [
-        { "bin": "rust-analyzer", "for": "Rust LSP 백엔드 — Kiro 쪽에서도 이 바이너리는 여전히 필요하다 (`rustup component add rust-analyzer` 또는 `brew install rust-analyzer`)" }
+        {
+          "bin": "rust-analyzer",
+          "for": "Rust LSP 백엔드 — Kiro 쪽에서도 이 바이너리는 여전히 필요하다 (`rustup component add rust-analyzer` 또는 `brew install rust-analyzer`)"
+        }
       ]
     },
     {
@@ -130,7 +189,11 @@
       "kiroEquivalent": "`peer-reviewer` 에이전트 + `--review-backend cross` 설치 시 `bash .kiro/hooks/cross-review.sh`",
       "reason": "하네스는 이미 cross-family 축을 갖고 있다(모델 정책의 CROSS_FAMILY). 상위 플러그인의 구현은 `codex app-server`(JSON-RPC stdio)를 상주시키는 node 래퍼(codex-companion.mjs + 브로커)에 묶여 있어 그대로 옮길 수 없고, 하네스는 더 단순한 `codex review` 를 쓴다.",
       "requires": [
-        { "bin": "codex", "optional": true, "for": "cross-family 리뷰 축 — 없으면 graceful degradation(건너뜀)" }
+        {
+          "bin": "codex",
+          "optional": true,
+          "for": "cross-family 리뷰 축 — 없으면 graceful degradation(건너뜀)"
+        }
       ],
       "notes": [
         "상위 플러그인의 순수 마크다운 자산 2종(codex-result-handling: 리뷰 결과 원형 보존·자동수정 금지 / gpt-5-4-prompting: XML 블록 프롬프트 작성법)은 도구 없이도 규범으로 쓸 수 있다. 필요해지면 별도 스킬로 이식을 검토한다 — 지금은 `cross-review.sh` 의 철칙 출력과 model-routing 문서가 같은 역할을 한다."

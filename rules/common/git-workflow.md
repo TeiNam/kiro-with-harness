@@ -29,8 +29,9 @@ partway (waiting on review, checking CI), say the reason in one line.
 
 **Enforcement gate.** The harness installs a `pre-push-guard` hook that detects a
 push targeting the default branch and blocks it (`exit 2`) with the pipeline
-instructions. Deliberate direct pushes set `KIRO_ALLOW_MAIN_PUSH=1`. The IDE tier
-ships the same gate as the `git-pipeline-guard` hook.
+instructions. A deliberate direct push needs the user to launch kiro-cli with
+`KIRO_ALLOW_MAIN_PUSH=1` in its environment; a prefix on the command itself does
+not reach the hook. The IDE tier ships the same gate as the `git-pipeline-guard` hook.
 
 ## Version Bump (before the commit that lands a PR)
 

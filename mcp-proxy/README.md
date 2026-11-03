@@ -114,9 +114,9 @@ node install.js ide --workload=cloud,writing --mcp-proxy
   aws-billing-cost-management. 온디맨드 stdio(호스트 `uvx` / `docker run -i --rm`)로 돌아 상주 컨테이너가
   없다. 정의는 `mcp-configs/mcp-servers.json` 의 `mcpServersDevops`.
 - **범용 AWS API 서버** — 없다. 구 `aws-core`(= `awslabs.core-mcp-server`)는 upstream 에서
-  yanked 됐고(사유: 'load individual MCPs'), 대체 후보 `awslabs.aws-api-mcp-server`는 Kiro 내장
-  `use_aws` 와 기능이 겹친다. 임의 AWS API 호출은 `use_aws` 또는 `aws` CLI 로 하며, 그래야 뮤테이션이
-  devops 에이전트의 plan → 승인 → execute 흐름 안에 남는다.
+  yanked 됐고(사유: 'load individual MCPs'), 대체 후보 `awslabs.aws-api-mcp-server`는 `aws` CLI 옆에
+  두 번째 뮤테이션 경로를 만든다. Kiro CLI V3 에는 내장 `use_aws` 도구가 없으므로 임의 AWS API 호출은
+  `aws` CLI 로 하며, 그래야 뮤테이션이 셸 권한 확인과 devops 에이전트의 plan → 승인 → execute 흐름 안에 남는다.
 - **호스트 특정 로컬 stdio** — GitKraken(로컬 바이너리 경로), playwright(로컬 브라우저) 등은 프록시를 안 거치고
   클라이언트가 직접 띄운다. 하네스는 이를 관리하지 않는다.
 
@@ -140,7 +140,7 @@ curl -s https://pypi.org/pypi/awslabs.cloudwatch-mcp-server/json | python3 -c 'i
 
 `mcpServersDevops.servers` 와 `agents/cli/global/devops.json` 을 함께 고친 뒤 재설치한다(테스트가 두 곳의
 일치를 검사한다). `aws-iam` 에 `--allow-write` 를 추가하면 안 된다 — 서버 기본값이 read-only 이며, 쓰기는
-devops 에이전트의 승인 흐름(`use_aws`/`aws` CLI)이 담당한다.
+devops 에이전트의 승인 흐름(`aws` CLI)이 담당한다.
 
 ## 트러블슈팅
 

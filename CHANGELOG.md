@@ -3,6 +3,43 @@
 이 프로젝트의 주요 변경 사항을 **날짜별(YYYY-MM-DD)** 로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 대신 날짜 섹션으로 정리합니다.
 
+## 2026-11-03 — v4.0.0
+
+### Changed
+
+- **CLI 티어를 Kiro CLI V3 전용으로 전환 (BREAKING).** 33개 CLI 에이전트를 V3 네이티브 스키마로 변환했다 — 태그 기반 `tools`(`read`/`write`/`shell`/`web`) + 능력 기반 `permissions`(V2 정규식 규칙을 `kiro-cli agent upgrade` 로 glob 변환한 결과를 검토해 채택). `allowedTools`·`toolsSettings`·`toolAliases`·`useLegacyMcpJson`·`$schema` 를 제거하고(V3 는 이 필드에 의존하는 프로필을 건너뛴다), V3 에 없는 도구 `use_aws`·`thinking`·`todo_list`·`report_issue` 를 뺐다. 게이트 훅 2종은 항상 독립 `~/.kiro/hooks/*.json`(v1, `PreToolUse`, matcher `write`/`shell`)으로 설치되며, 글로벌 훅이라 모든 에이전트·서브에이전트 세션에 적용된다. `--cli-version 2` 는 지원 종료 안내와 함께 거부한다(마지막 2.x 포맷 하네스: `6d85d08`, v3.4.0). `kiro-cli agent validate` 33/33 통과, `kiro-cli agent upgrade --dry-run` 이 전부 `v3-only` 로 분류, V3 세션에서 변환된 오케스트레이터 로드 실측.
+- **오케스트레이터 V3 권한 재설계.** V3 는 서브에이전트 도구 호출을 부모 세션 권한으로도 검사하므로, 위임 흐름에 필요한 읽기 전용 허용(웹 리서치, devops 읽기 MCP 5종, `codex review --uncommitted`/`--base`, 고정 경로의 `cross-review.sh`)을 오케스트레이터 `permissions` 에 모았다. 서브에이전트 무확인 시작은 write 도구가 없는 역할(+ `peer-reviewer`·`translator-docs`)로 한정했다. 변환기가 만든 무조건 `subagent` allow 와, `terraform *`·`aws *`·`kubectl *`·`docker *`·`helm *` 전체 허용을 제거하고 devops 와 같은 읽기 전용 하위 명령만 남겼다 — 뮤테이션은 사용자 확인을 거친다. 임의 프롬프트·플래그를 받는 `claude`/`codex exec` 직접 호출도 묻는다.
+- **셸 규칙 보강 (교차·보안 리뷰 반영).** 셸 glob 의 `*` 는 공백을 넘어 명령 전체에 맞으므로 `aws * get-*` 같은 허용이 인자에 `get-` 을 끼운 뮤테이션까지 통과시킨다. `aws` 조회를 허용하는 에이전트 6종에 `ask` 규칙(ask 는 allow 보다 강하다)을 붙였다: AWS 뮤테이션 동사(`create-`·`delete-`·`terminate-` 등 47종), `aws s3 cp/mv/rm/sync/rb/mb`, 시크릿 조회(`secretsmanager get-secret-value`·`ssm get-parameter*`·`ecr get-login-password` 등). 오케스트레이터와 refactor-cleaner 는 `write` 게이트 훅을 거치지 않는 `sed -i`·`tee` 도 묻는다. force push·`reset --hard`·`clean -f`·`branch -D` 는 `git -C`·뒤에 붙인 플래그·`+refspec` 형태까지 deny 하고, 옵션 축약·순서 변경(`git reset --ha*`, `git clean *-*f*`)도 막는다 — 교차 리뷰에서 `git reset --har HEAD` 가 실제 hard reset 을 실행한 것을 실측했다. 외부 CLI 의 권한 우회 플래그(`--dangerously-*`·`bypassPermissions`·`codex -c`/`--config`/`--enable`·`--full-auto`)도 deny 한다. 쓰기 가능 워크스페이스 에이전트 15종의 무범위 `fs_write` allow 는 `./**` 로 한정했다. 경로 무관 `*/gradlew` 를 `./gradlew` 로 고정하고, 변환기가 잘라 먹은 패턴(`npm tes`·`npx kni` 등 10개)을 지웠다. 복합 명령(`cd sub && npm test`)마다 묻게 하던 `cd` 는 네비게이션 전용이라 모든 셸 에이전트 allow 에 추가했다. headless 실측: deny(`git reset --har`)·ask(`aws * change-*`)는 user 범위 `shell: ["*"]` allow 도 덮고(deny>ask>allow), `cd` 는 실행된다.
+- **모델 정책을 Claude 5.5 패밀리로 갱신.** deep-reasoning `claude-opus-5.5` / balanced `claude-sonnet-5.5` / cost-optimized `claude-haiku-5.5`(Kiro Experimental). 64개 에이전트 파일에 라인 보존 적용. `tech-fidelity-auditor`·`doc-clarity-reviewer` 는 개방형 판정 단계라 deep-reasoning 으로 올렸다(Claude 하네스와 같은 기준). 세 모델 + effort 조합을 V3 headless 로 실측했다.
+- **effort 단일 출처를 역할에서 티어로(`TIER_EFFORT`).** Kiro 는 effort 를 에이전트가 아니라 모델 단위(`chat.modelDefaults`)로만 적용하므로 역할별 예외(`ROLE_EFFORT`)는 적용되지 않는 값이었다. Opus·Sonnet `max`, Haiku 5.5 `medium`(기본값). 5.5 공식 지침상 `low` 는 긴 에이전트 프롬프트에서 검색·검사를 건너뛰므로 어떤 티어도 쓰지 않는다. `chat.modelDefaults` 는 객체 전체를 교체하므로 설치기가 모든 모델을 담은 명령 하나를 출력한다(`modelEffortDefaults`).
+- **`--provider=mixed` 오케스트레이터를 Fable → `claude-opus-5.5` 로.** Fable 5.1 은 Enterprise 전용이고 V3 는 미가용 핀을 `chat.defaultModel` 로 폴백하지 않고 요청을 실패시키므로, Fable 핀과 `MIXED_ORCHESTRATOR_FALLBACK` 안내를 제거했다.
+- **운영 노트 갱신.** GPT-5.6 은 1M 컨텍스트(272K 초과 요청 2배 요율)로, Haiku 5.5 에이전트에는 100K 토큰 요율 경계(0.06x → 0.3x) 노트를 추가했다(`MODEL_NOTES`).
+- **Claude Code 하네스(`my_harness_for_claude_code`)의 갱신 스킬 동기화.** 공통 스킬 62종 중 차이가 있던 52종을 형제 저장소 git 이력 기준 3-way 병합으로 반영했다(Kiro 쪽 변경 보존, frontmatter `workloads`/`origin` 은 Kiro 값 유지). Anthropic 스킬 작성 규칙(2026-10)에 따른 분할 — `python-testing`·`python-patterns`·`frontend-patterns`·`rust-patterns`·`coding-standards`·`api-design`·`backend-patterns`·`git-workflow`·`rust-testing`·`security-review` 가 SKILL.md ≤500줄 + 1단계 참고 파일로 재구성됐다. 위험 작업 스킬(docker·redis·deployment·crosspost·prisma·e2e-testing·aws-finops)의 "Use before …" 트리거 전진 배치, 승인 잠금·롤백 잠금, claude-api/aws-bedrock/cost-aware-llm-pipeline 의 5.5 모델 ID·가격·breaking change, `tech-writer` 참고 룰북 3종(`references/`). Claude 전용 표현(`CLAUDE.md`, `${CLAUDE_SKILL_DIR}`, `Agent`/`Glob` 도구, `superpowers:` 네임스페이스, Kiro 에 없는 스킬 참조)은 Kiro 도구·경로로 바꿨다. 하네스 고유 내용이 커서 형제판이 맞지 않는 `mle-workflow`·`prompt-optimizer` 는 유지.
+- **플러그인 브리지 스킬 갱신.** superpowers v7.0.1(신규 `diagnosing-superpowers`, ai-agent 워크로드)과 obsidian-skills(신규 `knap`) 반영 — 설치본 16 → 18종(갱신 전 백업 `~/.kiro/.plugin-backup-*`). Kiro 에 Powers(Agent Plugins)가 생겼지만 대상 상위 리포는 Claude Code 형식(루트 `plugin.json` 없음)이라 브리지 방식을 유지한다는 판단을 카탈로그·문서에 기록했다.
+- 상시 steering `minimal-core` 에 두 줄 추가(Claude 하네스에서 이식): 독립 도구 호출은 한 턴에 병렬로, 비밀값은 출력하지 않고 접두어 4자 + 길이까지만. `rules/common/security.md` 에도 같은 규칙.
+- `AGENTS.md`·README(en/kr)·docs(en/kr: model-routing, hook-reference, claude-vs-kiro, profile-guide, crew-integration, mcp-reference, skill-catalog)를 V3·5.5 기준으로 갱신.
+
+### Added
+
+- `readme-rule` 스킬(Claude 하네스 이식, core) — README 배지 배너를 실제 쓰는 기술만으로 구성. 스킬 134 → 135.
+- `scripts/validate-agents.js` 를 V3 스키마 검증기로 재작성 — V2 전용 필드·도구 이름, capability·effect·preset, shell/web/mcp glob(정규식 흔적 거부), V3 PascalCase 훅 배열, `@server` 선택자의 mcpServers 대응을 검사한다.
+- 테스트: V3 네이티브 소스 강제, 오케스트레이터 권한 경계(인프라 뮤테이션 비허용·쓰기 가능 에이전트 무확인 시작 금지·외부 CLI 직접 호출 확인·AWS 뮤테이션 ask), 전 에이전트 패턴 위생(경로 무관 실행 파일·잘린 패턴·무범위 `fs_write` 금지), 미서빙 모델 핀 금지, Haiku 노트, `modelEffortDefaults`, `pre-push-guard` 의 `cwd`/`cd` 판정과 우회 13종, `test/pre-write-guard.test.js`(새 필드·중첩·`oldStr` 제외·필드별 줄 수), `test/validate-agents.test.js`.
+
+### Fixed
+
+- **`pre-push-guard.sh` 가 V3 `execute_bash` 의 `cwd` 인자를 무시하던 문제.** 다른 디렉터리에서 실행되는 `git push` 를 훅 프로세스의 디렉터리 기준으로 판정해 오차단·미차단이 모두 가능했다. 이제 `git -C` > 앞선 `cd <dir>` > `tool_input.cwd` > 훅 디렉터리 순으로 판정한다.
+- **`pre-push-guard.sh` 우회 형태 (교차 리뷰 실측).** 공백 분리 토큰과 명령 전체에 건 `--tags`/`-d` 예외 때문에 `git push origin "main"`, `main;echo`, `feat && git push origin main`, `ls -d . && git push origin main`, `--all`/`--mirror`, `-c remote.origin.push=`, `bash -c "…"`, 백틱, `cd $PWD &&`(리터럴 경로로 풀려 레포 밖으로 판정) 등 15개 형태 중 14개가 통과했다. shlex 토큰화 + 하위 명령 분리로 모든 `git … push` 를 검사하고, 예외는 그 push 의 인자 안에서만 보며, 기본 브랜치 삭제·`--all`/`--mirror`/`:`·저장된 `remote.<r>.push`·`push.default=matching` 을 기본 브랜치 푸시로 본다. 런타임 경로(`$VAR`·glob)·없는 디렉터리의 `cd`/`-C` 는 무시한다(fail-closed). 추가로 따옴표 분할(`git pu"sh"`)·리다이렉트 fd(`git 2>/dev/null push`)·plumbing(`git send-pack`)·`git subtree push` 도 잡도록 토크나이저를 보강했다. git 조회 타임아웃 5초 → 2초. 차단 메시지의 우회 안내를 바로잡았다 — 명령 앞에 붙인 `KIRO_ALLOW_MAIN_PUSH=1` 은 훅 프로세스에 전달되지 않으므로 사용자가 그 환경으로 kiro-cli 를 띄워야 한다. IDE `git-pipeline-guard` 예외 문구도 같은 기준으로 맞췄다. 명령 안 브랜치 전환(`git switch main && push`)·서브셸 `cd`·`push.default=upstream`·config 환경변수 주입 등 일부 우회는 glob·파서의 구조적 한계로 남는다 — 게이트를 best-effort advisory 로 문서화하고(스크립트 `ponytail:` 주석·`docs/*/hook-reference.md`), 권위 있는 기본 브랜치 보호는 서버 측 branch protection / ruleset 으로 둔다(3-way 교차 리뷰 합의).
+- **`pre-write-guard.sh` 가 `text`·`newStr`·`content` 만 보던 문제.** `code` 도구의 `replacement` 나 중첩 편집 필드의 시크릿이 통과했다. tool_input 의 모든 문자열을 재귀로 훑고(경로·`command`·교체될 `oldStr`/`oldText` 제외 — 시크릿 제거 편집은 막지 않는다), 800줄 기준은 필드 합산이 아니라 필드별 최댓값으로 센다. 시크릿 패턴을 공급자 접두(`ASIA`·`ghp_`·`sk-`·`xox`)·PGP 블록·JSON `"k":"v"` 형태로 넓히고, 키워드 앞 단어경계로 `lexer_token` 류 오탐을 없앴다. 예시 키·픽스처용 우회 `KIRO_ALLOW_SECRET_WRITE=1`(push 가드와 대칭)을 추가했다.
+- **`validate-agents.js` 검사 구멍.** 객체가 아닌 규칙·프로필에서 크래시하던 것, 무범위 `shell`·`fs_write`·`subagent`·`all` allow(+ 바로 `*` 인 match)와 빈 `match` 를 통과시키던 것, 규칙 객체의 알 수 없는 키(`exlcude` 오타), 문자열 필드 타입 미검사를 고쳤다. `NON_GLOB` 은 명령·URL 의 리터럴 `^ ( ) [ ] | ?`(예: `git diff HEAD^`, `grep -E a|b`)를 오탐하지 않게 선행 `^`·후행 `$`·`.*`·`**`·백슬래시만 정규식 흔적으로 본다.
+- `model-policy.js` 의 `PROVIDER_PROFILES`·`MODEL_NOTES` 를 깊게 얼렸다 — `providerProfile()` 이 공유 객체를 그대로 돌려주므로 호출부의 변경이 이후 설치 전체를 오염시킬 수 있었다.
+- `obsidian-plugin-develop` 스킬의 `name` 이 디렉터리명과 달라(`obsidian-plugin-dev`) Agent Skills 규격 위반이던 문제.
+- `test/doc-compare.property.test.js` 의 플레이키 속성 — 모든 생성 배열이 비면 빈 문서 쌍이 되어 `missing-counterpart` 가 정상 보고되는데 일치를 기대했다(시드 3000개 중 78개 실패). 빈 입력을 `fc.pre` 로 제외.
+
+### Removed
+
+- `scripts/enrich-agents.js`, `scripts/audit-agents.js` — 미참조 스크립트로, V2 필드(`allowedTools`/`toolsSettings`)를 채우거나 감사했다. 실행하면 V3 에이전트를 2.x 포맷으로 되돌린다.
+- `--cli-version 2` 설치 경로와 `cliV3HookOps`/`stripEmbeddedHooks`(→ `cliHookOps`), `MIXED_ORCHESTRATOR_FALLBACK`, `ROLE_EFFORT`.
+
 ## 2026-09-02 — v3.4.0
 
 ### Changed

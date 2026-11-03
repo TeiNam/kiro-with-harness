@@ -67,7 +67,7 @@ cd mcp-proxy && docker compose up -d mcp-proxy   # 수동 기동
 
 - **Kiro 내장** — github, context7, playwright, memory, sequential-thinking. Kiro가 자체 제공하므로 프록시 URL로도 넣지 않습니다(프록시 자체는 비-Kiro 클라이언트용으로 github/context7 백엔드를 계속 제공).
 - **DevOps / AWS** — 위에서 설명한 대로 온디맨드 stdio.
-- **범용 AWS API** — 이를 위한 MCP 서버는 없습니다. `awslabs.core-mcp-server`(구 `aws-core` 항목)는 상위에서 yanked("load individual MCPs"로 이유)되었고, 그 권장 대체 `awslabs.aws-api-mcp-server`는 Kiro 내장 `use_aws` 도구와 중복됩니다. 대신 `use_aws` 또는 `aws` CLI를 사용하세요 — 그러면 변경도 devops 에이전트의 plan → approval → execute 흐름에 머물게 됩니다.
+- **범용 AWS API** — 이를 위한 MCP 서버는 없습니다. `awslabs.core-mcp-server`(구 `aws-core` 항목)는 상위에서 yanked("load individual MCPs"로 이유)되었고, 그 권장 대체 `awslabs.aws-api-mcp-server`는 `aws` CLI 옆에 두 번째 mutation 경로를 추가할 것입니다. Kiro CLI V3에는 내장 `use_aws` 도구가 없으므로, `aws` CLI를 사용하세요 — 그 mutating subcommand는 실행 전 물어보며, 이는 mutation을 devops 에이전트의 plan → approval → execute 흐름에 유지합니다.
 - **호스트 특정 로컬 stdio** — GitKraken(로컬 바이너리 경로), playwright(로컬 브라우저). 클라이언트가 직접 시작합니다. 하네스는 관리하지 않습니다.
 
 > `--mcp-proxy`는 IDE 티어에만 적용됩니다(CLI 티어는 mcp.json을 생성하지 않음). 활성 서버 총합을 ~10개 미만으로 유지하세요.

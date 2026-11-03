@@ -1,7 +1,7 @@
 ---
 name: database-reviewer
 description: NoSQL database specialist for MongoDB and DynamoDB — document/key design, query and index review, and performance. Use PROACTIVELY when writing MongoDB queries/aggregations, designing DynamoDB keys, or troubleshooting NoSQL performance. RDBMS review lives in the easy-rdbms plugin.
-model: claude-sonnet-5
+model: claude-sonnet-5.5
 tools: ["read"]
 ---
 

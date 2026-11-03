@@ -1,7 +1,8 @@
 ---
 name: aws-finops
 description: >
-  AWS cost management and FinOps practice — Cost Explorer, Budgets, Cost Anomaly
+  Use before buying or recommending any Savings Plan, RI, or reserved capacity
+  ("SP 사줘", "구매 진행"), and for AWS cost questions. AWS cost management and FinOps practice — Cost Explorer, Budgets, Cost Anomaly
   Detection, CUR/data exports, cost allocation tags, Cost Categories, Savings
   Plans vs Reserved Instances, Compute Optimizer / Cost Optimization Hub,
   rightsizing, unit economics, showback/chargeback. Grounded in the FinOps
@@ -31,6 +32,10 @@ workloads: [finops]
 
 인프라 구성 자체(IAM·VPC·서비스 선택)는 `aws-cloud`, LLM 토큰 비용은
 `cost-aware-llm-pipeline`. 이 스킬은 **청구서와 커밋먼트** 계층을 다룬다.
+
+## 안전 규칙
+
+Savings Plan·RI 구매는 되돌릴 수 없다. 분석 결과(종류·금액·기간·예상 절감)를 표로 보여주고 사용자가 승인해야 구매한다. Claude 가 구매 API 를 직접 호출하지 않는다. 자세한 기준은 아래 "Optimize" 절.
 
 ## FinOps 3단계 (Inform → Optimize → Operate)
 
@@ -97,6 +102,7 @@ workloads: [finops]
 - 1년 no-upfront 부터 시작해 안정성이 확인되면 3년·upfront 로. 처음부터 3년 all-upfront 는
   예측이 확실할 때만.
 - 구매 전 **Purchase analysis**(what-if)로 시뮬레이션. 커밋은 되돌리기 어렵다.
+- **구매는 사람이 한다.** 분석 결과(종류·금액·기간·예상 절감·유틸리제이션 가정)를 표로 제시하고 승인을 받는다. Claude 가 SP·RI 구매 API(`savingsplans create-savings-plan`, `purchase-reserved-*`)를 직접 호출하지 않는다.
 
 ### 흔한 낭비 (체크리스트)
 - [ ] 미연결 EBS 볼륨·오래된 스냅샷·미사용 Elastic IP

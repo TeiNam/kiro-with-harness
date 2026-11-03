@@ -33,7 +33,7 @@
 | Steering/rules (user) | `~/.kiro/steering` | `~/.aws/amazonq/rules` |
 | Prompts (user) | `~/.kiro/prompts` | `~/.aws/amazonq/prompts` |
 
-> 도구명도 단순화됐다(구명칭도 계속 동작): `fs_read→read`, `fs_write→write`, `use_aws→aws`, `execute_bash→shell`, `report_issue→report`. 기본 CLI 에이전트명은 `kiro_default`.
+> 도구명도 단순화됐다. CLI V3에서 에이전트 `tools`는 카테고리 tag(`read`, `write`, `shell`, `web`, `subagent`)를 사용하며, 런타임 ID는 `read_file`, `grep_search`, `file_search`, `fs_write`, `str_replace`, `execute_bash`, `remote_web_search`, `web_fetch`, `invoke_sub_agent`. CLI 2.x `use_aws`, `thinking`, `todo_list`, `report_issue` 도구는 V3 내장이 아님.
 
 ---
 
@@ -44,7 +44,7 @@
 | **규칙/메모리** | `CLAUDE.md` 계층 + `.claude/rules/` + `@import` | `.kiro/steering/*.md` (공유) | `.kiro/steering/*.md` (always/fileMatch/manual/auto) |
 | **글로벌 규칙** | `~/.claude/CLAUDE.md`, `~/.claude/rules/` | `~/.kiro/steering/` | `~/.kiro/steering/` |
 | **AGENTS.md** | `@AGENTS.md` import으로 지원 | 지원 | 지원 (인클루전 모드 없이 항상 포함) |
-| **훅** | `settings.json`의 `hooks` (다수 이벤트) | 에이전트 JSON 임베드 훅 + v3 standalone `.kiro/hooks/*.json` | `.kiro/hooks/*.json` v1 (PascalCase 트리거) |
+| **훅** | `settings.json`의 `hooks` (다수 이벤트) | V3: 독립 `.kiro/hooks/*.json` / `~/.kiro/hooks/*.json` (+ 프로필 범위 인라인 배열) | `.kiro/hooks/*.json` v1 (PascalCase 트리거) |
 | **훅 핸들러** | `command`·`http`·`mcp_tool`·`prompt`·`agent` | `command`·`agent` | `command`·`agent` |
 | **슬래시 커맨드** | 내장 + 커스텀(`.claude/commands/*.md`, Skills로 통합) | 있음: `/model`,`/plan`,`/agent`,`/compact` 등 다수 | manual 스티어링·서브에이전트를 `/name`으로 노출 |
 | **커스텀 에이전트** | `.claude/agents/*.md` | `.kiro/agents/*.json` (또는 v3 md) | `.kiro/agents/*.md` |
@@ -55,7 +55,7 @@
 | **원격(HTTP) MCP** | stdio/SSE/HTTP + OAuth | HTTP + OAuth(clientSecret 지원) | HTTP + OAuth(PKCE public만) |
 | **세션/컨텍스트** | `/compact`·auto-compact·`/clear`·체크포인트(`/rewind`) | 자동 compaction + `/compact`·`/rewind`, 세션 자동 저장 | Kiro 내부 관리 |
 | **모델 라우팅** | `/model`(영속), `CLAUDE_CODE_SUBAGENT_MODEL` | `/model`(→`cli.json` 저장), `/effort` | 모델 드롭다운, reasoning effort, 에이전트별 `model` |
-| **플러그인** | 플러그인·마켓플레이스 | (없음) | Powers (기능 번들) |
+| **플러그인** | 플러그인·마켓플레이스 | Powers (V3: `kiro-cli powers install`) | Powers (기능 번들) |
 
 ---
 
@@ -92,9 +92,9 @@ fileMatchPattern: "**/*.ts,**/*.tsx"
 
 **Claude Code** — `settings.json`의 `hooks` 키(user/project/local/managed) + 플러그인 `hooks/hooks.json` + 스킬/에이전트 프론트매터에 등록. 이벤트가 대폭 늘었다: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SubagentStop`, `SessionStart`, `SessionEnd`, `PreCompact`, `Notification`에 더해 `SubagentStart`, `PostToolUseFailure`, `PermissionRequest`, `TaskCreated`, `TaskCompleted`, `PostCompact` 등. 핸들러 타입도 `command`·`http`·`mcp_tool`·`prompt`·`agent`로 다양하다(과거의 "command + exit 2"만이 아니다). command 훅은 stdin으로 이벤트 JSON을 받고 exit 2로 차단한다.
 
-**Kiro CLI** — 두 방식이 공존한다.
-- **에이전트 JSON 임베드 훅**: 에이전트 파일의 `hooks` 필드. 트리거 `agentSpawn`/`userPromptSubmit`/`preToolUse`(차단 가능)/`postToolUse`/`stop`, `matcher`는 **내부 도구명**(`fs_read`,`fs_write`,`execute_bash`,`use_aws`) 매칭.
-- **v3 standalone 훅**: `.kiro/hooks/<name>.json`(`"version":"v1"`), 워크스페이스의 **모든 에이전트**에 적용. `kiro-cli agent migrate`로 임베드→standalone 변환.
+**Kiro CLI (V3)** — 현재 배치는 두 가지다.
+- **독립 훅 파일**: `.kiro/hooks/<name>.json`(워크스페이스) 또는 `~/.kiro/hooks/<name>.json`(글로벌, 모든 워크스페이스), `"version":"v1"`, **모든 에이전트와 서브에이전트 세션**에 적용. 트리거는 PascalCase(`SessionStart`, `UserPromptSubmit`, `PreToolUse`(차단 가능), `PostToolUse`, `PostFileCreate`/`PostFileSave`/`PostFileDelete`, `PreTaskExec`/`PostTaskExec`, `Stop`, `SessionEnd`)이고, `matcher`는 도구 선택자(`read`, `write`, `shell`, `web`, `@mcp`, `@<server>`) 또는 V3 도구 ID 대상 정규식.
+- **프로필 범위 인라인 훅**: 에이전트 파일의 `hooks` 배열(필드는 동일). CLI 2.x camelCase 객체 형식(`fs_write`/`execute_bash` 로 매칭하던 `agentSpawn`, `preToolUse`)은 호환 입력으로만 받으며, `/upgrade-agent`(또는 `kiro-cli agent upgrade <dir>`)가 변환한다.
 
 **Kiro IDE** — `.kiro/hooks/*.json`(`"version":"v1"`). 트리거(PascalCase): `SessionStart`, `Stop`, `PreToolUse`(차단), `PostToolUse`, `PreTaskExec`(차단), `PostTaskExec`, `UserPromptSubmit`(차단), `PostFileCreate`/`PostFileSave`/`PostFileDelete`. 액션은 `{type:"command", command}` 또는 `{type:"agent", prompt}`. exit 0=성공(SessionStart/UserPromptSubmit은 STDOUT→컨텍스트), 2=차단(STDERR→에이전트).
 
@@ -126,10 +126,11 @@ fileMatchPattern: "**/*.ts,**/*.tsx"
 
 **Claude Code** — `.claude/agents/*.md`(project) 및 `~/.claude/agents/`(user). 프론트매터 `name`·`description`(필수), `tools`/`disallowedTools`, `model`(`sonnet|opus|haiku|inherit`, 기본 `inherit`)에 더해 `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `isolation: worktree` 등. 각 서브에이전트는 격리된 컨텍스트에서 돌고 요약만 반환한다. 내장: **Explore, Plan, general-purpose**. `@agent-<name>` 또는 `--agent`로 호출.
 
-**Kiro CLI** — 에이전트는 `.kiro/agents/*.json`(로컬)·`~/.kiro/agents/*.json`(글로벌). JSON 스키마 필드: `name`, `description`, `prompt`(인라인 또는 `file://`), `mcpServers`, `tools`, `allowedTools`, `toolsSettings`, `resources`(`file://`·`skill://`·knowledgeBase), `hooks`, `includeMcpJson`, `model`. 세 가지 tools 관련 필드 구분이 중요하다:
-- `tools` — 에이전트가 **볼 수 있는** 도구(`read`, `@server`, `@server/tool`, `@builtin`, `*`)
-- `allowedTools` — **승인 없이** 실행되는 도구(glob 패턴; bare `"*"` 불가)
-- `toolsSettings` — 도구별 세부 설정(`write.allowedPaths`, `shell.allowedCommands`/`deniedCommands`/`autoAllowReadonly` 등)
+**Kiro CLI** — 에이전트는 `.kiro/agents/*.json`(로컬)·`~/.kiro/agents/*.json`(글로벌). V3 스키마 필드: `name`, `description`, `prompt`(인라인 또는 `file://`), `model`, `mcpServers`, `tools`, `excludedTools`, `permissions`, `resources`(`file://`·`skill://`·knowledgeBase), `hooks`, `includeMcpJson`, `includePowers`, `welcomeMessage`. 두 필드가 노출과 권한을 나눈다:
+- `tools` — 에이전트가 **볼 수 있는** 도구(카테고리 태그 `read`/`write`/`shell`/`web`/`subagent`, `knowledge`, `@server`, `@server/tool`, `@builtin`, `*`)
+- `permissions` — 그 도구가 **할 수 있는** 것: `capability`(`fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`, `mcp`, `subagent`, `skill` …) × glob `match` × `effect`(`allow`/`ask`/`deny`) 규칙의 `rules`, 그리고 `policies` 아래 프리셋(예: `read-only-shell`). deny 는 스코프와 무관하게 항상 이기고, 서브에이전트의 도구 호출은 부모 세션도 허용할 때만 묻지 않고 실행된다.
+
+CLI 2.x 필드 `allowedTools`, `toolsSettings`, `toolAliases` 는 V3 스키마에 없다. V3 는 이 필드에 의존하는 프로필을 업그레이드될 때까지 건너뛴다.
 
 내장 에이전트 `kiro_default`/`kiro_help`/`kiro_planner`(편집 불가). Markdown 기반 v3 자체완결 포맷도 있다. `kiro-cli agent set-default <name>`, `kiro-cli chat --agent <name>`.
 
@@ -191,15 +192,17 @@ Kiro IDE에만 있는 기능이다(CLI·Claude Code에는 없음). `.kiro/specs/
 
 **Kiro IDE** — 세션 영속화·컨텍스트 압축을 **내부 관리**(별도 스크립트 불필요). 모델은 채팅 드롭다운 + 모델별 reasoning effort, 에이전트별 `model` 프론트매터로 재정의.
 
-**모델 로스터**(Kiro, 2026-07-11 기준 발췌 — Cost는 Auto=1.0x 대비 배수):
+**모델 로스터**(Kiro, 2026-11-03 `kiro-cli chat --list-models` 발췌 — Cost는 Auto=1.0x 대비 배수):
 
 | 모델 | 컨텍스트 | 배수 | 비고 |
 |------|---------|------|------|
-| Claude Opus 4.8 | 1M | 2.2x | 최대 출력 128K, Active |
-| Claude Sonnet 5 | 1M | 1.3x | 최신(Experimental) |
-| Claude Sonnet 4.5 | 200K | 1.3x | 무료 티어 |
-| Auto | — | 1.0x | 모델 라우터(권장) |
-| Claude Haiku 4.5 | 200K | 0.4x | 빠름, 서브에이전트에 적합 |
+| Claude Opus 5.5 | 1M | 2.0x | Active; 하네스 천장 티어 |
+| Claude Sonnet 5.5 | 1M | 1.3x | Active; 하네스 균형 티어 |
+| Claude Haiku 5.5 | 1M | 0.06x (≤100K 토큰), 초과 시 0.3x | Experimental; 하네스 비용 최적화 티어 |
+| GPT-5.6 Sol / Terra / Luna | 1M | 4.4x / 2.2x / 0.6x (≤272K 토큰) | Active |
+| Auto | — | 1.0x | 모델 라우터 |
+| Claude Opus 5 / Sonnet 5 / Haiku 4.5 | 1M / 1M / 200K | 2.2x / 1.3x / 0.4x | 이전 세대 |
+| Claude Opus 4.8 | 1M | 2.2x | 최대 출력 128K; 구 세대, Active |
 
 > 전체 로스터는 훨씬 크다(DeepSeek·MiniMax·GLM·Qwen 등). 최신 목록·가용 리전은 kiro.dev/docs/models 참조.
 
@@ -225,10 +228,10 @@ Kiro IDE에만 있는 기능이다(CLI·Claude Code에는 없음). `.kiro/specs/
 
 | 자산 | CLI 티어 | IDE 티어 |
 |------|----------|----------|
-| 에이전트 | `~/.kiro/agents/*.json` (agent-v1 JSON, verbatim) | `.kiro/agents/*.md` (Markdown) |
+| 에이전트 | `~/.kiro/agents/*.json` (V3-native JSON: tag `tools` + `permissions`, verbatim) | `.kiro/agents/*.md` (Markdown) |
 | 스티어링 | `~/.kiro/steering/AGENTS.md`, `ponytail.md` (always) | `.kiro/steering/*.md` (always/fileMatch/manual) |
-| 훅 | `~/.kiro/hooks/*.sh` + 에이전트 임베드 | `.kiro/hooks/*.json` (v1) |
-| MCP | 에이전트가 자체 `mcpServers` 보유 (글로벌 mcp.json 미생성) | `.kiro/settings/mcp.json` (general + docker, `--mcp-proxy` 시 프록시 URL) |
+| 훅 | `~/.kiro/hooks/*.sh` gate 스크립트 + `~/.kiro/hooks/*.json` (v1, V3) | `.kiro/hooks/*.json` (v1) |
+| MCP | 에이전트가 자체 `mcpServers` 보유 (글로벌 mcp.json 미생성) | `.kiro/settings/mcp.json` (general + docker; `--mcp-proxy` 시 프록시 URL) |
 | 스킬 | `~/.kiro/skills/` (progressive) | 스티어링 `manual`로 변환 |
 
 > **주의**: Kiro CLI도 `~/.kiro/settings/mcp.json`을 읽지만(공유 규약), 하네스 CLI 티어는 **의도적으로** 글로벌 mcp.json을 만들지 않는다 — 에이전트가 자체 `mcpServers`를 들고 다녀 IDE 설정을 덮어쓰지 않게 하기 위함. 자세한 MCP·프록시 동작은 [mcp-reference.md](./mcp-reference.md).

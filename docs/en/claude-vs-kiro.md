@@ -33,7 +33,7 @@
 | Steering/rules (user) | `~/.kiro/steering` | `~/.aws/amazonq/rules` |
 | Prompts (user) | `~/.kiro/prompts` | `~/.aws/amazonq/prompts` |
 
-> Tool names were simplified too (old names still work): `fs_read→read`, `fs_write→write`, `use_aws→aws`, `execute_bash→shell`, `report_issue→report`. The default CLI agent is `kiro_default`.
+> Tool names were simplified too. In CLI V3 agent `tools` use category tags (`read`, `write`, `shell`, `web`, `subagent`) and runtime IDs are `read_file`, `grep_search`, `file_search`, `fs_write`, `str_replace`, `execute_bash`, `remote_web_search`, `web_fetch`, `invoke_sub_agent`. The CLI 2.x `use_aws`, `thinking`, `todo_list`, and `report_issue` tools are not V3 built-ins.
 
 ---
 
@@ -44,7 +44,7 @@
 | **Rules/Memory** | `CLAUDE.md` hierarchy + `.claude/rules/` + `@import` | `.kiro/steering/*.md` (shared) | `.kiro/steering/*.md` (always/fileMatch/manual/auto) |
 | **Global rules** | `~/.claude/CLAUDE.md`, `~/.claude/rules/` | `~/.kiro/steering/` | `~/.kiro/steering/` |
 | **AGENTS.md** | Supported via `@AGENTS.md` import | Supported | Supported (always included, no inclusion modes) |
-| **Hooks** | `hooks` in `settings.json` (many events) | Agent-JSON embedded hooks + v3 standalone `.kiro/hooks/*.json` | `.kiro/hooks/*.json` v1 (PascalCase triggers) |
+| **Hooks** | `hooks` in `settings.json` (many events) | V3: standalone `.kiro/hooks/*.json` / `~/.kiro/hooks/*.json` (+ profile-scoped inline array) | `.kiro/hooks/*.json` v1 (PascalCase triggers) |
 | **Hook handlers** | `command`·`http`·`mcp_tool`·`prompt`·`agent` | `command`·`agent` | `command`·`agent` |
 | **Slash commands** | Built-in + custom (`.claude/commands/*.md`, unified with Skills) | Yes: `/model`,`/plan`,`/agent`,`/compact`, etc. | manual steering & subagents exposed as `/name` |
 | **Custom agents** | `.claude/agents/*.md` | `.kiro/agents/*.json` (or v3 md) | `.kiro/agents/*.md` |
@@ -55,7 +55,7 @@
 | **Remote (HTTP) MCP** | stdio/SSE/HTTP + OAuth | HTTP + OAuth (clientSecret supported) | HTTP + OAuth (PKCE public only) |
 | **Session/Context** | `/compact`·auto-compact·`/clear`·checkpoints (`/rewind`) | auto compaction + `/compact`·`/rewind`, auto-saved sessions | Managed internally by Kiro |
 | **Model routing** | `/model` (persists), `CLAUDE_CODE_SUBAGENT_MODEL` | `/model` (→ saved to `cli.json`), `/effort` | model dropdown, reasoning effort, per-agent `model` |
-| **Plugins** | Plugins & marketplaces | (none) | Powers (capability bundles) |
+| **Plugins** | Plugins & marketplaces | Powers (V3: `kiro-cli powers install`) | Powers (capability bundles) |
 
 ---
 
@@ -92,9 +92,9 @@ All three support event-driven automation, but registration location, events, an
 
 **Claude Code** — registered in the `hooks` key of `settings.json` (user/project/local/managed) plus plugin `hooks/hooks.json` and skill/agent frontmatter. Events expanded greatly: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `SubagentStop`, `SessionStart`, `SessionEnd`, `PreCompact`, `Notification`, plus `SubagentStart`, `PostToolUseFailure`, `PermissionRequest`, `TaskCreated`, `TaskCompleted`, `PostCompact`, and more. Handler types are also varied — `command`·`http`·`mcp_tool`·`prompt`·`agent` (no longer just "command + exit 2"). Command hooks receive event JSON on stdin and block with exit 2.
 
-**Kiro CLI** — two mechanisms coexist.
-- **Agent-JSON embedded hooks**: the `hooks` field of an agent file. Triggers `agentSpawn`/`userPromptSubmit`/`preToolUse` (can block)/`postToolUse`/`stop`; `matcher` matches **internal tool names** (`fs_read`,`fs_write`,`execute_bash`,`use_aws`).
-- **v3 standalone hooks**: `.kiro/hooks/<name>.json` (`"version":"v1"`), applied to **all agents** in the workspace. `kiro-cli agent migrate` converts embedded → standalone.
+**Kiro CLI (V3)** — two current placements.
+- **Standalone hook files**: `.kiro/hooks/<name>.json` (workspace) or `~/.kiro/hooks/<name>.json` (global, every workspace), `"version":"v1"`, applied to **all agents and sub-agent sessions**. Triggers are PascalCase (`SessionStart`, `UserPromptSubmit`, `PreToolUse` (can block), `PostToolUse`, `PostFileCreate`/`PostFileSave`/`PostFileDelete`, `PreTaskExec`/`PostTaskExec`, `Stop`, `SessionEnd`); `matcher` takes a tool selector (`read`, `write`, `shell`, `web`, `@mcp`, `@<server>`) or a regex against the V3 tool ID.
+- **Profile-scoped inline hooks**: a `hooks` array in the agent file with the same fields. The CLI 2.x camelCase object form (`agentSpawn`, `preToolUse` keyed by `fs_write`/`execute_bash`) is accepted only as compatibility input; `/upgrade-agent` (or `kiro-cli agent upgrade <dir>`) converts it.
 
 **Kiro IDE** — `.kiro/hooks/*.json` (`"version":"v1"`). Triggers (PascalCase): `SessionStart`, `Stop`, `PreToolUse` (blocks), `PostToolUse`, `PreTaskExec` (blocks), `PostTaskExec`, `UserPromptSubmit` (blocks), `PostFileCreate`/`PostFileSave`/`PostFileDelete`. Actions are `{type:"command", command}` or `{type:"agent", prompt}`. Exit 0=success (SessionStart/UserPromptSubmit send STDOUT→context), 2=block (STDERR→agent).
 
@@ -126,10 +126,11 @@ All three support event-driven automation, but registration location, events, an
 
 **Claude Code** — `.claude/agents/*.md` (project) and `~/.claude/agents/` (user). Frontmatter `name`·`description` (required), `tools`/`disallowedTools`, `model` (`sonnet|opus|haiku|inherit`, default `inherit`), plus `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `isolation: worktree`, and more. Each subagent runs in an isolated context and returns only a summary. Built-ins: **Explore, Plan, general-purpose**. Invoke via `@agent-<name>` or `--agent`.
 
-**Kiro CLI** — agents live in `.kiro/agents/*.json` (local)·`~/.kiro/agents/*.json` (global). JSON schema fields: `name`, `description`, `prompt` (inline or `file://`), `mcpServers`, `tools`, `allowedTools`, `toolsSettings`, `resources` (`file://`·`skill://`·knowledgeBase), `hooks`, `includeMcpJson`, `model`. Three tools-related fields matter:
-- `tools` — which tools the agent can **see** (`read`, `@server`, `@server/tool`, `@builtin`, `*`)
-- `allowedTools` — which run **without prompting** (glob patterns; bare `"*"` not allowed)
-- `toolsSettings` — per-tool config (`write.allowedPaths`, `shell.allowedCommands`/`deniedCommands`/`autoAllowReadonly`, etc.)
+**Kiro CLI** — agents live in `.kiro/agents/*.json` (local)·`~/.kiro/agents/*.json` (global). V3 schema fields: `name`, `description`, `prompt` (inline or `file://`), `model`, `mcpServers`, `tools`, `excludedTools`, `permissions`, `resources` (`file://`·`skill://`·knowledgeBase), `hooks`, `includeMcpJson`, `includePowers`, `welcomeMessage`. Two fields split visibility from authorization:
+- `tools` — which tools the agent can **see** (category tags `read`/`write`/`shell`/`web`/`subagent`, `knowledge`, `@server`, `@server/tool`, `@builtin`, `*`)
+- `permissions` — what those tools may **do**: `rules` of `capability` (`fs_read`, `fs_write`, `shell`, `web_fetch`, `web_search`, `mcp`, `subagent`, `skill`, …) × glob `match` × `effect` (`allow`/`ask`/`deny`), plus presets under `policies` (e.g. `read-only-shell`). Deny always wins across scopes, and a sub-agent's tool call runs without a prompt only when the parent session also allows it.
+
+The CLI 2.x fields `allowedTools`, `toolsSettings`, and `toolAliases` are not part of the V3 schema; V3 skips a profile that still relies on them until it is upgraded.
 
 Built-in agents `kiro_default`/`kiro_help`/`kiro_planner` (not editable). A Markdown-based v3 self-contained format also exists. `kiro-cli agent set-default <name>`, `kiro-cli chat --agent <name>`.
 
@@ -191,15 +192,17 @@ This feature exists only in Kiro IDE (not in the CLI or Claude Code). Under `.ki
 
 **Kiro IDE** — session persistence and context compaction are **managed internally** (no separate scripts). Model via the chat dropdown + per-model reasoning effort, overridable per agent via the `model` frontmatter.
 
-**Model roster** (Kiro, excerpt as of 2026-07-11 — Cost is a multiple relative to Auto=1.0x):
+**Model roster** (Kiro, excerpt as of 2026-11-03 from `kiro-cli chat --list-models` — Cost is a multiple relative to Auto=1.0x):
 
 | Model | Context | Multiplier | Notes |
 |------|---------|------|------|
-| Claude Opus 4.8 | 1M | 2.2x | 128K max output, Active |
-| Claude Sonnet 5 | 1M | 1.3x | newest (Experimental) |
-| Claude Sonnet 4.5 | 200K | 1.3x | free tier |
-| Auto | — | 1.0x | model router (recommended) |
-| Claude Haiku 4.5 | 200K | 0.4x | fast, good for subagents |
+| Claude Opus 5.5 | 1M | 2.0x | Active; harness ceiling tier |
+| Claude Sonnet 5.5 | 1M | 1.3x | Active; harness balanced tier |
+| Claude Haiku 5.5 | 1M | 0.06x (≤100K tokens), 0.3x above | Experimental; harness cost-optimized tier |
+| GPT-5.6 Sol / Terra / Luna | 1M | 4.4x / 2.2x / 0.6x (≤272K tokens) | Active |
+| Auto | — | 1.0x | model router |
+| Claude Opus 5 / Sonnet 5 / Haiku 4.5 | 1M / 1M / 200K | 2.2x / 1.3x / 0.4x | previous generation |
+| Claude Opus 4.8 | 1M | 2.2x | 128K max output; older generation, Active |
 
 > The full roster is much larger (DeepSeek·MiniMax·GLM·Qwen, etc.). See kiro.dev/docs/models for the latest list and available regions.
 
@@ -225,9 +228,9 @@ This repo's installer places assets by **tier (cli|ide) × workload**.
 
 | Asset | CLI tier | IDE tier |
 |------|----------|----------|
-| Agents | `~/.kiro/agents/*.json` (agent-v1 JSON, verbatim) | `.kiro/agents/*.md` (Markdown) |
+| Agents | `~/.kiro/agents/*.json` (V3-native JSON: tag `tools` + `permissions`, verbatim) | `.kiro/agents/*.md` (Markdown) |
 | Steering | `~/.kiro/steering/AGENTS.md`, `ponytail.md` (always) | `.kiro/steering/*.md` (always/fileMatch/manual) |
-| Hooks | `~/.kiro/hooks/*.sh` + agent-embedded | `.kiro/hooks/*.json` (v1) |
+| Hooks | `~/.kiro/hooks/*.sh` gate scripts + `~/.kiro/hooks/*.json` (v1, V3) | `.kiro/hooks/*.json` (v1) |
 | MCP | Agents carry their own `mcpServers` (no global mcp.json generated) | `.kiro/settings/mcp.json` (general + docker; proxy URLs with `--mcp-proxy`) |
 | Skills | `~/.kiro/skills/` (progressive) | Converted to `manual` steering |
 

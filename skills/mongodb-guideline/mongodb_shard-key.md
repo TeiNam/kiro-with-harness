@@ -1,5 +1,13 @@
 # Shard Key Selection
 
+## Contents
+
+- Four Conditions for Good Shard Keys
+- Pattern-Specific Shard Key Guide
+- Hashed vs Range Sharding Comparison
+- Prevent Global Queries (Scatter-Gather)
+- Shard Key Selection Checklist
+
 Sharding is the method for horizontal scaling when single-server limits are exceeded.
 **Shard keys are immutable**, so initial design is critical.
 Try index optimization → replica set scale-up before sharding.

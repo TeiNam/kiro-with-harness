@@ -67,7 +67,7 @@ Proxied servers are excluded from the stdio output to prevent duplication. The p
 
 - **Built into Kiro** — github, context7, playwright, memory, sequential-thinking. Because Kiro provides these natively, they are not exposed as proxy URLs (the proxy still serves github/context7 backends for non-Kiro clients).
 - **DevOps / AWS** — on-demand stdio, as described above.
-- **General-purpose AWS API** — there is no MCP server for this. `awslabs.core-mcp-server` (the old `aws-core` entry) was yanked upstream with the reason "load individual MCPs", and its suggested replacement `awslabs.aws-api-mcp-server` duplicates Kiro's built-in `use_aws` tool. Use `use_aws` or the `aws` CLI — that also keeps mutations inside the devops agent's plan → approval → execute flow.
+- **General-purpose AWS API** — there is no MCP server for this. `awslabs.core-mcp-server` (the old `aws-core` entry) was yanked upstream with the reason "load individual MCPs", and its suggested replacement `awslabs.aws-api-mcp-server` would add a second mutation path next to the `aws` CLI. Kiro CLI V3 has no built-in `use_aws` tool, so use the `aws` CLI — its mutating subcommands ask before running, which keeps mutations inside the devops agent's plan → approval → execute flow.
 - **Host-specific local stdio** — GitKraken (local binary paths), playwright (local browser). Clients start these directly; the harness does not manage them.
 
 > `--mcp-proxy` applies only to the IDE tier; the CLI tier does not generate mcp.json. Keep the total active servers well below ~10.

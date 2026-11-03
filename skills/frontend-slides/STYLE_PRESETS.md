@@ -1,5 +1,18 @@
 # Style Presets Reference
 
+## Contents
+
+- Viewport Fit Is Non-Negotiable
+- Mandatory Base CSS
+- Viewport Checklist
+- Mood to Preset Mapping
+- Preset Catalog
+- Direct Selection Prompts
+- Animation Feel Mapping
+- CSS Gotcha: Negating Functions
+- Validation Sizes
+- Anti-Patterns
+
 Curated visual styles for `frontend-slides`.
 
 Use this file for:

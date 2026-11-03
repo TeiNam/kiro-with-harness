@@ -69,20 +69,21 @@ The IDE tier installs 2 hooks — deterministic gates symmetric with the CLI tie
 - Trigger: `PreToolUse`, matcher `shell`
 - Action: agent
 - Detects whether the shell call is `git push` and whether its target is the default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`, falling back to an existing `main`/`master`; with no refspec the target is the current branch). A push to the default branch is **blocked** with the pipeline spelled out: `git switch -c <type>/<slug>` -> `git push -u origin <branch>` -> `gh pr create --fill` -> `gh pr merge --squash --delete-branch`.
-- Exceptions (not blocked): tag-only pushes (`--tags`), branch deletion (`--delete`/`-d`), local-only repos with no remote, and the user explicitly saying "directly to main". Non-default-branch pushes pass silently.
-- The CLI tier ships the deterministic equivalent, `pre-push-guard.sh` (`exit 2`, bypass with `KIRO_ALLOW_MAIN_PUSH=1`). Policy text: `rules/common/git-workflow.md`.
+- Exceptions (not blocked): tag-only pushes with no refspec (`git push --tags`), deleting a branch other than the default (`--delete`/`-d`), local-only repos with no remote, and the user explicitly saying "directly to main". Deleting the default branch and `--all`/`--mirror` count as pushes to it. Non-default-branch pushes pass silently.
+- The CLI tier ships the deterministic equivalent, `pre-push-guard.sh` (`exit 2`; bypass only when the user launches kiro-cli with `KIRO_ALLOW_MAIN_PUSH=1`). Policy text: `rules/common/git-workflow.md`.
+- Both gates are **best-effort advisory** checks. A shell-permission glob and a token parser cannot catch every bypass (an in-command branch switch like `git switch main && git push`, a subshell `cd`, or git config injection), so the authoritative default-branch protection is a server-side branch protection rule / ruleset. The gates raise the cost of an accidental direct push; they are not a hard security boundary. (A 3-way cross-review confirmed this ceiling, which the script's `ponytail:` comment also records.)
 
 ## Adding or Disabling Hooks
 
 - **Disable**: set `"enabled": false` in the hook file, delete the `.json` file from `.kiro/hooks/`, or drop the relevant workload from your install command.
 - **Add a custom hook**: create a `.kiro/hooks/<name>.json` file following the v1 schema above, or use the Command Palette → "Kiro: Open Kiro Hook UI" → describe in natural language.
 
-> **CLI tier note**: by default (`--cli-version 2`) the CLI tier embeds hooks inside the agent JSON (`hooks` field) and installs 2 CLI hook scripts as deterministic gates (`exit 2`), referenced by 2 preToolUse hooks in `kiro-cli.json`. With `--cli-version 3` (for the CLI 3.0 engine, `kiro-cli --v3`) the same two gates install as standalone `.kiro/hooks/pre-write-guard.json` / `pre-push-guard.json` (v1 schema, `PreToolUse` trigger, matchers `write`/`shell`) and the embedded `hooks` field is stripped — the v3 engine does not read the old camelCase embedded format:
+> **CLI tier note**: the CLI tier targets Kiro CLI V3 only. It installs 2 CLI hook scripts as deterministic gates (`exit 2`), run by 2 PreToolUse gate hooks — standalone `~/.kiro/hooks/pre-write-guard.json` / `pre-push-guard.json` (v1 schema, `PreToolUse` trigger, matchers `write`/`shell`). Global hook files run for every agent and sub-agent session, so the gates no longer depend on the orchestrator profile. Agents carry no inline `hooks` field; the CLI 2.x camelCase embedded format is gone:
 >
 > | Script | matcher | Blocks on |
 > |--------|---------|-----------|
-> | `pre-write-guard.sh` | `fs_write` | hardcoded secrets, content over 800 lines |
-> | `pre-push-guard.sh` | `execute_bash` | `git push` targeting the default branch (bypass: `KIRO_ALLOW_MAIN_PUSH=1`) |
+> | `pre-write-guard.sh` | `write` (`fs_write`, `fs_append`, `str_replace`, `delete_file`, `code`) | hardcoded secrets, content over 800 lines in any one field (scans every string in the tool input, nested ones included, except paths, `command`, and the `oldStr` being replaced) |
+> | `pre-push-guard.sh` | `shell` (`execute_bash`, `execute_pwsh`) | any `git push` in the command that updates or deletes the default branch: every sub-command (`;`, `&&`, `\|\|`, `\|`, backticks, `bash -c`/`eval` strings) is checked, and `--all`/`--mirror` and `-c remote.<r>.push=` count. Judged in the directory from `git -C`, an earlier `cd <dir>`, or the tool call `cwd`; a runtime path such as `cd $PWD` is ignored. Bypass: the user launches kiro-cli with `KIRO_ALLOW_MAIN_PUSH=1` (a prefix on the command does not reach the hook) |
 >
 > `cross-review.sh` is **not** a hook — it is an on-demand script (see below), so it is not counted here.
 

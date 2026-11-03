@@ -7,7 +7,7 @@
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/teinam)
 
-Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자로 워크로드와 모델 프로바이더를 선택하여, 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. 설치 관리자는 동일 역할 티어를 세 가지 모델 사용 패턴 — Claude(기본), GPT-5.6, 또는 **mixed**(Claude Fable 오케스트레이션 + GPT-5.6 Sol 서브에이전트)으로 최적화하며, 자산 fleet을 중복하지 않습니다: 프로바이더 특화 모델 ID, 노력(effort) 가이드, 운영 노트, 교차 패밀리 리뷰 우선순위를 설치 산출물에 기록합니다. 천장 티어는 **노력**으로 에스컬레이션하고, 그 다음 다른 모델 패밀리로 옆(sideways) 에스컬레이션합니다 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 강제 git 파이프라인, 공유 에이전트 협업 가이드(AGENTS.md).
+Kiro IDE를 위한 하네스 엔지니어링. 계층(CLI / IDE) 기반 설치 관리자로 워크로드와 모델 프로바이더를 선택하여, 큐레이션된 스티어링 규칙, 훅, 에이전트, 스킬, MCP 설정을 Kiro 워크스페이스에 배포합니다. CLI 계층은 **Kiro CLI V3 엔진**을 대상으로 합니다(tag 기반 `tools`와 능력 기반 `permissions`를 갖춘 V3-native 에이전트, standalone 훅 파일). 설치 관리자는 동일 역할 티어를 세 가지 모델 사용 패턴 — Claude(기본: Opus 5.5 / Sonnet 5.5 / Haiku 5.5), GPT-5.6, 또는 **mixed**(Claude Opus 5.5 오케스트레이션 + GPT-5.6 Sol 서브에이전트)으로 최적화하며, 자산 fleet을 중복하지 않습니다: 프로바이더 특화 모델 ID, 노력(effort) 가이드, 운영 노트, 교차 패밀리 리뷰 우선순위를 설치 산출물에 기록합니다. 천장 티어는 **노력**으로 에스컬레이션하고, 그 다음 다른 모델 패밀리로 옆(sideways) 에스컬레이션합니다 — 역할 기반 모델 라우팅, DAG 스타일 병렬 위임, 강제 git 파이프라인, 공유 에이전트 협업 가이드(AGENTS.md).
 
 ## 빠른 시작
 
@@ -23,8 +23,7 @@ node install.js cli --scope global
 # OpenAI GPT-5.6 Sol / Terra / Luna로 최적화한 동일 fleet
 node install.js cli --scope global --provider=openai
 
-# Mixed: Claude Fable이 오케스트레이션, GPT-5.6 Sol이 모든 서브에이전트 실행
-# (사용 환경에서 Fable이 제공되지 않으면 설치기가 opus-5 max 폴백 명령을 출력합니다)
+# Mixed: Claude Opus 5.5가 오케스트레이션, GPT-5.6 Sol이 모든 서브에이전트 실행
 node install.js cli --scope global --provider=mixed
 
 # Claude는 기본값; 프로바이더 선택은 IDE/워크스페이스 설치에도 적용됨
@@ -67,7 +66,7 @@ node install.js cli --scope workspace --dev=rust --dry-run
 
 ### CLI 계층 (`kiro-cli chat`)
 
-JSON 에이전트(내장 훅)와 `skill://` 리소스로서의 스킬을 설치합니다.
+V3-native JSON 에이전트(tag 기반 `tools` + 능력 기반 `permissions`), 2개 gate 훅을 standalone `hooks/*.json` 파일로, 그리고 `skill://` 리소스로서의 스킬을 설치합니다. Kiro CLI V3 엔진이 필요합니다(`kiro-cli settings chat.agentEngine v3`, 또는 한 세션용 `kiro-cli --v3`).
 
 **글로벌** (`~/.kiro/agents`, `~/.kiro/skills/`):
 - 오케스트레이션 에이전트: kiro-cli, architect, deep-researcher, devops, peer-reviewer
@@ -149,39 +148,35 @@ Markdown 에이전트와 별도 훅 파일을 설치합니다; 스킬은 스티�
 
 ## 모델
 
-에이전트 모델 할당은 역할 기반이며, **프로바이더 독립적인 세 능력 티어**로 구성됩니다. 각 에이전트 정의의 `model` 필드가 유일한 소스이며, [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js)에서 기록됩니다. 이 하네스는 **Kiro 세 모델에 최적화**되어 있습니다 — **`claude-opus-5`**(심층 추론, 천장), **`claude-sonnet-5`**(균형, 기본 코딩 티어), **`claude-haiku-4.5`**(비용 최적화). `kiro-cli` 오케스트레이터(설치 시 기본 에이전트로 지정)는 천장 티어에서 추론 에이전트와 함께 실행되며, 물량이 많은 코딩 에이전트는 `claude-sonnet-5`, 비용 민감 역할은 `claude-haiku-4.5`를 씁니다.
+에이전트 모델 할당은 역할 기반이며, **프로바이더 독립적인 세 능력 티어**로 구성됩니다. 각 에이전트 정의의 `model` 필드가 유일한 소스이며, [`scripts/lib/model-policy.js`](scripts/lib/model-policy.js)에서 기록됩니다. 이 하네스는 **Kiro 세 모델에 최적화**되어 있습니다 — **`claude-opus-5.5`**(심층 추론, 천장), **`claude-sonnet-5.5`**(균형, 기본 코딩 티어), **`claude-haiku-5.5`**(비용 최적화; Kiro에서 실험적). `kiro-cli` 오케스트레이터(설치 시 기본 에이전트로 지정)는 천장 티어에서 추론 에이전트와 함께 실행되며, 물량이 많은 코딩 에이전트는 `claude-sonnet-5.5`, 비용 민감 역할은 `claude-haiku-5.5`를 씁니다.
 
 | 티어 | 모델 | 에이전트 |
 |------|------|----------|
-| 심층 추론 (천장) | `claude-opus-5` | kiro-cli(오케스트레이터), architect, security-reviewer, deep-researcher, devops, peer-reviewer |
-| 균형 (기본) | `claude-sonnet-5` | code-reviewer, refactor-cleaner, 언어 리뷰어, 빌드 해결자, database-reviewer, e2e-runner, 문서/기술 작성자 |
-| 비용 최적화 | `claude-haiku-4.5` | translator-docs, article-writer, content-creator |
+| 심층 추론 (천장) | `claude-opus-5.5` | kiro-cli(오케스트레이터), architect, security-reviewer, deep-researcher, devops, peer-reviewer, tech-fidelity-auditor, doc-clarity-reviewer |
+| 균형 (기본) | `claude-sonnet-5.5` | code-reviewer, refactor-cleaner, 언어 리뷰어, 빌드 해결자, database-reviewer, e2e-runner, doc-quality-detector, tech-doc-writer, tech-writer-monolith |
+| 비용 최적화 | `claude-haiku-5.5` | translator-docs, article-writer, content-creator |
 
-설계 원칙: **Opus 5가 오케스트레이션과 추론을 담당하고, Sonnet이 코딩 물량을 처리하며, Haiku는 값싼 대량 작업을 맡는다.** 동일한 능력 티어가 OpenAI에도 매핑됩니다: `deep-reasoning → gpt-5.6-sol`, `balanced → gpt-5.6-terra`, `cost-optimized → gpt-5.6-luna`. `--provider=anthropic|openai|mixed`로 선택하세요. 설치기는 설치된 산출물만 변경하며 Anthropic 우선 소스 자산은 손대지 않습니다. 또한 모든 설치된 에이전트에 그 에이전트의 모델 패밀리에 맞는 간결한 운영 노트를 주입합니다(글로벌 플래그가 아니라): Claude 패밀리 에이전트는 plan/자가검증과 1M 컨텍스트 가이드를 받고, GPT 패밀리 에이전트는 배치 도구/조기 컴팩션 가이드(272K 컨텍스트용)를 받습니다. 전체 배정·훅→티어 가이드·프로바이더 전환: [모델 라우팅](docs/kr/model-routing.md).
+설계 원칙: **Opus 5.5가 오케스트레이션과 추론을 담당하고, Sonnet 5.5가 코딩 물량을 처리하며, Haiku 5.5는 값싼 대량 작업을 맡는다.** 기술 작성 파이프라인에서는 stage별로 분담합니다: 탐지와 드래프팅은 Sonnet으로 유지되고, fidelity와 clarity 판정(개방형 판단)은 Opus에서 실행됩니다. 동일한 능력 티어가 OpenAI에도 매핑됩니다: `deep-reasoning → gpt-5.6-sol`, `balanced → gpt-5.6-terra`, `cost-optimized → gpt-5.6-luna`. `--provider=anthropic|openai|mixed`로 선택하세요. 설치기는 설치된 산출물만 변경하며 Anthropic 우선 소스 자산은 손대지 않습니다. 또한 모든 설치된 에이전트에 그 에이전트의 모델 패밀리에 맞는 간결한 운영 노트를 주입합니다(글로벌 플래그가 아니라): Claude 패밀리 에이전트는 plan/자가검증과 1M 컨텍스트 가이드를 받고, GPT 패밀리 에이전트는 배치 도구 가이드 및 272K 토큰 가격 경계(1M 윈도우, 272K 이상 2배 요금)를 받으며, Haiku 5.5 에이전트는 100K 토큰 가격 경계도 받습니다(이하 0.06배, 이상 0.3배). 전체 배정·훅→티어 가이드·프로바이더 전환: [모델 라우팅](docs/kr/model-routing.md).
 
-**`mixed` 패턴(Fable 오케스트레이션 + Sol 서브에이전트).** `--provider=mixed`는 오케스트레이터(`kiro-cli`)만 `claude-fable-5`로 고정하고 **다른 모든 역할을 티어 무관 `gpt-5.6-sol`**로 라우팅합니다 — Claude가 오케스트레이션·위임·수렴을 담당하고, GPT-5.6 Sol이 위임된 작업 전부를 OpenAI 천장 티어에서 처리합니다. 각 에이전트는 자신의 패밀리에 맞는 운영 노트를 받으며, `cross-review.sh`는 Codex를 먼저 실행합니다(Fable 작성 변경 vs. Fable 측) — Claude Code는 Sol 작성 측을 커버합니다. 사용 환경에서 `claude-fable-5`를 서빙하지 않으면 Kiro는 `chat.defaultModel`로 폴백하므로(경고와 함께), 설치기는 **`claude-opus-5`를 노력 `max`**로 대체하는 두 `kiro-cli settings` 명령을 출력합니다:
+**`mixed` 패턴(Opus 5.5 오케스트레이션 + Sol 서브에이전트).** `--provider=mixed`는 오케스트레이터(`kiro-cli`)만 `claude-opus-5.5`로 고정하고 **다른 모든 역할을 티어 무관 `gpt-5.6-sol`**로 라우팅합니다 — Claude가 오케스트레이션·위임·수렴을 담당하고, GPT-5.6 Sol이 위임된 작업 전부를 OpenAI 천장 티어에서 처리합니다. 각 에이전트는 자신의 패밀리에 맞는 운영 노트를 받으며, `cross-review.sh`는 Codex를 먼저 실행하고(Opus가 작성한 변경에 대한 cross-family 리뷰), Sol이 작성한 쪽은 Claude Code가 맡습니다. 이전 버전들은 오케스트레이터를 Claude Fable로 핀했으며 폴백을 출력했습니다. 둘 다 사라졌습니다: Fable 5.1은 Kiro Enterprise 조직만 사용 가능하며, CLI V3은 사용 불가능한 pin에서 폴백하지 않습니다 — 요청이 실패합니다 — 따라서 다른 계정에서는 Fable pin이 오케스트레이터를 멈추게 합니다.
 
-```bash
-kiro-cli settings chat.defaultModel claude-opus-5
-kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'
-```
+### Opus 5.5가 천장이다 — 안으로 에스컬레이션한 후 옆으로
 
-### Opus 5가 천장이다 — 안으로 에스컬레이션한 후 옆으로
+`claude-opus-5.5` 위의 티어는 없습니다. 태스크가 최상위 티어 성능을 초과해야 할 때, 더 큰 모델에 도달하는 대신 하네스는 두 방향으로 에스컬레이션합니다:
 
-`claude-opus-5` 위의 티어는 없습니다. 태스크가 최상위 티어 성능을 초과해야 할 때, 더 큰 모델에 도달하는 대신 하네스는 두 방향으로 에스컬레이션합니다:
-
-1. **안으로 — 같은 티어 내에서 노력을 올린다.** `low` → `medium` → `high` → `xhigh` → `max`. 같은 모델, 더 큰 추론 예산, 티어 점프보다 저렴합니다. Kiro는 이를 `kiro-cli chat --effort <level>`과 `kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort":"max"}}}'`로 노출합니다. 설치기가 정확한 명령을 출력합니다(effort는 세션/설정 손잡이이지 에이전트 설정이 아닙니다). **하네스 기본값은 모든 추론 역할에서 `max`** — 사다리는 기계적 역할(refactor-cleaner, translator-docs → `low`)을 낮추는 용도이며, 가이드레일은 보안 중심 최소(결정적 게이트 2개)로 유지해 모델의 추론 예산이 일하게 한다.
+1. **안으로 — 같은 티어 내에서 노력을 올린다.** `low` → `medium` → `high` → `xhigh` → `max`. 같은 모델, 더 큰 추론 예산, 티어 점프보다 저렴합니다. Kiro는 이를 `kiro-cli chat --effort <level>`(세션 단위; V3은 기본값으로 저장하지 않음)과 `kiro-cli settings chat.modelDefaults '<json>'`로 노출합니다. Kiro는 노력을 **모델별**로 적용하며, 그 설정은 전체 객체를 대체합니다 — 설치기는 프로바이더가 사용하는 모든 모델을 다루는 명령 하나를 출력합니다. **Opus 5.5와 Sonnet 5.5는 `max`로 실행되고; Haiku 5.5는 기본값 `medium`으로 실행됩니다.** 어떤 티어도 `low`를 사용하지 않습니다: 5.5 prompting guidance에 따르면 low effort는 searches와 checks를 스킵하고 long agent prompts에서 조기 종료하기 때문입니다. 가이드레일은 보안 중심 최소(결정적 게이트 2개)로 유지해 모델의 추론 예산이 일하게 한다.
 2. **옆으로 — 다른 모델 패밀리.** `max`에는 그 위가 없습니다. 같은 패밀리에 다시 프롬프트하면 상관관계가 있는 blind spot을 깨뜨릴 수 없습니다(같은 학습, 같은 failure 모드), 따라서 남은 축은 다른 패밀리입니다: `peer-reviewer` 에이전트(터미널 `claude -p` + `codex`)와 `--review-backend cross` 사용 시 `bash .kiro/hooks/cross-review.sh`. 선택된 프로바이더가 우선순위를 결정합니다: Anthropic 호스팅 fleet은 Codex를 먼저 호출하고, OpenAI 호스팅 fleet은 Claude Code를 먼저 호출합니다. 다른 백엔드는 같은 패밀리 상호 검증으로 남습니다. **독립성** 또는 **grinding**이 가치인 곳으로 넘기세요 — 이 fleet이 작성한 코드에 대한 adversarial review, 두 의견이 어긋날 때 tie-breaking, 대규모 기계 편집, 막힌 상태에서 두 번째 진단. 스티어링 규칙, 스킬, 워크로드 태그, 도구 오케스트레이션, 한국어 출력이 필요한 모든 것은 하네스에 유지하세요.
 
 > **옆 축을 가치있게 만드는 규칙:** 중요한 무언가의 *유일한* 독자가 외부 패밀리가 되게 하지 마세요. 그것만 보고하는 발견은 여전히 실제 코드에 대한 확인이 필요하며, 두 패밀리가 독립적으로 플래그하는 발견이 높은 신뢰도입니다. `cross-review.sh`는 실행의 끝에 이를 출력하며, review 전에 **blast radius**를 추출합니다 — 변경되지 *않았지만* 어쨌든 리뷰되어야 할 파일들로, reverse `require`/`import` 참조와 역사적 co-change를 통해 찾습니다.
 
-> **모델 가용성:** `claude-opus-5`는 **us-east-1**과 **eu-central-1**에서 서빙되며 최신 Kiro CLI가 필요합니다. 서빙되지 않는 모델로 고정된 에이전트는 경고와 함께 `chat.defaultModel`로 조용히 폴백합니다 — `/model`로 확인하고 Kiro CLI를 최신으로 유지하세요.
+> **모델 가용성:** CLI V3에서는 사용 불가능한 모델로 고정된 에이전트가 **폴백하지 않습니다** — 첫 요청이 실패하고 Kiro는 pin 전의 활성 모델을 복원합니다. Pin 전에 `kiro-cli chat --list-models`으로 ID를 확인하세요. Opus 5.5와 Sonnet 5.5는 GA이며, Haiku 5.5는 실험적입니다. Claude Fable 5.1은 Enterprise 전용이며, Kiro는 OpenAI GPT-6.x를 서빙하지 않습니다(GPT-5.6 Sol/Terra/Luna만), 따라서 하네스는 어느 것도 pin하지 않습니다. Codex cross-review 축은 로컬 Codex CLI의 기본 모델을 사용하며, GPT-6.x 모델일 수 있습니다.
 
-> **모델 ID 형식:** Kiro는 `model` 값을 model service가 반환하는 ID와 대조하며, 알 수 없는 ID는 경고와 함께 기본 모델로 silent 폴백됩니다. 고정 전 활성 채팅 세션에서 `/model`로 정확한 식별자를 확인하세요.
+## Kiro 버전 호환성 (CLI V3 / IDE 1.0)
 
-## Kiro 버전 호환성 (CLI 2.x / 3.0 / IDE 1.0)
-
-- **CLI 3.0 (v3 engine, `kiro-cli --v3`로 옵트인):** 훅이 에이전트 임베디드 camelCase 필드에서 독립 `.kiro/hooks/*.json` 파일(v1 schema, PascalCase 트리거)로 이관됩니다. `--cli-version 3`으로 설치하면 2개 게이트 훅을 외부화하고 v3 엔진이 읽지 않는 임베디드 `hooks` 필드를 제거합니다. 에이전트 설정 자체는 하위 호환성이 있습니다. `toolsSettings` → `permissions` 마이그레이션을 하려면 `/upgrade-agent` 또는 `kiro-cli agent migrate`를 사용하세요. 기본값(`--cli-version 2`)은 현재의 2.x 임베디드 훅 설치를 유지합니다.
+- **CLI V3 전용.** CLI 계층은 V3 네이티브 에이전트를 설치합니다: 태그 기반 `tools`(`read`/`write`/`shell`/`web`), 능력 `permissions`(`kiro-cli agent upgrade`로 기존 tool별 정규식 규칙에서 변환 후 검토), CLI 2.x 필드 없음(`allowedTools`, `toolsSettings`, `toolAliases`). V3은 2.x 전용 프로필을 건너뛰므로 기존 포맷은 조용히 다른 에이전트로 폴백하게 됩니다. 2개 게이트 훅은 standalone `~/.kiro/hooks/*.json`으로 설치됩니다(v1 schema, `PreToolUse`, matcher `write`/`shell`). V3은 모든 에이전트 및 서브에이전트 세션마다 이를 실행합니다. `--cli-version 2`는 거부되며, 마지막 2.x 포맷 하네스는 커밋 `6d85d08`(v3.4.0)입니다. V3 활성화: `kiro-cli settings chat.agentEngine v3`(또는 한 세션만: `kiro-cli --v3`).
+- **V3에 없는 도구**는 모든 에이전트에서 제거했습니다: `use_aws`(devops는 이제 `aws` CLI를 쓰며, 읽기 전용 서브커맨드는 사전 승인되고 뮤테이션은 확인을 묻습니다), `thinking`, `todo_list`, `report_issue`.
+- **서브에이전트 권한(V3):** 서브에이전트의 도구 호출은 부모 세션도 허용할 때만 확인 없이 실행됩니다. 그래서 오케스트레이터는 위임에 필요한 읽기 전용 규칙(웹 리서치, devops의 읽기 전용 MCP 서버, `codex review --uncommitted`/`--base`, 고정 경로에 설치된 `cross-review.sh`)을 갖고, 쓰기 도구가 없는 서브에이전트(그리고 `peer-reviewer`·`translator-docs`)만 자동 시작하며, 쓰기와 인프라 뮤테이션은 확인을 묻습니다. `claude`·`codex exec` 직접 호출도 묻습니다. 아무 프롬프트와 플래그나 받기 때문입니다.
+- **셸 규칙(V3):** 셸 glob은 명령 전체에 매칭되므로 `aws * get-*`는 인자에 `get-`을 넣은 뮤테이션도 통과시킵니다. 그래서 `aws` 조회를 사전 승인한 에이전트는 AWS 뮤테이션 동사, `aws s3 cp/mv/rm/sync`, `secretsmanager get-secret-value` 같은 시크릿 조회에 `ask` 규칙을 둡니다(ask가 allow보다 우선). 오케스트레이터는 `write` 게이트 훅을 거치지 않고 파일을 쓰는 `sed -i`와 `tee`도 묻습니다. force push, `reset --hard`, `clean -f`, `branch -D`는 `git -C` 형태와 플래그를 뒤에 붙인 형태까지 거부하고, 외부 CLI의 권한 우회 플래그(`--dangerously-*`, `codex -c`)도 거부합니다. 쓰기 도구가 있는 워크스페이스 에이전트는 워크스페이스 안(`./**`)에만 쓸 수 있습니다.
 - **IDE 훅은 v1 JSON 포맷**(`.kiro/hooks/*.json`)을 사용합니다. IDE 1.0에서 도입되어 레거시 `.kiro.hook` 포맷을 대체하며, 레거시 훅은 마이그레이션 전까지 실행되지 않습니다. 설치기는 v1 JSON을 직접 생성합니다. `docs/kr/hook-reference.md` 참고.
 - **기본 리소스 상속(CLI 2.7+):** 커스텀 에이전트는 자신의 `resources`에 더해 글로벌 steering·skills·`AGENTS.md`를 자동 상속합니다. 설치를 워크로드 범위로만 엄격히 유지하려면(글로벌 끌어오기 차단) 비활성화하세요: `kiro-cli settings chat.disableInheritingDefaultResources true` (`--workspace`로 프로젝트 범위 지정 가능). 내장 에이전트는 설정과 무관하게 항상 상속합니다.
 - **Hot-reload(CLI 2.10+):** `~/.kiro/agents/*` 와 `mcp.json` 편집은 세션 재시작 없이 다음 idle 경계에서 반영됩니다 — 하네스를 재설치해도 채팅 컨텍스트 손실 없이 적용됩니다.
@@ -202,7 +197,7 @@ kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort
 
 ### 훅
 
-**CLI 계층** (기본값, `--cli-version 2`): 훅은 에이전트 JSON 내에 내장되며, 2종 결정적 게이트 스크립트가 받침합니다. `--cli-version 3`이면 동일한 2개 게이트가 독립 `.kiro/hooks/*.json`(v1 schema)으로 설치되고 v3.0 엔진용으로 임베디드 필드가 제거됩니다. 게이트 스크립트 — `pre-write-guard.sh`(fs_write: 비밀, 과대 write), `pre-push-guard.sh`(execute_bash: 기본 브랜치 push 차단, `KIRO_ALLOW_MAIN_PUSH=1`로 우회 가능). `cross-review.sh`는 훅이 아니라 온디맨드 스크립트입니다.
+**CLI 계층** (`~/.kiro/hooks/`): 독립 V3 훅 파일 2개(`pre-write-guard.json`, `pre-push-guard.json` — v1 스키마, `PreToolUse`)가 결정적 게이트 스크립트 2개를 실행합니다. `pre-write-guard.sh` 는 `write` 태그에서 하드코딩된 시크릿과 과대 쓰기를 막고, `pre-push-guard.sh` 는 `shell` 태그에서 명령 안의 `git push` 중 기본 브랜치를 갱신·삭제하는 것을 막습니다(판정 디렉터리는 `git -C`/`cd`/`cwd`, 우회는 사용자가 `KIRO_ALLOW_MAIN_PUSH=1` 환경으로 kiro-cli 를 띄운 경우만). `cross-review.sh`는 훅이 아니라 온디맨드 스크립트입니다.
 
 **IDE 계층** (`.kiro/hooks/`): 2개 결정적 게이트, CLI 계층과 대칭:
 - pre-write-guard: 크기 제한, 비밀 탐지, 문서 위치 확인
@@ -217,11 +212,11 @@ kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort
 **IDE 계층** (`.kiro/steering/`):
 - Always-on (v2 minimal): minimal-core (컴팩트 digest — working style·security·git pipeline·AWS/Terraform 게이트) + ponytail
 - FileMatch: 파일 타입별로 로드되는 언어 특화 규칙
-- Manual: 필요 시 로드되는 스킬 (134개 총; 워크로드로 선택적 포함 태그됨)
+- Manual: 필요 시 로드되는 스킬 (135개 총; 워크로드로 선택적 포함 태그됨)
 
 ### 스킬
 
-`skills/` 아래 134개 스킬 패키지는 워크로드로 태그됩니다. 설치는 활성 워크로드와 교집합인 스킬만 선택합니다.
+`skills/` 아래 135개 스킬 패키지는 워크로드로 태그됩니다. 공유 스킬은 companion Claude Code harness([my_harness_for_claude_code](https://github.com/TeiNam/my_harness_for_claude_code))와 동기화되며 Kiro 도구 이름과 경로에 맞게 조정됩니다. 설치는 활성 워크로드와 교집합인 스킬만 선택합니다.
 - 핵심: context budget, strategic compact, agentic engineering, lessons learned, git workflow, verification loop
 - 인프라: Docker, deployment, backend patterns
 - 데이터베이스 (NoSQL): MongoDB, DynamoDB (+ mongodb-patterns) — RDBMS 설계·마이그레이션 스킬은 별도 easy-rdbms 플러그인으로 이관
@@ -244,7 +239,7 @@ kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort
 
 **DevOps MCP는 상주하지 않습니다(온디맨드).** terraform + AWS 서버들은 도구가 실제 사용될 때 클라이언트가 시작하는 stdio 프로세스로 실행되며, 세션과 함께 종료됩니다 — 도구를 사용 중이 아닐 때는 `docker ps`에 아무것도 뜨지 않으며, 보안해야 할 HTTP 엔드포인트도 없습니다. 백엔드는 호스트의 `uvx`로 버전 핀된 공식 AWS `awslabs` 서버이고, terraform은 버전 핀된 이미지로 `docker run -i --rm`으로 실행됩니다. 호스트에 `uv` 필요(`brew install uv`); Docker는 terraform에만 필요합니다.
 
-이는 `:9092`의 상주 프록시를 대체합니다. 그 프록시는 콜드스타트를 '우회'하기 위해 존재했지, 원인을 고친 것이 아니었습니다. 원래 실패는 이렇습니다: 각 서버가 버전 핀 없는 `docker run`이었고, **첫 이미지 pull이 14~20초 걸려** MCP 초기화 타임아웃을 초과했으므로 **devops MCP 전부가 한 번에 실패**했습니다. 버전을 핀하고 호스트 `uvx`로 옮기면 pull이 사라지므로, warm-cache handshake는 **서버당 0.5~4.9초**로 프록시가 필요 없습니다. 또한 `~/.aws`를 마운트한 인증 없는 `:9092` 엔드포인트도 사라졌고, stdio는 호스트 프로세스이므로 `aws sso login` 이 읽기전용 마운트에 막히지 않고 즉시 반영됩니다.
+이는 `:9092`의 상주 프록시를 대체합니다. 그 프록시는 콜드스타트를 '우회'하기 위해 존재했지, 원인을 고친 것이 아니었습니다. 원래 실패는 이렇습니다: 각 서버가 버전 핀 없는 `docker run`이었고, **첫 이미지 pull이 14~20초 걸려** MCP 초기화 타임아웃을 초과했으므로 **devops MCP 전부가 한 번에 실패**했습니다. 버전을 핀하고 호스트 `uvx`로 옮기면 pull이 사라지므로, warm-cache handshake는 **서버당 0.5~4.9초**로 프록시가 필요 없습니다. 또한 범용 AWS API server도 일부러 없습니다: `awslabs.core-mcp-server`(구 `aws-core` 항목)는 upstream에서 yanked되었고, 그 제안된 대체품 `awslabs.aws-api-mcp-server`는 `aws` CLI 옆에 두 번째 mutation 경로를 추가할 것입니다. Kiro CLI V3에는 built-in `use_aws` 도구가 없으므로, `aws` CLI를 사용하세요 — 그것의 mutating subcommand는 실행 전 물어보며, 이는 mutation을 devops 에이전트의 plan → approval → execute flow 안에 유지합니다.
 
 **범용 프록시(`--mcp-proxy`, IDE 계층).** 범용 서버들을 선택적으로 하나의 로컬 [mcp-proxy](mcp-proxy/README.md) 컨테이너에 집중화할 수 있으므로, 클라이언트가 각각 중복을 띄우지 않습니다. `mcp.json` 항목은 `{"type":"http","url":"http://localhost:9090/<server>/mcp"}`로 변환됩니다. 설치기가 자동 보장합니다: `docker ps`로 확인해 컨테이너가 없으면 `docker compose up -d mcp-proxy`를 실행하고, 이미 떠 있으면 스킵합니다. 활성 워크로드에 맞는 백엔드만 담은 **`config.generated.json`**도 생성하므로 프록시가 "필요한 것만" 서빙합니다. `127.0.0.1`로만 바인드되며 인증 없으므로 바인딩을 확대하지 마세요. Docker 미설치면 Docker 설치 후 재실행 안내, 데몬 미실행이면 시작 후 재실행 안내, `--dry-run`과 실패는 graceful하게 넘어갑니다. 자세한 것: [`mcp-proxy/README.md`](mcp-proxy/README.md), [MCP 레퍼런스](docs/kr/mcp-reference.md).
 
@@ -263,7 +258,10 @@ kiro-cli settings chat.modelDefaults '{"claude-opus-5":{"output_config":{"effort
 │   ├── cli/                    # CLI 에이전트 (글로벌 + 워크스페이스)
 │   ├── ide/                    # IDE 에이전트 (Markdown)
 │   └── AGENTS.md               # 공유 에이전트 협업 가이드
-├── skills/                     # 134개 스킬 패키지 (워크로드 태그됨)
+├── skills/                     # 135개 스킬 패키지 (워크로드 태그됨)
+├── plugins/
+│   ├── catalog.json            # Claude 플러그인 → Kiro 자산 브리지 카탈로그 (SSOT)
+│   └── README.md               # 플러그인별 판정과 이식 규칙
 ├── mcp-configs/                # MCP 서버 설정
 ├── scripts/                    # 검증 유틸리티 (validate-agents.js, validate-models.js, validate-counts.js)
 ├── docs/                       # 가이드 (영어 + 한국어)
@@ -286,8 +284,8 @@ node install.js <tier> [options]
   --<category>= <list>           중분류 선택 (예: --dev=frontend,python; 미선택 = 전체 중분류)
   --<category>-<sub>= <list>     소분류 옵션 (예: --writing-social=voice; 소분류가 있는 중분류만)
   --workload <list|all>          저수준: 워크로드 키 직접 지정 (쉼표로 구분 또는 'all'; 레거시 표면, 카테고리와 합집합)
-  --provider <anthropic|openai|mixed>  모델 프로바이더 프로필 (기본: anthropic); 역할 모델·effort 가이드·운영 노트·교차 패밀리 우선순위를 설치 에이전트에 기록. mixed = Fable 오케스트레이션 + 나머지 전 역할 Sol (Fable 미서빙 시 opus-5 max 폴백 명령 출력)
-  --cli-version <2|3>            CLI 계층 훅 포맷 (기본 2 = agent 임베디드; 3 = 독립 .kiro/hooks/*.json for CLI 3.0 engine)
+  --provider <anthropic|openai|mixed>  모델 프로바이더 프로필 (기본: anthropic); 역할 모델·effort 가이드·운영 노트·교차 패밀리 우선순위를 설치 에이전트에 기록. mixed = Claude Opus 5.5 오케스트레이션 + 나머지 전 역할 Sol
+  --cli-version 3                호환성을 위해 수용; CLI 계층은 V3 전용 (2는 거부됨)
   --review-backend <kiro|claude|cross> 코드 리뷰 라우팅 (기본: claude; cross = Claude+Codex 3-way + cross-review.sh)
   --mcp-proxy                    IDE 전용: mcp.json을 범용 mcp-proxy(:9090) 경유로 구성 + 그 컨테이너 자동 기동
                                  (DevOps/AWS MCP는 영향을 받지 않습니다 — 온디맨드 stdio로 실행되며, 컨테이너 없음)
@@ -304,12 +302,13 @@ node install.js <tier> [options]
 | 문서 | 내용 |
 |------|------|
 | [워크로드 가이드](docs/kr/profile-guide.md) | tier × workload 모델, 설치 플래그, 프로필 마이그레이션 |
-| [훅 레퍼런스](docs/kr/hook-reference.md) | IDE 1.0 v1 JSON 훅 포맷, 트리거, 설치되는 훅 세트 |
+| [훅 레퍼런스](docs/kr/hook-reference.md) | v1 JSON 훅 포맷 (IDE 1.0 / CLI V3), 트리거, 설치되는 훅 세트 |
 | [에이전트 포커스 모드](docs/kr/agent-focus-mode.md) | IDE 1.0 에이전트 포커스 모드(실험적) — 병렬 세션·workflow picker를 하네스 에이전트/오케스트레이션에 매핑 |
 | [Kiro Crew](docs/kr/crew-integration.md) | `kiro-cli crew`, Crew Gateway, 그리고 공유되는 `~/.kiro/agents/` 디렉터리 — 자산 매핑, 역할 분담, 보안 |
+| [플러그인](plugins/README.md) | Claude Code 플러그인을 Kiro 에 매핑(bridge / external-cli / native / incompatible) |
 | [MCP 레퍼런스](docs/kr/mcp-reference.md) | 큐레이션 MCP 카탈로그 (내장 / general / DevOps / FinOps / opt-in) |
-| [모델 라우팅](docs/kr/model-routing.md) | 3-티어 모델 정책(Opus/Sonnet/Haiku), Opus-5 천장 + effort/cross-family 에스컬레이션, 에이전트별 배정, 훅→티어 가이드, OpenAI GPT-5.6 프로바이더 전환 |
-| [스킬 카탈로그](docs/kr/skill-catalog.md) | 134개 스킬 도메인별 정리 |
+| [모델 라우팅](docs/kr/model-routing.md) | 3-티어 모델 정책(Opus/Sonnet/Haiku 5.5), Opus-5.5 천장 + effort/cross-family 에스컬레이션, 에이전트별 배정, 훅→티어 가이드, OpenAI GPT-5.6 프로바이더 전환 |
+| [스킬 카탈로그](docs/kr/skill-catalog.md) | 135개 스킬 도메인별 정리 |
 | [스킬 만들기](docs/kr/creating-skills.md) | `workloads:` frontmatter로 스킬 작성·등록 |
 | [Claude vs Kiro](docs/kr/claude-vs-kiro.md) | Claude Code vs Kiro CLI vs Kiro IDE — 공식 문서 기준 기능별 차이 |
 | [Claude에서 마이그레이션](docs/kr/migration-from-claude.md) | Claude Code 설정을 Kiro로 변환 |

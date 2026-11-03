@@ -13,8 +13,9 @@
  * postInstall: 설치 후 실행할 셸 명령 배열(예: 기본 에이전트 지정).
  *
  * 티어 차이:
- *   - CLI: JSON 에이전트(verbatim copy) + 스킬 디렉터리(skill:// progressive) +
- *          pre-write-guard 훅 스크립트. 글로벌 MCP 불필요(mcp.json 미생성; IDE 전용).
+ *   - CLI: V3 네이티브 JSON 에이전트(verbatim copy) + 스킬 디렉터리(skill:// progressive) +
+ *          게이트 훅 스크립트 + 독립 훅 파일(hooks/*.json, v1 스키마, PascalCase trigger).
+ *          글로벌 MCP 불필요(mcp.json 미생성; IDE 전용).
  *   - IDE: MD 에이전트 + 스킬→steering(manual) + 언어 rules(fileMatch) +
  *          core steering(always) + hooks(v1 JSON, IDE 1.0 포맷) + mcp.json(general+docker).
  */
@@ -86,7 +87,7 @@ const IDE_HOOKS = [
   },
   {
     id: 'git-pipeline-guard', name: 'Git Pipeline Guard (default-branch push gate)', event: 'preToolUse', matcher: 'shell', action: 'askAgent',
-    prompt: '이 도구 실행이 `git push`인지 먼저 판별하라. 아니면 아무 작업도 하지 말고 즉시 진행하라(보고 생략).\\n\\n`git push`라면 대상 브랜치가 기본 브랜치인지 판정한다: `git symbolic-ref --short refs/remotes/origin/HEAD`(없으면 실재하는 main/master). 명령에 refspec이 없으면 대상은 현재 브랜치(`git rev-parse --abbrev-ref HEAD`)다.\\n\\n대상이 기본 브랜치면 **차단하고** 파이프라인을 안내하라: `git switch -c <type>/<slug>` → `git push -u origin <branch>` → `gh pr create --fill` → `gh pr merge --squash --delete-branch`. 이미 기본 브랜치에서 커밋했다면 커밋을 새 브랜치로 옮기라고 안내한다.\\n\\n예외(차단하지 않음): 태그 전용 푸시(`--tags`), 브랜치 삭제(`--delete`/`-d`), 원격이 없는 로컬 전용 레포, 사용자가 "main에 직접"이라고 명시한 경우. 대상이 기본 브랜치가 아니면 조용히 진행하라.',
+    prompt: '이 도구 실행이 `git push`인지 먼저 판별하라. 아니면 아무 작업도 하지 말고 즉시 진행하라(보고 생략).\\n\\n`git push`라면 대상 브랜치가 기본 브랜치인지 판정한다: `git symbolic-ref --short refs/remotes/origin/HEAD`(없으면 실재하는 main/master). 명령에 refspec이 없으면 대상은 현재 브랜치(`git rev-parse --abbrev-ref HEAD`)다.\\n\\n대상이 기본 브랜치면 **차단하고** 파이프라인을 안내하라: `git switch -c <type>/<slug>` → `git push -u origin <branch>` → `gh pr create --fill` → `gh pr merge --squash --delete-branch`. 이미 기본 브랜치에서 커밋했다면 커밋을 새 브랜치로 옮기라고 안내한다.\\n\\n예외(차단하지 않음): refspec 없는 태그 전용 푸시(`git push --tags`), 기본 브랜치가 아닌 브랜치 삭제(`--delete`/`-d`), 원격이 없는 로컬 전용 레포, 사용자가 "main에 직접"이라고 명시한 경우. 기본 브랜치 삭제와 `--all`/`--mirror` 는 기본 브랜치 푸시로 본다. 대상이 기본 브랜치가 아니면 조용히 진행하라.',
   },
 ];
 
@@ -139,12 +140,13 @@ function crossReviewScriptOp(root, selection) {
 
 // ── CLI 티어 계획 ───────────────────────────────────────────
 /**
- * CLI 3.0(v3 엔진)용 독립 훅 파일 op 2개를 만든다.
- * v3 는 에이전트 JSON 안의 camelCase embedded hooks 를 쓰지 않고(구 포맷),
- * `.kiro/hooks/*.json`(version v1, PascalCase trigger) 독립 파일을 읽는다.
- * matcher 는 v3 도구 태그(write/shell), command 는 기존 게이트 스크립트를 그대로 실행.
+ * CLI V3 게이트 훅 파일 op 2개를 만든다.
+ * V3 는 에이전트 프로필 밖의 독립 `hooks/*.json`(version v1, PascalCase trigger)을 읽고,
+ * 글로벌(`~/.kiro/hooks/`) 훅은 모든 에이전트·서브에이전트 세션에 적용된다.
+ * matcher 는 V3 도구 태그(write = fs_write/fs_append/str_replace/delete_file/code,
+ * shell = execute_bash/execute_pwsh), command 는 게이트 스크립트를 그대로 실행한다.
  */
-function cliV3HookOps() {
+function cliHookOps() {
   const mk = (name, matcher, script, timeout) => ({
     type: 'content',
     destRel: `hooks/${name}.json`,
@@ -159,7 +161,7 @@ function cliV3HookOps() {
         enabled: true,
       }],
     }, null, 2) + '\n',
-    label: `hook ${name} (cli v3)`,
+    label: `hook ${name}`,
   });
   return [
     mk('pre-write-guard', 'write', 'pre-write-guard.sh', 5),
@@ -167,14 +169,7 @@ function cliV3HookOps() {
   ];
 }
 
-/** kiro-cli.json 원문에서 embedded hooks 필드를 제거한 content 를 반환(v3 전용). */
-function stripEmbeddedHooks(raw) {
-  const parsed = JSON.parse(raw);
-  delete parsed.hooks;
-  return JSON.stringify(parsed, null, 2) + '\n';
-}
-
-function planCli(selection, { root = ROOT, cliVersion = 2 } = {}) {
+function planCli(selection, { root = ROOT } = {}) {
   const ops = [];
   const postInstall = [];
 
@@ -206,28 +201,15 @@ function planCli(selection, { root = ROOT, cliVersion = 2 } = {}) {
   const ponytail = readSource(root, 'rules/common/ponytail.md');
   if (ponytail) ops.push({ type: 'content', destRel: 'steering/ponytail.md', content: stripFrontmatter(ponytail) + '\n', label: 'ponytail' });
 
-  // 5) 오케스트레이터(kiro-cli) 선택 시: 훅 스크립트 설치 + 기본 에이전트 지정
+  // 5) 오케스트레이터(kiro-cli) 선택 시: 게이트 스크립트 + 독립 훅 파일 + 기본 에이전트 지정
   if (selection.agents.some((a) => a.name === 'kiro-cli')) {
-    // 게이트 스크립트는 두 CLI 버전 공통 — 훅이 이 경로를 실행한다.
     for (const h of ['pre-write-guard.sh', 'pre-push-guard.sh']) {
       const src = path.join(root, 'agents/cli/hooks', h);
       if (fs.existsSync(src)) {
         ops.push({ type: 'copy', src, destRel: `hooks/${h}`, label: `hook ${h.replace(/\.sh$/, '')}` });
       }
     }
-    if (cliVersion === 3) {
-      // CLI 3.0: 훅은 독립 `.kiro/hooks/*.json`(v1 스키마, PascalCase trigger)로.
-      // 에이전트 JSON 의 camelCase embedded hooks 는 v3 가 읽지 않으므로 제거해
-      // 죽은 설정이 남지 않게 한다(조용한 미발화 방지).
-      ops.push(...cliV3HookOps());
-      for (const op of ops) {
-        if (op.destRel !== 'agents/kiro-cli.json') continue;
-        const raw = op.type === 'copy' ? fs.readFileSync(op.src, 'utf8') : op.content;
-        op.type = 'content';
-        op.content = stripEmbeddedHooks(raw);
-        delete op.src;
-      }
-    }
+    ops.push(...cliHookOps());
     postInstall.push('kiro-cli agent set-default kiro-cli');
   }
 
@@ -309,8 +291,7 @@ module.exports = {
   CORE_RULES,
   IDE_HOOKS,
   mcpJsonContent,
-  cliV3HookOps,
-  stripEmbeddedHooks,
+  cliHookOps,
   planCli,
   planIde,
   plan,

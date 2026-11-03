@@ -1,6 +1,6 @@
 # 스킬(Skill) 카탈로그
 
-도메인별로 정리된 134개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
+도메인별로 정리된 135개의 스킬 (아래는 주요 항목; 전체는 워크로드 태그로 선택 설치). 각 스킬은 수동 포함(manual-inclusion) 스티어링(Steering)으로 설치되며, Kiro 채팅에서 `#` 컨텍스트 키를 통해 필요할 때 로드합니다.
 
 ## 인프라(Infrastructure)
 
@@ -144,6 +144,7 @@ v2에서 RDBMS 설계/마이그레이션 스킬(mysql-guideline, postgres-guidel
 | 스킬 | 설명 |
 |-------|-------------|
 | article-writing | 기술 문서 구조, 초안 작성, 편집 |
+| readme-rule | README 배지 배너 — 프로젝트가 실제로 쓰는 기술만 배지로; 후원 배지는 git remote owner 가 `teinam` 일 때만 |
 | humanize-korean | AI가 쓴 한글 텍스트 윤문 — 10대 카테고리 70개 AI 티 패턴 탐지·제거, 내용 불변 (im-not-ai v2.3.2 이식) |
 | humanize-writing | 웹/장문 글쓰기의 AI 티(tell) 제거 + 실제 품질 향상 (영어/범용, humanize-korean의 짝) |
 | content-engine | 콘텐츠 파이프라인, 스케줄링, 멀티 플랫폼 |

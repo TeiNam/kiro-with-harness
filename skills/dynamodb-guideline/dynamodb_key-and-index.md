@@ -1,5 +1,15 @@
 # Key Design and Index Strategy
 
+## Contents
+
+- Partition Key (PK) Design Principles
+- Sort Key (SK) Design Principles
+- GSI (Global Secondary Index) Strategy
+- LSI (Local Secondary Index)
+- GSI vs LSI Selection Criteria
+- Projection Design (Index Size Optimization)
+- Key and Index Checklist
+
 ---
 
 ## Partition Key (PK) Design Principles

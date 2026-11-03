@@ -1,5 +1,22 @@
 # Build Optimization
 
+## Contents
+
+- Defaults Worth Setting
+- Minifier — Use `oxc`
+- Sourcemaps
+- Manual Chunks
+- Build Target
+- Asset Handling
+- CSS Code Splitting
+- Disable Compressed Size Reporting
+- Bundle Visualization
+- Output Naming
+- Pre-Build / Post-Build Hooks
+- Smoke Test Before Deploy
+- Stale Chunks After Deploy
+- Related
+
 Production output settings: minifier, sourcemaps, manual chunks, build target.
 
 ## Defaults Worth Setting

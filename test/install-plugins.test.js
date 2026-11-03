@@ -3,7 +3,7 @@
 /**
  * install-plugins.js (플러그인 브리지) 테스트.
  *
- * Kiro 에는 플러그인 시스템이 없어 Claude Code 플러그인을 Kiro 자산으로 변환한다.
+ * Kiro Powers 는 루트 plugin.json(Agent Plugins)만 받으므로 Claude Code 플러그인을 Kiro 자산으로 변환한다.
  * 이 브리지의 위험한 실패 모드는 두 가지다:
  *   1) 하네스 소유 스킬을 덮어써 사용자 자산을 잃는 것
  *   2) 변환이 잘못돼 Kiro 설치기가 스킬을 인식하지 못하는 것(조용히 무동작)

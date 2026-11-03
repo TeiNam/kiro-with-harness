@@ -1,5 +1,20 @@
 # Dependency Pre-Bundling
 
+## Contents
+
+- Why It Exists
+- When to Configure
+- Common Failures and Fixes
+- Glob Patterns for Deep Imports
+- Excluding Local Workspaces
+- Forcing Re-optimization on `package.json` Change
+- `optimizeDeps.esbuildOptions` — Custom esbuild Plugins
+- Diagnostic Logs
+- Avoid Auto-Forcing Common Deps
+- Don't Pre-Bundle Source Maps
+- Pitfalls
+- Related
+
 Vite uses esbuild to convert CJS/UMD deps to ESM and reduce request count. The cache lives at `node_modules/.vite/` and is the source of most "phantom" issues after dependency changes.
 
 ## Why It Exists

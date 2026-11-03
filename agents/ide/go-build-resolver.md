@@ -1,7 +1,7 @@
 ---
 name: go-build-resolver
 description: Go build, vet, and compilation error resolution specialist. Fixes build errors, go vet issues, and linter warnings with minimal changes. Use when Go builds fail.
-model: claude-sonnet-5
+model: claude-sonnet-5.5
 tools: ["read", "write", "shell"]
 ---
 

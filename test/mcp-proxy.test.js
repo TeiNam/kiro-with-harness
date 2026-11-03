@@ -186,7 +186,7 @@ test('devops 백엔드 버전은 핀되어 있다(floating latest 금지)', () =
 });
 
 test('devops 백엔드는 쓰기 권한을 켜지 않는다(read-biased 가드)', () => {
-  // 뮤테이션은 devops 에이전트의 plan→승인→execute 흐름(use_aws / aws CLI)이 담당한다.
+  // 뮤테이션은 devops 에이전트의 plan→승인→execute 흐름(aws CLI — V3 에는 use_aws 가 없다)이 담당한다.
   // aws-iam 은 서버 기본값이 read-only 이므로 `--allow-write` 가 없어야 하고,
   // aws-ecs 는 env 로 명시 차단한다. 둘 중 하나라도 뒤집히면 이 테스트가 실패한다.
   const cat = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp-configs/mcp-servers.json'), 'utf8'));

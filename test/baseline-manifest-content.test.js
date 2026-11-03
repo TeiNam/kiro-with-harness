@@ -171,9 +171,12 @@ test('agents/AGENTS.md에 위임 트리거·peer-reviewer·모델 정책 토큰�
   assert.match(text, /depends_on/, 'AGENTS.md는 depends_on 의존 기반 병렬 위임을 언급해야 한다');
   // peer-reviewer 사용 시점.
   assert.match(text, /peer-reviewer/, 'AGENTS.md는 peer-reviewer 사용 시점을 포함해야 한다');
-  // 모델 정책 요약 토큰.
-  assert.match(text, /claude-opus-5/, 'AGENTS.md는 claude-opus-5 모델 정책 토큰을 포함해야 한다');
-  assert.match(text, /claude-haiku-4\.5/, 'AGENTS.md는 claude-haiku-4.5 모델 정책 토큰을 포함해야 한다');
+  // 모델 정책 요약 토큰 — 정책 SSOT 의 anthropic 식별자와 같아야 한다(드리프트 방지).
+  const { tierIdentifier } = require('../scripts/lib/model-policy');
+  for (const tier of ['deep-reasoning', 'balanced', 'cost-optimized']) {
+    const id = tierIdentifier(tier);
+    assert.ok(text.includes(`\`${id}\``), `AGENTS.md는 ${id} 모델 정책 토큰을 포함해야 한다`);
+  }
 });
 
 // ---------------------------------------------------------------------------

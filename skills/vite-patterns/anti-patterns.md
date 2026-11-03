@@ -1,5 +1,12 @@
 # Anti-Patterns
 
+## Contents
+
+- Config Anti-Patterns
+- Process Anti-Patterns
+- Quick Audit Checklist
+- Related
+
 Frequent mistakes — config-level and process-level.
 
 ## Config Anti-Patterns

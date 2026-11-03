@@ -1,6 +1,6 @@
 ---
 name: redis-patterns
-description: Redis data structure patterns, caching strategies, distributed locks, rate limiting, pub/sub, and connection management for production applications.
+description: Use before running FLUSHALL, FLUSHDB, or bulk DEL/UNLINK on any Redis instance, and when designing Redis usage. Redis data structure patterns, caching strategies, distributed locks, rate limiting, pub/sub, and connection management for production applications.
 origin: harness
 workloads: [cloud]
 ---
@@ -21,6 +21,10 @@ Redis is an in-memory data structure store that supports strings, hashes, lists,
 - Setting up session or token storage
 - Using Pub/Sub or Redis Streams for messaging
 - Configuring Redis in production (pooling, eviction, clustering)
+
+## Safety
+
+Do not run `FLUSHALL`, `FLUSHDB`, or bulk `DEL`/`UNLINK` against a shared or production instance yourself. Show the scoped command and run it only after the user approves.
 
 ## Data Structure Cheat Sheet
 
@@ -338,6 +342,8 @@ Set via `redis.conf`: `maxmemory-policy allkeys-lru`
 | Ignoring connection pool limits | Connection exhaustion under load | Size pool to workload |
 | Not handling cache miss stampede | Thundering herd on cold start | Use locks or probabilistic early expiry |
 | `FLUSHALL` without thought | Wipes entire instance | Scope deletes by key pattern |
+
+Do not run `FLUSHALL`, `FLUSHDB`, or bulk `DEL`/`UNLINK` against a shared or production instance yourself. Show the scoped command and run it only after the user approves.
 
 ### Cache Miss Stampede Prevention
 

@@ -1,5 +1,11 @@
 # Event-Driven
 
+## Contents
+
+- Event Definition
+- In-Memory Event Bus
+- Redis Event Bus (Multi-Process)
+
 Loose coupling between services. Emits events and subscribers react to them.
 
 ## Event Definition

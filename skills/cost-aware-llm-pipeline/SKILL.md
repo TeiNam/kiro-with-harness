@@ -23,8 +23,8 @@ Patterns for controlling LLM API costs while maintaining quality. Combines model
 Automatically select cheaper models for simple tasks, reserving expensive models for complex ones.
 
 ```python
-MODEL_SONNET = "claude-sonnet-5"
-MODEL_HAIKU = "claude-haiku-4-5-20251001"
+MODEL_SONNET = "claude-sonnet-5-5"
+MODEL_HAIKU = "claude-haiku-4-5"
 
 _SONNET_TEXT_THRESHOLD = 10_000  # chars
 _SONNET_ITEM_THRESHOLD = 30     # items
@@ -152,14 +152,20 @@ def process(text: str, config: Config, tracker: CostTracker) -> tuple[Result, Co
     return parse_result(response), tracker
 ```
 
-## Pricing Reference (2025-2026)
+## Pricing Reference (2026-10)
 
-| Model | Input ($/1M tokens) | Output ($/1M tokens) | Relative Cost |
-|-------|---------------------|----------------------|---------------|
-| Haiku 4.5 | $0.80 | $4.00 | 1x |
-| Sonnet 4.6 | $3.00 | $15.00 | ~4x |
-| Opus 4.5 | $15.00 | $75.00 | ~19x |
-| Opus 4.8 | $15.00 | $75.00 | ~19x |
+| Model | Input ($/1M tokens) | Output ($/1M tokens) | Cache read ($/1M) | Relative Cost |
+|-------|---------------------|----------------------|-------------------|---------------|
+| Haiku 4.5 | $1.00 | $5.00 | $0.10 (0.1×) | 1x |
+| Sonnet 5.5 | $2.00 | $10.00 | $0.20 (0.1×) | ~2x |
+| Opus 5.5 | $4.00 | $20.00 | $0.20 (0.05×) | ~4x |
+| Fable 5.1 | $10.00 | $50.00 | $0.25 (0.025×) | ~10x |
+| Opus 5 / Opus 4.8 (legacy) | $5.00 | $25.00 | $0.50 (0.1×) | ~5x |
+
+Cache-read multipliers differ per model (0.05× Opus 5.5, 0.025× Fable 5.1, 0.1×
+everyone else), so on cache-heavy agent loops the Fable/Opus gap is mostly the
+output rate. Sonnet 5.5 keeps Sonnet 5's $2/$10 (the planned rise to
+$3/$15 was cancelled).
 
 ## Best Practices
 
